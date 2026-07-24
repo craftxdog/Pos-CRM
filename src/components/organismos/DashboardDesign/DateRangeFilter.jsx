@@ -10,10 +10,9 @@ export const DateRangeFilter = () => {
     dayjs("9999-12-31"),
   ]);
 
-  const [singleDate, setSingleDate] = useState(null);
   const [activeRange, setActiveRange] = useState("Todo");
 
-  const { setRangoFechas, fechaInicio, fechaFin,limpiarFechas } = useDashboardStore();
+  const { setRangoFechas, limpiarFechas } = useDashboardStore();
 
   //para mostrar todas las fechas
   const setSiempreRange = () => {
@@ -33,7 +32,6 @@ export const DateRangeFilter = () => {
     }
   };
   const handleSingleDateChange = (date) => {
-    setSingleDate(date);
     setDates([]);
     if (date) {
       setRangoFechas(date.format("YYYY-MM-DD"), date.format("YYYY-MM-DD"));
@@ -53,14 +51,20 @@ export const DateRangeFilter = () => {
   };
   const selectToday = () => {
     const today = dayjs().startOf("day");
-    setSingleDate(today);
     setDates([]);
     setRangoFechas(today.format("YYYY-MM-DD"), today.format("YYYY-MM-DD"));
     setActiveRange("Hoy");
   };
   useEffect(()=>{
-    setSiempreRange()
-  },[])
+    const startDate = dayjs("1900-01-01");
+    const endDate = dayjs("9999-12-31");
+    setDates([startDate, endDate]);
+    setActiveRange("Todo");
+    setRangoFechas(
+      startDate.format("YYYY-MM-DD"),
+      endDate.format("YYYY-MM-DD")
+    );
+  },[setRangoFechas])
 
   return (
     <Container>
@@ -68,42 +72,41 @@ export const DateRangeFilter = () => {
       <ButtonGroup>
         <TimeRangeButton
           onClick={setSiempreRange}
-          isActive={activeRange === "Todo"}
+          $isActive={activeRange === "Todo"}
         >
           Todo
         </TimeRangeButton>
         <TimeRangeButton
-          isActive={activeRange === "7 días"}
+          $isActive={activeRange === "7 días"}
           onClick={() => setPresetRange(7, "7 días")}
         >
           Últimos días 7 dias
         </TimeRangeButton>
         <TimeRangeButton
-          isActive={activeRange === "30 días"}
+          $isActive={activeRange === "30 días"}
           onClick={() => setPresetRange(30, "30 días")}
         >
           Últimos 30 días
         </TimeRangeButton>
         <TimeRangeButton
-          isActive={activeRange === "12 meses"}
+          $isActive={activeRange === "12 meses"}
           onClick={() => setPresetRange(365, "12 meses")}
         >
           Últimos 12 meses
         </TimeRangeButton>
-        <TimeRangeButton isActive={activeRange === "Hoy"} onClick={selectToday}>
+        <TimeRangeButton $isActive={activeRange === "Hoy"} onClick={selectToday}>
           Hoy
         </TimeRangeButton>
         <TimeRangeButton
-          isActive={activeRange === "Por Día"}
+          $isActive={activeRange === "Por Día"}
           onClick={() => setActiveRange("Por Día")}
         >
           Por Día
         </TimeRangeButton>
         <TimeRangeButton
-          isActive={activeRange === "Limpiar"}
+          $isActive={activeRange === "Limpiar"}
           onClick={()=>{
             setDates([])
-            setSingleDate(null)
             limpiarFechas()
             setActiveRange("Rango")
           }}
@@ -135,15 +138,15 @@ const ButtonGroup = styled.div``;
 
 const TimeRangeButton = styled.button`
   color: ${({ theme }) => theme.text};
-  background-color: ${({ isActive, theme }) =>
-    isActive ? theme.bg : "transparent"};
+  background-color: ${({ $isActive, theme }) =>
+    $isActive ? theme.bg : "transparent"};
   border: none;
   border-radius: 8px;
   padding: 8px 16px;
   font-size: 14px;
   cursor: pointer;
-  font-weight:${({ isActive, theme }) =>
-    isActive ? "bold" : "none"};
+  font-weight:${({ $isActive }) =>
+    $isActive ? "bold" : "normal"};
 `;
 const StyledRangePicker = styled(RangePicker)`
  background-color: ${({ theme }) => theme.bg};

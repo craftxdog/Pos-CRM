@@ -1,13 +1,22 @@
 import { create } from "zustand";
 
+const DEFAULT_DATE_RANGE = {
+  fechaInicio: "1900-01-01",
+  fechaFin: "9999-12-31",
+};
+
 export const useDashboardStore = create((set, get) => ({
-  fechaInicio: null,
-  fechaFin: null,
+  ...DEFAULT_DATE_RANGE,
   setRangoFechas: (inicio, fin) => set({ fechaInicio: inicio, fechaFin: fin }),
-  limpiarFechas: () => set({ fechaInicio: null, fechaFin: null }),
+  limpiarFechas: () => set(DEFAULT_DATE_RANGE),
   setFechasAnteriores: () => {
     const { fechaInicio, fechaFin } = get(); // Obtiene las fechas actuales del estado
-    if (!fechaInicio || !fechaFin) {
+    if (
+      !fechaInicio ||
+      !fechaFin ||
+      (fechaInicio === DEFAULT_DATE_RANGE.fechaInicio &&
+        fechaFin === DEFAULT_DATE_RANGE.fechaFin)
+    ) {
       console.warn("Fechas no definidas, no se puede calcular el rango anterior.");
       return { fechaAnteriorInicio: null, fechaAnteriorFin: null };
     }
