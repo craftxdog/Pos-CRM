@@ -1,10 +1,16 @@
 
 import styled from "styled-components";
-export function Checkbox1({isChecked,onChange}) {
+export function Checkbox1({isChecked = false,onChange, readOnly = false, label = ""}) {
   
   return (
     <Container>
-      <input checked={isChecked} onChange={onChange}  type="checkbox" />
+      <input
+        checked={Boolean(isChecked)}
+        onChange={onChange}
+        readOnly={readOnly || !onChange}
+        aria-label={label || "Estado"}
+        type="checkbox"
+      />
       <div className="checkmark"></div>
     </Container>
   );

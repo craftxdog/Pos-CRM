@@ -11,9 +11,9 @@ export function ListaDesplegable({
   refetch,
   funcioncrud,
 }) {
-  if (!state) return;
   const [selectedIndex, setSelectedIndex] = useState(0);
   const dropdownRef = useRef(null);
+  if (!state) return null;
   function seleccionar(p) {
     if (refetch) {
       refetch();

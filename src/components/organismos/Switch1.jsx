@@ -1,9 +1,10 @@
 import styled from "styled-components";
-export function Switch1({state,setState}) {
+export function Switch1({state = false,setState}) {
   return (
     <Container>
       <label className="switch">
-        <input checked={state} className="toggle" type="checkbox" onClick={setState} />
+        <input checked={Boolean(state)} className="toggle" type="checkbox"
+          onChange={setState} readOnly={!setState} />
         <span className="slider"></span>
         <span className="card-side"></span>
       </label>
