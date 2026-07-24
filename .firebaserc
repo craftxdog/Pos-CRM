@@ -1,8 +1,8 @@
 {
   "projects": {
-    "default": "pos-ventas-react",
-    "dist": "pos-ventas-react",
-    "pos-ventas-react": "pos-ventas-react"
+    "default": "active-self-control",
+    "dist": "active-self-control",
+    "active-self-control": "active-self-control"
   },
   "targets": {},
   "etags": {}
