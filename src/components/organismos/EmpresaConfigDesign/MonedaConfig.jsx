@@ -22,23 +22,23 @@ export const MonedaConfig = () => {
 
   const handleSelectCountry = (country) => {
     const countryInfo = getAllInfoByISO(country.iso);
-    setSelectedCountry({ ...country, currency: countryInfo.currency });
+    const selection = { ...country, currency: countryInfo.currency };
+    setSelectedCountry(selection);
     setSearch(country.name);
-  
-    mutate.mutateAsync();
+    mutate.mutate(selection);
    
   };
 
   const filteredCountries = isocodigos.filter((country) =>
     country.countryName.toLowerCase().includes(search)
   );
-   const editar = async () => {
+   const editar = async (country) => {
     const p = {
       id:dataempresa?.id,
-      simbolo_moneda: selectedCountry.symbol,
-      iso: selectedCountry.iso,
-      pais: selectedCountry.countryName,
-      currency:selectedCountry.currency
+      simbolo_moneda: country.symbol,
+      iso: country.iso,
+      pais: country.countryName,
+      currency:country.currency
     };
     await editarMonedaEmpresa(p);
   };
@@ -46,7 +46,7 @@ export const MonedaConfig = () => {
     mutationKey: "editar empresa moneda",
     mutationFn: editar,
     onSuccess: () => {
-      queryClient.invalidateQueries('mostrar empresa');
+      queryClient.invalidateQueries({ queryKey: ["mostrar empresa"] });
       toast.success("🎉 datos guardados");
     },
   });
@@ -81,13 +81,7 @@ export const MonedaConfig = () => {
         </Dropdown>
       )}
 
-      <Cardselect
-        flag={
-          selectedCountry
-            ? `https://flagcdn.com/${selectedCountry.iso.toLowerCase()}.svg`
-            : ""
-        }
-      >
+      <Cardselect>
         <article className="area1">
           <span className="titulo">Moneda actual</span>
         </article>

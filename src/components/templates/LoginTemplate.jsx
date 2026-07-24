@@ -2,19 +2,15 @@ import styled from "styled-components";
 import {
   Btn1,
   Footer,
-  Generarcodigo,
   InputText2,
   Linea,
-  Lottieanimacion,
   Title,
   useAuthStore,
 } from "../../index";
 import { v } from "../../styles/variables";
 import { Device } from "../../styles/breakpoints";
-import animacionlottie from "../../assets/navidad.json";
-import { NieveComponente } from "../organismos/NieveComponente";
 import { useForm } from "react-hook-form";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { toast, Toaster } from "sonner";
 import { useState } from "react";
 import { CardModos } from "../organismos/LoginDesign/CardModos";
@@ -22,10 +18,9 @@ import { VolverBtn } from "../moleculas/VolverBtn";
 export function LoginTemplate() {
   const [stateModos, setStateModos] = useState(true);
   const [stateModo, setStateModo] = useState("empleado");
-  const { loginGoogle, loginEmail, crearUserYLogin } = useAuthStore();
+  const { loginGoogle, loginEmail, loginInvitadoQA } = useAuthStore();
 
   const { register, handleSubmit } = useForm();
-  const queryClient = useQueryClient();
   const { mutate } = useMutation({
     mutationKey: ["iniciar con email"],
     mutationFn: loginEmail,
@@ -33,28 +28,25 @@ export function LoginTemplate() {
       toast.error(`Error: ${error.message}`);
     },
   });
-  const { mutate: mutateTester, isPending } = useMutation({
-    mutationKey: ["iniciar con email tester"],
-    mutationFn: crearUserYLogin,
+  const { mutate: mutateInvitado, isPending: isPendingInvitado } = useMutation({
+    mutationKey: ["iniciar modo invitado qa"],
+    mutationFn: loginInvitadoQA,
     onError: (error) => {
       toast.error(`Error: ${error.message}`);
     },
-    onSuccess: () => {
-      //queryClient.invalidateQueries();
-      // window.location.reload();
+  });
+  const { mutate: mutateGoogle, isPending: isPendingGoogle } = useMutation({
+    mutationKey: ["iniciar con google"],
+    mutationFn: loginGoogle,
+    onError: (error) => {
+      toast.error(`Error: ${error.message}`);
     },
   });
-  const manejadorEmailSesionTester = () => {
-    mutateTester({ email: "tester1@gmail.com", password: "123456" });
-  };
   const manejadorEmailSesion = (data) => {
     mutate({ email: data.email, password: data.password });
   };
   const manejarCrearUSerTester = () => {
-    const response = Generarcodigo({ id: 2 });
-    const gmail = "@gmail.com";
-    const correoCompleto = response.toLowerCase() + gmail;
-    mutateTester({ email: correoCompleto, password: "123456" });
+    mutateInvitado();
   };
   return (
     <Container>
@@ -62,7 +54,7 @@ export function LoginTemplate() {
       <div className="card">
         <ContentLogo>
           <img src={v.logo} />
-          <span>ada369 - POS VENTAS</span>
+          <span>ASC - ActiveSelfControl</span>
         </ContentLogo>
         <Title $paddingbottom="40px">Ingresar Modo</Title>
         {stateModos && (
@@ -126,7 +118,7 @@ export function LoginTemplate() {
                 <VolverBtn funcion={() => setStateModos(!stateModos)} />
                 <span>Modo super admin</span>
                 <Btn1
-                  disabled={isPending}
+                  disabled={isPendingInvitado}
                   funcion={manejarCrearUSerTester}
                   border="2px"
                   titulo="MODO INVITADO"
@@ -138,8 +130,9 @@ export function LoginTemplate() {
                   <span>0</span>
                 </Linea>
                 <Btn1
+                  disabled={isPendingGoogle}
                   border="2px"
-                  funcion={loginGoogle}
+                  funcion={() => mutateGoogle()}
                   titulo="Google"
                   bgcolor="#fff"
                   icono={<v.iconogoogle />}

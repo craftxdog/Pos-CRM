@@ -1,23 +1,26 @@
-import styled, { ThemeProvider } from "styled-components";
-import {
-  AuthContextProvider,
-  Dark,
-  GlobalStyles,
-  Light,
-  MyRoutes,
-  useThemeStore,
-  useUsuariosStore,
-} from "./index";
-import { Device } from "./styles/breakpoints";
-import { useEffect, useState } from "react";
+import { ThemeProvider } from "styled-components";
+import { lazy, Suspense, useEffect } from "react";
 import { useLocation } from "react-router-dom";
-import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
+import { AuthContextProvider } from "./context/AuthContent";
+import { Dark, Light } from "./styles/themes";
+import { GlobalStyles } from "./styles/GlobalStyles";
+import { MyRoutes } from "./routers/routes";
+import { useThemeStore } from "./store/ThemeStore";
+import { useUsuariosStore } from "./store/UsuariosStore";
+
+const ReactQueryDevtools = import.meta.env.DEV
+  ? lazy(() =>
+      import("@tanstack/react-query-devtools").then((module) => ({
+        default: module.ReactQueryDevtools,
+      })),
+    )
+  : null;
 
 function App() {
   const { setTheme } = useThemeStore();
   const { datausuarios } = useUsuariosStore();
   const location = useLocation();
-  const themeStyle = datausuarios?.tema ==="light"?Light:Dark
+  const themeStyle = datausuarios?.tema === "light" ? Light : Dark;
   useEffect(() => {
     if (location.pathname === "/login") {
       setTheme({
@@ -33,7 +36,7 @@ function App() {
         });
       }
     }
-  }, [datausuarios]);
+  }, [datausuarios, location.pathname, setTheme]);
   return (
     <ThemeProvider theme={themeStyle}>
       <AuthContextProvider>
@@ -41,7 +44,11 @@ function App() {
 
         <MyRoutes />
 
-        <ReactQueryDevtools initialIsOpen={true} />
+        {ReactQueryDevtools && (
+          <Suspense fallback={null}>
+            <ReactQueryDevtools initialIsOpen={false} />
+          </Suspense>
+        )}
       </AuthContextProvider>
     </ThemeProvider>
   );

@@ -1,4 +1,4 @@
-import { supabase } from "../index";
+import { supabase } from "./supabase.config";
 const tabla = "roles";
 export async function MostrarRolesXnombre(p) {
   const { data } = await supabase

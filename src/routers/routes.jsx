@@ -1,36 +1,43 @@
+import { lazy, Suspense } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
-import {
-  Categorias,
-  Configuraciones,
-  Home,
-  Login,
-  Productos,
-  ProtectedRoute,
-  POS,
-  Layout,
-  PageNot,
-  Empresa,
-  ClientesProveedores,
-} from "../index";
-import { BasicosConfig } from "../components/organismos/EmpresaConfigDesign/BasicosConfig";
-import { MonedaConfig } from "../components/organismos/EmpresaConfigDesign/MonedaConfig";
-import { MetodosPago } from "../pages/MetodosPago";
-import { Dashboard } from "../pages/Dashboard";
-import { SucursalesCaja } from "../pages/SucursalesCaja";
-import { Impresoras } from "../pages/Impresoras";
-import { Usuarios } from "../pages/Usuarios";
-import { Almacenes } from "../pages/Almacenes";
-import { Inventario } from "../pages/Inventario";
-import { ConfiguracionTicket } from "../pages/ConfiguracionTicket";
-import { MiPerfil } from "../pages/MiPerfil";
-import { SerializacionComprobantes } from "../pages/SerializacionComprobantes";
-import { Reportes } from "../pages/Reportes";
-import { ReportInventarios } from "../components/organismos/reports/ReportInventarios";
-import ReportVentas from "../components/organismos/reports/ReportVentas";
-import ReportStockBajoMinimo from "../components/organismos/reports/ReportStockBajoMinimo";
+import { ProtectedRoute } from "../hooks/ProtectedRoute";
+import { Layout } from "../hooks/Layout";
+import { Spinner1 } from "../components/moleculas/Spinner1";
+
+const lazyNamed = (loader, exportName) =>
+  lazy(() => loader().then((module) => ({ default: module[exportName] })));
+
+const Categorias = lazyNamed(() => import("../pages/Categorias"), "Categorias");
+const Configuraciones = lazyNamed(() => import("../pages/Configuraciones"), "Configuraciones");
+const Home = lazyNamed(() => import("../pages/Home"), "Home");
+const Login = lazyNamed(() => import("../pages/Login"), "Login");
+const Productos = lazyNamed(() => import("../pages/Productos"), "Productos");
+const POS = lazyNamed(() => import("../pages/POS"), "POS");
+const PageNot = lazyNamed(() => import("../components/templates/404"), "PageNot");
+const Empresa = lazyNamed(() => import("../pages/Empresa"), "Empresa");
+const ClientesProveedores = lazyNamed(() => import("../pages/ClientesProveedores"), "ClientesProveedores");
+const CRM = lazyNamed(() => import("../pages/CRM"), "CRM");
+const OnboardingCliente = lazyNamed(() => import("../pages/OnboardingCliente"), "OnboardingCliente");
+const BasicosConfig = lazyNamed(() => import("../components/organismos/EmpresaConfigDesign/BasicosConfig"), "BasicosConfig");
+const MonedaConfig = lazyNamed(() => import("../components/organismos/EmpresaConfigDesign/MonedaConfig"), "MonedaConfig");
+const MetodosPago = lazyNamed(() => import("../pages/MetodosPago"), "MetodosPago");
+const Dashboard = lazyNamed(() => import("../pages/Dashboard"), "Dashboard");
+const SucursalesCaja = lazyNamed(() => import("../pages/SucursalesCaja"), "SucursalesCaja");
+const Impresoras = lazyNamed(() => import("../pages/Impresoras"), "Impresoras");
+const Usuarios = lazyNamed(() => import("../pages/Usuarios"), "Usuarios");
+const Almacenes = lazyNamed(() => import("../pages/Almacenes"), "Almacenes");
+const Inventario = lazyNamed(() => import("../pages/Inventario"), "Inventario");
+const ConfiguracionTicket = lazyNamed(() => import("../pages/ConfiguracionTicket"), "ConfiguracionTicket");
+const MiPerfil = lazyNamed(() => import("../pages/MiPerfil"), "MiPerfil");
+const SerializacionComprobantes = lazyNamed(() => import("../pages/SerializacionComprobantes"), "SerializacionComprobantes");
+const Reportes = lazyNamed(() => import("../pages/Reportes"), "Reportes");
+const ReportInventarios = lazyNamed(() => import("../components/organismos/reports/ReportInventarios"), "ReportInventarios");
+const ReportVentas = lazy(() => import("../components/organismos/reports/ReportVentas"));
+const ReportStockBajoMinimo = lazy(() => import("../components/organismos/reports/ReportStockBajoMinimo"));
 
 export function MyRoutes() {
   return (
+    <Suspense fallback={<Spinner1 />}>
     <Routes>
       <Route
         path="/login"
@@ -40,6 +47,7 @@ export function MyRoutes() {
           </ProtectedRoute>
         }
       />
+      <Route path="/onboarding-cliente" element={<OnboardingCliente />} />
 
       <Route
         path="/configuracion"
@@ -150,6 +158,28 @@ export function MyRoutes() {
           </Layout>
         }
       />
+      {[
+        "/crm",
+        "/crm/clientes",
+        "/crm/pagos",
+        "/crm/horarios",
+        "/crm/trabajadores",
+        "/crm/whatsapp",
+        "/crm/permisos",
+        "/configuracion/crm",
+      ].map((path) => (
+        <Route
+          key={path}
+          path={path}
+          element={
+            <Layout>
+              <ProtectedRoute accessBy="authenticated">
+                <CRM />
+              </ProtectedRoute>
+            </Layout>
+          }
+        />
+      ))}
       <Route path="*" element={<PageNot />} />
       <Route
         path="/configuracion/clientes"
@@ -242,5 +272,6 @@ export function MyRoutes() {
         }
       />
     </Routes>
+    </Suspense>
   );
 }

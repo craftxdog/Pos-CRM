@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useThemeStore, useUsuariosStore } from "..";
+import { useThemeStore } from "../store/ThemeStore";
+import { useUsuariosStore } from "../store/UsuariosStore";
 import { toast } from "sonner";
 import { Dark, Light } from "../styles/themes";
 export const useEditarPerfilMutation = () => {
@@ -33,7 +34,7 @@ export const useEditarUserTheme = () => {
   return useMutation({
     mutationKey: ["editar theme"],
     mutationFn: async () => {
-      const { setTheme, theme } = useThemeStore();
+      const { setTheme, theme } = useThemeStore.getState();
       const themeUse = theme === "light" ? "dark" : "light";
       const themeStyle = datausuarios?.tema === "light" ? Dark : Light;
       setTheme({

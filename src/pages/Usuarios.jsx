@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { UsuariosTemplate } from "../components/templates/UsuariosTemplate";
 import { useEmpresaStore } from "../store/EmpresaStore";
 import { useAsignacionCajaSucursalStore } from "../store/AsignacionCajaSucursalStore";
-import { BarLoader } from "react-spinners";
+import { BarLoader } from "../components/ui/loaders/BarLoader";
 import {useRolesStore} from "../store/RolesStore"
 export const Usuarios = () => {
   const { dataempresa } = useEmpresaStore();

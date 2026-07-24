@@ -1,23 +1,20 @@
 import styled from "styled-components";
-import {
-  LinksArray,
-  SecondarylinksArray,
-  ToggleTema,
-  useAuthStore,
-} from "../../../index";
+import { CrmLinksArray, PosLinksArray, SecondarylinksArray } from "../../../utils/dataEstatica";
+import { ToggleTema } from "../ToggleTema";
+import { useAuthStore } from "../../../store/AuthStore";
 import { v } from "../../../styles/variables";
 import { NavLink } from "react-router-dom";
 import { Icon } from "@iconify/react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useTenantAccessStore } from "../../../store/TenantAccessStore";
 
 
 export function Sidebar({ state, setState }) {
   const {cerrarSesion} = useAuthStore()
-  const queryClient = useQueryClient()
-//  const salir =()=>{
-//   cerrarSesion()
-//   queryClient.clear();
-//  }
+  const { features } = useTenantAccessStore();
+  const sections = [
+    { label: "POS", enabled: features.pos, links: PosLinksArray },
+    { label: "CRM", enabled: features.crm, links: CrmLinksArray },
+  ];
   return (
     <Main $isopen={state.toString()}>
       <span className="Sidebarbutton" onClick={() => setState(!state)}>
@@ -28,9 +25,12 @@ export function Sidebar({ state, setState }) {
           <div className="imgcontent">
             <img src={v.logo} />
           </div>
-          <h2>Ada369 WEB</h2>
+          <h2>ASC</h2>
         </div>
-        {LinksArray.map(({ icon, label, to }) => (
+        {sections.filter((section) => section.enabled).map((section) => (
+          <section className="domain-section" key={section.label}>
+            <span className="domain-label">{section.label}</span>
+            {section.links.map(({ icon, label, to }) => (
           <div
             className={state ? "LinkContainer active" : "LinkContainer"}
             key={label}
@@ -47,6 +47,8 @@ export function Sidebar({ state, setState }) {
               </section>
             </NavLink>
           </div>
+            ))}
+          </section>
         ))}
         <Divider />
         {SecondarylinksArray.map(({ icon, label, to, color }) => (
@@ -145,6 +147,18 @@ const Container = styled.div`
     position: relative;
     text-transform: uppercase;
     font-weight: 700;
+  }
+  .domain-section + .domain-section {
+    border-top: 1px solid ${({ theme }) => theme.color2};
+    padding-top: 8px;
+  }
+  .domain-label {
+    display: ${({ $isopen }) => ($isopen === "true" ? "block" : "none")};
+    padding: 4px 20px;
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    opacity: 0.55;
+    font-weight: 800;
   }
 
   .Links {

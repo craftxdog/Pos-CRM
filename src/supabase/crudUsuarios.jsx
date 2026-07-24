@@ -1,5 +1,4 @@
-import Swal from "sweetalert2";
-import { supabase } from "../index";
+import { supabase } from "./supabase.config";
 import { EliminarPermisos, InsertarPermisos } from "./crudPermisos";
 import { usePermisosStore } from "../store/PermisosStore";
 const tabla = "usuarios";
@@ -11,6 +10,15 @@ export async function MostrarUsuarios(p) {
     .maybeSingle();
   if (error) {
     return;
+  }
+  return data;
+}
+export async function BootstrapUsuarioActual() {
+  const { data, error } = await supabase
+    .rpc("bootstrap_current_user")
+    .maybeSingle();
+  if (error) {
+    throw new Error(error.message);
   }
   return data;
 }
@@ -33,11 +41,14 @@ export async function InsertarUsuarios(p) {
 }
 
 export async function InsertarCredencialesUser(p) {
-  const { data, error } = await supabase.rpc("crearcredencialesuser", p);
+  const { data, error } = await supabase.functions.invoke("admin-create-user", {
+    body: { email: p.email, password: p.pass },
+  });
   if (error) {
     throw new Error(error.message);
   }
-  return data;
+  if (data?.error) throw new Error(data.error);
+  return data?.id;
 }
 export async function ObtenerIdAuthSupabase() {
   const {

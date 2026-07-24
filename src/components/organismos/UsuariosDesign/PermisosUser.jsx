@@ -7,7 +7,7 @@ import { useRolesStore } from "../../../store/RolesStore";
 import { usePermisosStore } from "../../../store/PermisosStore";
 import { useEffect } from "react";
 import { useAsignacionCajaSucursalStore } from "../../../store/AsignacionCajaSucursalStore";
-import { BarLoader } from "react-spinners";
+import { BarLoader } from "../../ui/loaders/BarLoader";
 import { useUsuariosStore } from "../../../store/UsuariosStore";
 export const PermisosUser = () => {
   const {
