@@ -24,9 +24,8 @@ export function TablaMovimientosCajaLive({
   setdataSelect,
   setAccion,
 }) {
-  if (data == null) return;
   const [pagina, setPagina] = useState(1);
-  const [datas, setData] = useState(data);
+  const [datas, setData] = useState(data ?? []);
   const [columnFilters, setColumnFilters] = useState([]);
   const [pagination, setPagination] = useState({
     pageIndex: 0, 

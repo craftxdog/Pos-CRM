@@ -2,274 +2,342 @@ import styled from "styled-components";
 import fondocuadros from "../../assets/fondocuadros.svg";
 import { Link } from "react-router-dom";
 import { useEffect } from "react";
-import { useModulosStore } from "../../index";
+import { Icon } from "@iconify/react/dist/iconify.js";
 import { usePermisosStore } from "../../store/PermisosStore";
-export function ConfiguracionesTemplate() {
-  const {dataPermisosConfiguracion} = usePermisosStore();
+
+function isImageIcon(icon) {
+  return /^https?:\/\//.test(icon || "") || /\.(svg|png|jpe?g|webp)$/i.test(icon || "");
+}
+
+function normalizeCard(item) {
+  return item?.modulos || item;
+}
+
+const GROUPS = [
+  {
+    id: "administracion",
+    title: "Administracion",
+    description: "Empresa, usuarios, roles y estructura principal.",
+  },
+  {
+    id: "pos",
+    title: "POS y comprobantes",
+    description: "Cobros, tickets, impresoras y numeracion.",
+  },
+  {
+    id: "inventario",
+    title: "Inventario y catalogo",
+    description: "Productos, categorias, almacenes y proveedores.",
+  },
+  {
+    id: "operacion",
+    title: "Operacion diaria",
+    description: "Clientes POS, sucursales y cajas.",
+  },
+  {
+    id: "crm",
+    title: "CRM",
+    description: "Clientes, pagos, horarios, permisos y mensajes.",
+  },
+];
+
+function resolveGroup(modulo) {
+  if (modulo?.grupo) return modulo.grupo;
+  if (modulo?.link?.includes("empresa") || modulo?.link?.includes("usuarios")) {
+    return "administracion";
+  }
+  if (
+    modulo?.link?.includes("ticket") ||
+    modulo?.link?.includes("impresoras") ||
+    modulo?.link?.includes("metodospago") ||
+    modulo?.link?.includes("serializacion")
+  ) {
+    return "pos";
+  }
+  if (
+    modulo?.link?.includes("almacenes") ||
+    modulo?.link?.includes("productos") ||
+    modulo?.link?.includes("categorias") ||
+    modulo?.link?.includes("proveedores")
+  ) {
+    return "inventario";
+  }
+  if (modulo?.link?.startsWith("/crm")) return "crm";
+  return "operacion";
+}
+
+export function ConfiguracionesTemplate({ items }) {
+  const { dataPermisosConfiguracion } = usePermisosStore();
+  const cards = (items || dataPermisosConfiguracion || []).map(normalizeCard);
+  const groupedCards = GROUPS.map((group) => ({
+    ...group,
+    items: cards.filter((modulo) => resolveGroup(modulo) === group.id),
+  })).filter((group) => group.items.length);
+
   useEffect(() => {
-    const handleMouseMove = (e) => {
-      document.querySelectorAll(".card").forEach((card) => {
+    const handleMouseMove = (event) => {
+      document.querySelectorAll(".config-card").forEach((card) => {
         const rect = card.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
-        card.style.setProperty("--mouse-x", `${x}px`);
-        card.style.setProperty("--mouse-y", `${y}px`);
+        card.style.setProperty("--mouse-x", `${event.clientX - rect.left}px`);
+        card.style.setProperty("--mouse-y", `${event.clientY - rect.top}px`);
       });
     };
-    const cardsContainer = document.getElementById("cards");
-    if (cardsContainer) {
-      cardsContainer.addEventListener("mousemove", handleMouseMove);
-      return () => {
-        cardsContainer.removeEventListener("mousemove", handleMouseMove);
-      };
-    }
+    const cardsContainer = document.getElementById("config-sections");
+    cardsContainer?.addEventListener("mousemove", handleMouseMove);
+    return () => cardsContainer?.removeEventListener("mousemove", handleMouseMove);
   }, []);
+
   return (
     <Container>
-      <div id="cards">
-        {dataPermisosConfiguracion.map((item, index) => {
-          return (
-            <Link
-              to={item.modulos.link}
-              className={item.modulos.state ? "card" : "card false"}
-              key={index}
-            >
-              <div className="card-content">
-                <div className="card-image">
-                  <img src={item.modulos.icono} />
-                </div>
+      <section className="config-header">
+        <span>ASC</span>
+        <h1>Configuracion</h1>
+        <p>Administra empresa, POS, inventario, usuarios, CRM y comunicaciones.</p>
+      </section>
 
-                <div className="card-info-wrapper">
-                  <div className="card-info">
-                    <i className="fa-duotone fa-unicorn"></i>
-                    <div className="card-info-title">
-                      <h3>{item.modulos.nombre}</h3>
-                      <h4>{item.modulos.descripcion}</h4>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </Link>
-          );
-        })}
+      <div id="config-sections">
+        {groupedCards.map((group) => (
+          <section className="config-section" key={group.id}>
+            <header>
+              <h2>{group.title}</h2>
+              <p>{group.description}</p>
+            </header>
+            <div className="config-cards">
+              {group.items.map((modulo, index) => {
+                const enabled = modulo.state ?? modulo.check ?? true;
+                const icon = modulo.icono || "flat-color-icons:settings";
+                return (
+                  <Link
+                    to={modulo.link || "#"}
+                    className={enabled ? "config-card" : "config-card disabled"}
+                    key={modulo.id || modulo.link || index}
+                    onClick={(event) => {
+                      if (!enabled) event.preventDefault();
+                    }}
+                  >
+                    <span className="icon-box">
+                      {isImageIcon(icon) ? <img src={icon} alt="" /> : <Icon icon={icon} />}
+                    </span>
+                    <span className="text-box">
+                      <strong>{modulo.nombre}</strong>
+                      <small>{modulo.descripcion}</small>
+                    </span>
+                  </Link>
+                );
+              })}
+            </div>
+          </section>
+        ))}
+
+        {!cards.length && <div className="empty-state">No hay modulos de configuracion habilitados para este usuario.</div>}
       </div>
     </Container>
   );
 }
-const Container = styled.div`
+
+const Container = styled.main`
+  min-height: calc(100vh - 50px);
+  margin-top: 50px;
+  padding: 24px;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  align-content: start;
+  gap: 16px;
+  overflow: auto;
+  background-color: ${({ theme }) => theme.bgtotal};
   background-image: url(${fondocuadros});
   background-size: contain;
   background-position: center;
-  background-repeat: no-repeat, repeat;
-  align-items: center;
-  background-color: ${({ theme }) => theme.bgtotal};
-  display: flex;
-  height:calc(100vh - 50px);
-   margin-top:50px;
-  justify-content: center;
-  width: 100%;
-  align-items: flex-start;
- 
-  #cards {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    max-width: 916px;
-    width: calc(100% - 20px);
-    padding: 10px;
+  background-repeat: no-repeat;
+  color: ${({ theme }) => theme.text};
+
+  .config-header,
+  #config-sections {
+    width: min(1180px, 100%);
+    margin: 0 auto;
   }
 
-  #cards:hover > .card::after {
-    opacity: 1;
-  }
+  .config-header {
+    display: grid;
+    gap: 6px;
 
-  .card {
-    background-color: rgba(255, 255, 255, 0.3);
-    border-radius: 10px;
-    cursor: pointer;
-    display: flex;
-    height: 260px;
-    flex-direction: column;
-    position: relative;
-    width: 300px;
-    &:hover {
-      .card-image {
-        img {
-          filter: grayscale(0);
-        }
-      }
+    span {
+      color: ${({ theme }) => theme.colorSubtitle};
+      font-size: 12px;
+      font-weight: 900;
+      letter-spacing: 0;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 30px;
+      line-height: 1.1;
+      letter-spacing: 0;
+    }
+
+    p {
+      margin: 0;
+      color: ${({ theme }) => theme.colorSubtitle};
+      font-size: 14px;
     }
   }
 
-  .card:hover::before {
-    opacity: 1;
+  #config-sections {
+    display: grid;
+    gap: 18px;
   }
 
-  .card::before,
-  .card::after {
-    border-radius: inherit;
-    content: "";
-    height: 100%;
-    left: 0px;
-    opacity: 0;
-    position: absolute;
-    top: 0px;
-    transition: opacity 500ms;
-    width: 100%;
+  .config-section {
+    display: grid;
+    gap: 10px;
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: end;
+      gap: 12px;
+      border-bottom: 1px solid ${({ theme }) => theme.color2};
+      padding-bottom: 8px;
+    }
+
+    h2 {
+      margin: 0;
+      font-size: 18px;
+      letter-spacing: 0;
+    }
+
+    p {
+      margin: 0;
+      color: ${({ theme }) => theme.colorSubtitle};
+      font-size: 13px;
+      text-align: right;
+    }
   }
 
-  .card::before {
-    background: radial-gradient(
-      800px circle at var(--mouse-x) var(--mouse-y),
-      rgba(255, 255, 255, 0.06),
-      transparent 40%
-    );
-    z-index: 3;
+  .config-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 12px;
   }
 
-  .card::after {
-    background: radial-gradient(
-      600px circle at var(--mouse-x) var(--mouse-y),
-      rgba(255, 255, 255, 0.4),
-      transparent 40%
-    );
-    z-index: 1;
+  .config-card {
+    min-height: 132px;
+    position: relative;
+    overflow: hidden;
+    display: grid;
+    align-content: start;
+    gap: 16px;
+    border: 1px solid ${({ theme }) => theme.color2};
+    border-radius: 8px;
+    padding: 16px;
+    background: ${({ theme }) => theme.bgcards};
+    color: ${({ theme }) => theme.text};
+    text-decoration: none;
+    transition: transform 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
+
+    &:hover {
+      transform: translateY(-2px);
+      border-color: ${({ theme }) => theme.color1};
+      box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+
+      .icon-box svg,
+      .icon-box img {
+        transform: scale(1.05);
+        filter: grayscale(0);
+      }
+    }
+
+    &::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      pointer-events: none;
+      background: radial-gradient(
+        520px circle at var(--mouse-x) var(--mouse-y),
+        rgba(35, 171, 241, 0.15),
+        transparent 42%
+      );
+      transition: opacity 0.2s ease;
+    }
+
+    &:hover::after {
+      opacity: 1;
+    }
   }
 
-  .card > .card-content {
-    background-color: ${({ theme }) => theme.bgcards};
-    border-radius: inherit;
-    display: flex;
-    flex-direction: column;
-    flex-grow: 1;
-    inset: 1px;
-    padding: 10px;
-    position: absolute;
-    z-index: 2;
+  .config-card.disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
   }
 
-  h1,
-  h2,
-  h3,
-  h4,
-  span {
-    color: ${({ theme }) => theme.colorsubtitlecard};
-    font-family: "Rubik", sans-serif;
-    font-weight: 600;
-    margin: 0px;
-  }
+  .icon-box {
+    width: 54px;
+    height: 54px;
+    display: grid;
+    place-items: center;
+    border: 1px solid ${({ theme }) => theme.color2};
+    border-radius: 8px;
+    background: ${({ theme }) => theme.bgtotal};
 
-  i {
-    color: ${({ theme }) => theme.colorsubtitlecard};
-  }
-
-  .card-image {
-    align-items: center;
-    display: flex;
-    height: 140px;
-    justify-content: center;
+    svg,
+    img {
+      width: 34px;
+      height: 34px;
+      object-fit: contain;
+      transition: 0.2s ease;
+    }
 
     img {
-      transition: 0.3s;
-      height: 70%;
       filter: grayscale(100%);
     }
   }
 
-  .card-info-wrapper {
-    align-items: center;
-    display: flex;
-    flex-grow: 1;
-    justify-content: flex-start;
-    padding: 0px 20px;
-  }
+  .text-box {
+    display: grid;
+    gap: 8px;
+    min-width: 0;
 
-  .card-info {
-    align-items: flex-start;
-    display: flex;
-    gap: 10px;
-  }
-
-  .card-info > i {
-    font-size: 1em;
-    height: 20px;
-    line-height: 20px;
-  }
-
-  .card-info-title > h3 {
-    font-size: 1.1em;
-    line-height: 20px;
-  }
-
-  .card-info-title > h4 {
-    color: ${({ theme }) => theme.colortitlecard};
-    font-size: 0.85em;
-    margin-top: 8px;
-    font-weight: 500;
-  }
-  #cards:hover > .card::after {
-    opacity: 1;
-  }
-  &::before {
-    background: radial-gradient(
-      800px circle at var(--mouse-x) var(--mouse-y),
-      rgba(255, 255, 255, 0.06),
-      transparent 40%
-    );
-    z-index: 3;
-  }
-
-  &::after {
-    background: radial-gradient(
-      600px circle at var(--mouse-x) var(--mouse-y),
-      ${(props) => props.$color0},
-      transparent 40%
-    );
-    z-index: 1;
-  }
-
-  @media (max-width: 1000px) {
-    align-items: flex-start;
-    overflow: auto;
-
-    #cards {
-      max-width: 1000px;
+    strong {
+      color: ${({ theme }) => theme.text};
+      font-size: 16px;
+      line-height: 1.2;
     }
 
-    .card {
-      flex-shrink: 1;
-      width: calc(50% - 4px);
+    small {
+      color: ${({ theme }) => theme.colorSubtitle};
+      font-size: 13px;
+      line-height: 1.35;
     }
   }
 
-  @media (max-width: 500px) {
-    .card {
-      height: 180px;
+  .empty-state {
+    min-height: 180px;
+    display: grid;
+    place-items: center;
+    grid-column: 1 / -1;
+    border: 1px solid ${({ theme }) => theme.color2};
+    border-radius: 8px;
+    background: ${({ theme }) => theme.bgcards};
+    color: ${({ theme }) => theme.text};
+    text-align: center;
+    padding: 18px;
+  }
+
+  @media (max-width: 700px) {
+    padding: 14px;
+
+    .config-section header {
+      align-items: start;
+      flex-direction: column;
+
+      p {
+        text-align: left;
+      }
     }
 
-    .card-image {
-      height: 80px;
-    }
-
-    .card-image > i {
-      font-size: 3em;
-    }
-
-    .card-info-wrapper {
-      padding: 0px 10px;
-    }
-
-    .card-info > i {
-      font-size: 0.8em;
-    }
-
-    .card-info-title > h3 {
-      font-size: 0.9em;
-    }
-
-    .card-info-title > h4 {
-      font-size: 0.8em;
-      margin-top: 4px;
+    .config-cards {
+      grid-template-columns: 1fr;
     }
   }
 `;

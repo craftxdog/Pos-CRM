@@ -1,5 +1,5 @@
 import Swal from "sweetalert2";
-import { supabase } from "../index";
+import { supabase } from "./supabase.config";
 const tabla = "ventas";
 export async function InsertarVentas(p) {
   const { error, data } = await supabase

@@ -1,16 +1,17 @@
-import Swal from "sweetalert2";
-import { supabase } from "../index";
+import { supabase } from "./supabase.config";
 const tabla = "clientes_proveedores";
 export async function InsertarClientesProveedores(p) {
-  const { error, data } = await supabase.rpc("insertarclientesproveedores", p);
-  if (error) {
-    Swal.fire({
-      icon: "error",
-      title: error.message,
-      text: error.message,
-    });
-    return;
-  }
+  const { error, data } = await supabase.from(tabla).insert({
+    nombres: p._nombres,
+    id_empresa: p._id_empresa,
+    direccion: p._direccion,
+    telefono: p._telefono,
+    email: p._email,
+    identificador_nacional: p._identificador_nacional,
+    identificador_fiscal: p._identificador_fiscal,
+    tipo: p._tipo,
+  }).select().single();
+  if (error) throw new Error(error.message);
   return data;
 }
 
@@ -40,24 +41,18 @@ export async function BuscarClientesProveedores(p) {
 export async function EliminarClientesProveedores(p) {
   const { error } = await supabase.from(tabla).delete().eq("id", p.id);
   if (error) {
-    Swal.fire({
-      icon: "error",
-      title: "Oops...",
-      text: error.message,
-    });
-    return;
+    throw new Error(error.message);
   }
 }
 export async function EditarClientesProveedores(p) {
-  const { error } = await supabase.rpc("editarclientesproveedores", p);
-  if (error) {
-    Swal.fire({
-      icon: "error",
-      title: error.message,
-      text: error.message,
-    });
-    return;
-  }
+  const { error } = await supabase.from(tabla).update({
+    nombres: p._nombres,
+    direccion: p._direccion,
+    telefono: p._telefono,
+    email: p._email,
+    identificador_nacional: p._identificador_nacional,
+    identificador_fiscal: p._identificador_fiscal,
+    tipo: p._tipo,
+  }).eq("id", p._id).eq("id_empresa", p._id_empresa);
+  if (error) throw new Error(error.message);
 }
-
-

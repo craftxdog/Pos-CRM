@@ -1,5 +1,5 @@
 
-import { supabase } from "../index";
+import { supabase } from "./supabase.config";
 const tabla = "productos";
 export async function InsertarProductos(p) {
   const { error, data } = await supabase.rpc("insertarproductos", p);

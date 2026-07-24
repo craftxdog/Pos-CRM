@@ -1,0 +1,8 @@
+node_modules
+dist
+.git
+.firebase
+.env
+*.log
+README.md
+supabase/.temp

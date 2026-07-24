@@ -5,11 +5,9 @@ export function Home() {
    const {datausuarios} = useUsuariosStore()
    const queryClient = useQueryClient()
 useEffect(()=>{
-  console.log("entrando")
   if(!datausuarios?.id){
     queryClient.invalidateQueries(["mostrar usuarios"])
     //  window.location.reload();
-     console.log("actualizado")
   }
  
 },[datausuarios])

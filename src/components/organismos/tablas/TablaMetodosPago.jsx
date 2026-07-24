@@ -25,9 +25,8 @@ export function TablaMetodosPago({
   setdataSelect,
   setAccion,
 }) {
-  if (data==null) return;
   const [pagina, setPagina] = useState(1);
-  const [datas, setData] = useState(data);
+  const [datas, setData] = useState(data ?? []);
   const [columnFilters, setColumnFilters] = useState([]);
 const queryClient = useQueryClient()
   const { eliminarMetodosPago } = useMetodosPagoStore();
@@ -66,14 +65,14 @@ const queryClient = useQueryClient()
       header: "Icono", 
       enableSorting: false,
       cell: (info) => (
-        <td data-title="Color" className="ContentCell">
+        <div data-title="Icono" className="ContentCell">
           {
             info.getValue()!="-"?(   <ImagenContent imagen={info.getValue()}/>):(<Icono>
               {<v.iconoimagenvacia/>}
             </Icono>)
           }
     
-        </td>
+        </div>
       ),
 
       enableColumnFilter: true,
@@ -102,12 +101,12 @@ const queryClient = useQueryClient()
       header: "",
       enableSorting: false,
       cell: (info) => (
-        <td data-title="Acciones" className="ContentCell">
+        <div data-title="Acciones" className="ContentCell">
           <ContentAccionesTabla
             funcionEditar={() => editar(info.row.original)}
             funcionEliminar={() => eliminar(info.row.original)}
           />
-        </td>
+        </div>
       ),
       enableColumnFilter: true,
       filterFn: (row, columnId, filterStatuses) => {

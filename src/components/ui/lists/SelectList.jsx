@@ -22,7 +22,7 @@ export const SelectList = ({
     <DropdownContainer>
       <DropdownHeader onClick={toggleDropdown}>
         {itemSelect?.[displayField]}
-        <Arrow isOpen={isOpen}><Icon icon="iconamoon:arrow-up-2-bold" width="24" height="24" /></Arrow>
+        <Arrow $isOpen={isOpen}><Icon icon="iconamoon:arrow-up-2-bold" width="24" height="24" /></Arrow>
       </DropdownHeader>
       {isOpen && (
         <DropdownList>
@@ -31,7 +31,7 @@ export const SelectList = ({
               <DropdownItem
                 key={index}
                 onClick={() => handleSelect(item)}
-                isSelected={item === selected}
+                $isSelected={item === selected}
               >
                 {item === selected && <CheckMark>✔</CheckMark>}
                 {item?.[displayField]}
@@ -65,7 +65,7 @@ const DropdownHeader = styled.div`
 `;
 
 const Arrow = styled.span`
-  transform: ${({ isOpen }) => (isOpen ? "rotate(180deg)" : "rotate(0deg)")};
+  transform: ${({ $isOpen }) => ($isOpen ? "rotate(180deg)" : "rotate(0deg)")};
   transition: transform 0.3s ease;
 `;
 
@@ -94,8 +94,8 @@ const DropdownItem = styled.div`
   align-items: center;
   gap: 8px;
   cursor: pointer;
-  background-color: ${({ isSelected }) =>
-    isSelected ? ( theme ) => theme.bg : "transparent"};
+  background-color: ${({ $isSelected }) =>
+    $isSelected ? ( theme ) => theme.bg : "transparent"};
   transition: background-color 0.2s ease;
 
   &:hover {

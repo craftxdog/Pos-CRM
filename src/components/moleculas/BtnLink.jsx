@@ -1,7 +1,6 @@
 import styled from "styled-components";
-import { Icono } from "../../index";
+import { Icono } from "../atomos/Icono";
 export function BtnLink({
-  funcion,
   titulo,
   bgcolor,
   icono,
@@ -21,7 +20,8 @@ export function BtnLink({
       $color={color}
       type="submit"
       $bgcolor={bgcolor}
-      href={url} target="_blank"
+      href={url}
+      rel="noreferrer"
       $border={border}
       $decorador={decorador}
       $height={height}

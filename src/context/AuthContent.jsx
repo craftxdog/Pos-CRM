@@ -1,46 +1,87 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { supabase } from "../supabase/supabase.config";
-import {
-  MostrarUsuarios,
-  InsertarEmpresa,
-  InsertarAdmin,
-  MostrarTipoDocumentos,
-  MostrarRolesXnombre,
-} from "../index";
-import Swal from "sweetalert2";
+import { BootstrapUsuarioActual } from "../supabase/crudUsuarios";
+import { useUsuariosStore } from "../store/UsuariosStore";
 
-const AuthContext = createContext();
+const defaultAuthContext = {
+  user: null,
+  loadingAuth: true,
+};
+const AuthContext = createContext(defaultAuthContext);
 export const AuthContextProvider = ({ children }) => {
-  const [user, setUser] = useState([]);
+  const [user, setUser] = useState(null);
+  const [loadingAuth, setLoadingAuth] = useState(true);
+  const { mostrarusuarios } = useUsuariosStore();
+
+  const insertarDatos = useCallback(async (id_auth) => {
+    if (window.location.pathname.startsWith("/onboarding-cliente")) {
+      return;
+    }
+    const usuario = await mostrarusuarios({ id_auth });
+    if (usuario) {
+      return usuario;
+    }
+    await BootstrapUsuarioActual();
+    return mostrarusuarios({ id_auth });
+  }, [mostrarusuarios]);
   
   useEffect(() => {
-    const { data } = supabase.auth.onAuthStateChange(async (event, session) => {
+    let isMounted = true;
+    let lastSessionKey;
+
+    const syncSession = async (session) => {
+      if (!isMounted) return;
+
       if (session == null) {
         setUser(null);
-        
-      } else {
-        setUser(session?.user);
-        
-        insertarDatos(session?.user.id, session?.user.email);
+        setLoadingAuth(false);
+        return;
       }
+
+      try {
+        await insertarDatos(session?.user.id);
+        if (!isMounted) return;
+        setUser(session?.user);
+      } catch (error) {
+        console.error("No se pudo sincronizar el usuario autenticado:", error);
+        if (!isMounted) return;
+        setUser(session?.user);
+      } finally {
+        if (isMounted) {
+          setLoadingAuth(false);
+        }
+      }
+    };
+
+    const scheduleSessionSync = (session) => {
+      const sessionKey = session?.access_token || "signed-out";
+      if (sessionKey === lastSessionKey) return;
+      lastSessionKey = sessionKey;
+
+      // Supabase recomienda no ejecutar otras operaciones del cliente dentro
+      // del lock de onAuthStateChange. Programarlas fuera evita deadlocks.
+      window.setTimeout(() => {
+        void syncSession(session);
+      }, 0);
+    };
+
+    supabase.auth.getSession().then(({ data }) => {
+      scheduleSessionSync(data.session);
+    });
+
+    const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+      scheduleSessionSync(session);
     });
     return () => {
-      data.subscription;
+      isMounted = false;
+      data.subscription.unsubscribe();
     };
-  }, []);
-  const insertarDatos = async (id_auth, correo) => {
-    const response = await MostrarUsuarios({ id_auth: id_auth }); 
-    if (response) {
-      return;
-    } else {
-      await InsertarEmpresa({ id_auth: id_auth, correo: correo });
-    }
-  };
+  }, [insertarDatos]);
 
   return (
-    <AuthContext.Provider value={{ user }}>{children}</AuthContext.Provider>
+    <AuthContext.Provider value={{ user, loadingAuth }}>{children}</AuthContext.Provider>
   );
 };
 export const UserAuth = () => {
-  return useContext(AuthContext);
+  return useContext(AuthContext) ?? defaultAuthContext;
 };

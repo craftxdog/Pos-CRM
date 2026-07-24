@@ -4,7 +4,7 @@ import { TablaMovimientosCajaLive } from "../tablas/TablaMovimientosCajaLive";
 import { useDetalleVentasStore, useEmpresaStore } from "../../..";
 import { useMovCajaStore } from "../../../store/MovCajaStore";
 import { useQuery } from "@tanstack/react-query";
-import { BarLoader } from "react-spinners";
+import { BarLoader } from "../../ui/loaders/BarLoader";
 import { useDashboardStore } from "../../../store/DashboardStore";
 import {TablaProductosTop10} from "../../organismos/tablas/TablaProductosTop10"
 export const CardProductosTopMonto = () => {

@@ -4,7 +4,7 @@ import { useCierreCajaStore } from "../../../store/CierreCajaStore";
 import { Device } from "../../../styles/breakpoints";
 import { Icon } from "@iconify/react/dist/iconify.js";
 import { useVentasStore } from "../../../store/VentasStore";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 export function MenuFlotante() {
   const [isOpen, setIsOpen] = useState(false);
@@ -12,7 +12,7 @@ export function MenuFlotante() {
   const { setStateIngresoSalida, setTipoRegistro, setStateCierraCaja } =
   useCierreCajaStore();
   const queryClient = useQueryClient()
-  const {mutate:mutateEliminarVenta,isPending} = useMutation({
+  const {mutate:mutateEliminarVenta} = useMutation({
     mutationKey:["eliminar venta"],
     mutationFn: ()=>{
       if(idventa>0){
@@ -39,10 +39,10 @@ export function MenuFlotante() {
   return (
     <Container>
       {/* Menú flotante que se expande al hacer clic */}
-      <MenuItems isOpen={isOpen}>
+      <MenuItems $isOpen={isOpen}>
         <MenuItem
-          isOpen={isOpen}
-          delay="0s"
+          $isOpen={isOpen}
+          $delay="0s"
           onClick={() => {
             toggleMenu();
             setStateIngresoSalida(true);
@@ -53,8 +53,8 @@ export function MenuFlotante() {
           <Text>Ingresar dinero</Text>
         </MenuItem>
         <MenuItem
-          isOpen={isOpen}
-          delay="0.1s"
+          $isOpen={isOpen}
+          $delay="0.1s"
           onClick={() => {
             toggleMenu();
             setStateIngresoSalida(true);
@@ -65,8 +65,8 @@ export function MenuFlotante() {
           <Text>Retirar dinero</Text>
         </MenuItem>
         <MenuItem
-          isOpen={isOpen}
-          delay="0.2s"
+          $isOpen={isOpen}
+          $delay="0.2s"
           onClick={() => {
             toggleMenu();
             setStateCierraCaja(true);
@@ -76,11 +76,11 @@ export function MenuFlotante() {
           <Text>Cerrar caja</Text>
         </MenuItem>
 
-        <MenuItem isOpen={isOpen} delay="0.4s">
+        <MenuItem $isOpen={isOpen} $delay="0.4s">
           <Icon icon="icon-park:preview-open" />
           <Text>Ver ventas del día</Text>
         </MenuItem>
-        <MenuItem isOpen={isOpen} delay="0.3s" onClick={mutateEliminarVenta}>
+        <MenuItem $isOpen={isOpen} $delay="0.3s" onClick={mutateEliminarVenta}>
           <Icon icon="flat-color-icons:delete-row" />
           <Text>Eliminar venta</Text>
         </MenuItem>
@@ -143,7 +143,7 @@ const MenuItems = styled.div`
   flex-direction: column;
   align-items: center;
   gap: 15px;
-  ${({ isOpen }) => !isOpen && "display: none;"}
+  ${({ $isOpen }) => !$isOpen && "display: none;"}
 `;
 
 const MenuItem = styled.div`
@@ -158,8 +158,8 @@ const MenuItem = styled.div`
   cursor: pointer;
   transition: background-color 0.3s ease;
   opacity: 0;
-  animation: ${({ isOpen }) => (isOpen ? slideUp : "none")} 0.4s ease forwards;
-  animation-delay: ${({ delay }) => delay};
+  animation: ${({ $isOpen }) => ($isOpen ? slideUp : "none")} 0.4s ease forwards;
+  animation-delay: ${({ $delay }) => $delay};
 
   &:hover {
     background-color: #c7c7c7;

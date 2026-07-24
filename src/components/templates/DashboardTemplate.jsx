@@ -28,6 +28,7 @@ export const DashboardTemplate = () => {
               value={totalCantidadDetalleVentas}
               title="Cant. Productos vendidos"
               icon={"fluent-mdl2:product-variant"}
+              format="number"
             />
           </ContentTotales>
           <ContentTotales>

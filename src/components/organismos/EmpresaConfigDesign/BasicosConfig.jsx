@@ -25,7 +25,8 @@ export const BasicosConfig = () => {
       nombre:dataempresa?.nombre,
       direccion:dataempresa?.direccion_fiscal,
       impuesto:dataempresa?.impuesto,
-      valor_impuesto: dataempresa?.valor_impuesto
+      valor_impuesto: dataempresa?.valor_impuesto,
+      precios_incluyen_impuesto: dataempresa?.precios_incluyen_impuesto !== false,
     }
   });
 
@@ -85,7 +86,7 @@ export const BasicosConfig = () => {
               />
               {errors.impuesto?.type === "required" && <p>Campo requerido</p>}
             </InputText2>
-            <Label>Valor impuesto</Label>
+            <Label>Porcentaje de impuesto (0 a 100)</Label>
             <InputText2>
               <input
                 step="0.01"
@@ -95,12 +96,18 @@ export const BasicosConfig = () => {
                 type="number"
                 {...register("valor_impuesto", {
                   required: true,
+                  min: 0,
+                  max: 100,
                 })}
               />
               {errors.valor_impuesto?.type === "required" && (
                 <p>Campo requerido</p>
               )}
             </InputText2>
+            <label className="tax-mode">
+              <input type="checkbox" {...register("precios_incluyen_impuesto")} />
+              <span>Los precios de venta ya incluyen el impuesto</span>
+            </label>
             <br></br>
             <Btn1 bgcolor="#0930bb" color="#fff" titulo="GUARDAR CAMBIOS" />
           </form>
@@ -124,6 +131,14 @@ const Container = styled.div`
   p {
     color: #f75510;
     font-weight: 700;
+  }
+  .tax-mode {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 14px;
+    font-weight: 650;
+    input { width: 18px; height: 18px; }
   }
   .advertencia {
     background-color: rgba(237, 95, 6, 0.2);

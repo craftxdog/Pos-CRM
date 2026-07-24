@@ -1,11 +1,10 @@
 import styled from "styled-components";
-import { Icono } from "../../index";
+import { Icono } from "../atomos/Icono";
 export function Btn1({
   funcion,
   titulo,
   bgcolor,
   icono,
-  url,
   color,
   disabled,
   width,
@@ -34,9 +33,7 @@ export function Btn1({
           </ContentImagen>
         )}
         {titulo && (
-          <a href={url} target="_blank">
-            <span className="btn">{titulo}</span>
-          </a>
+          <span className="btn">{titulo}</span>
         )}
       </section>
     </Container>

@@ -13,47 +13,119 @@ import {
 } from "../../../index";
 import animacionvacio from "../../../assets/vacioanimacion.json";
 import { Icon } from "@iconify/react/dist/iconify.js";
-import { useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Device } from "../../../styles/breakpoints";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { calculateLineAmounts } from "../../../utils/posCalculations";
 export function AreaDetalleventaPos() {
 
   const { dataempresa } = useEmpresaStore();
   const [editIndex, setEditIndex] = useState(null);
   const [newCantidad, setNewCantidad] = useState(1);
-  const { mostrardetalleventa, editarCantidadDetalleVenta,eliminardetalleventa } =
-    useDetalleVentasStore();
-    const queryClient = useQueryClient()
+  const {
+    mostrardetalleventa,
+    editarCantidadDetalleVenta,
+    eliminardetalleventa,
+    reemplazarDetalleLocal,
+  } = useDetalleVentasStore();
+  const queryClient = useQueryClient();
   const { idventa } = useVentasStore();
-  const EditarCantidadDv = async (data) => {
-    const p = {
-      _id: data.id,
-      _cantidad: data.cantidad,
-    };
-    await editarCantidadDetalleVenta(p);
-  };
-  const {mutate:mutateEditarCantidadDV} = useMutation({
-    mutationKey: ["editar cantidad detalle venta"],
-    mutationFn: EditarCantidadDv,
-    onError:(error)=>{
-      toast.error(`Error: ${error.message}`)
+  const quantityTimers = useRef(new Map());
+  const queryKey = useMemo(
+    () => ["mostrar detalle venta", { id_venta: idventa }],
+    [idventa]
+  );
+
+  const persistQuantity = useCallback(
+    async (item, quantity) => {
+      try {
+        await editarCantidadDetalleVenta({
+          _id: item.public_id || item.id,
+          _cantidad: quantity,
+        });
+      } catch (error) {
+        toast.error(`No se pudo guardar la cantidad: ${error.message}`);
+        await queryClient.invalidateQueries({ queryKey });
+      }
     },
-    onSuccess:()=>{
-      queryClient.invalidateQueries(["mostrar detalle venta"])
-    }
-  });
+    [editarCantidadDetalleVenta, queryClient, queryKey]
+  );
+
+  const updateQuantityImmediately = useCallback(
+    (item, requestedQuantity, { flush = false } = {}) => {
+      const quantity = Math.max(1, Number(requestedQuantity || 1));
+      const itemKey = item.public_id || item.id;
+      const currentItems = queryClient.getQueryData(queryKey) || [];
+      const nextItems = currentItems.map((current) => {
+        if ((current.public_id || current.id) !== itemKey) return current;
+        const amounts = calculateLineAmounts({
+          quantity,
+          salePrice: current.precio_venta,
+          purchasePrice: current.precio_compra,
+          taxRate: dataempresa?.valor_impuesto,
+          pricesIncludeTax: dataempresa?.precios_incluyen_impuesto !== false,
+          taxable: current.productos?.aplica_impuesto !== false,
+        });
+        return {
+          ...current,
+          cantidad: quantity,
+          subtotal: amounts.subtotal,
+          impuesto_total: amounts.tax,
+          total: amounts.total,
+          costo_total: amounts.cost,
+          ganancia: amounts.profit,
+        };
+      });
+
+      queryClient.setQueryData(queryKey, nextItems);
+      reemplazarDetalleLocal(nextItems);
+
+      clearTimeout(quantityTimers.current.get(itemKey));
+      const save = () => {
+        quantityTimers.current.delete(itemKey);
+        persistQuantity(item, quantity);
+      };
+      if (flush) save();
+      else quantityTimers.current.set(itemKey, setTimeout(save, 180));
+    },
+    [dataempresa, persistQuantity, queryClient, queryKey, reemplazarDetalleLocal]
+  );
+
+  useEffect(
+    () => () => {
+      quantityTimers.current.forEach((timer) => clearTimeout(timer));
+      quantityTimers.current.clear();
+    },
+    []
+  );
   const EliminarDV =async(p) =>{
-    await eliminardetalleventa({id:p.id})
+    const itemKey = p.public_id || p.id;
+    clearTimeout(quantityTimers.current.get(itemKey));
+    quantityTimers.current.delete(itemKey);
+    await eliminardetalleventa({ id: p.id, public_id: p.public_id });
   }
   const {mutate:mutateEliminarDV} = useMutation({
-    mutationKey: ["editar cantidad detalle venta"],
+    mutationKey: ["eliminar detalle venta"],
     mutationFn: EliminarDV,
-    onError:(error)=>{
-      toast.error(`Error: ${error.message}`)
+    onMutate: (item) => {
+      const previous = queryClient.getQueryData(queryKey) || [];
+      const itemKey = item.public_id || item.id;
+      const next = previous.filter(
+        (current) => (current.public_id || current.id) !== itemKey
+      );
+      queryClient.setQueryData(queryKey, next);
+      reemplazarDetalleLocal(next);
+      return { previous };
     },
-    onSuccess:()=>{
-      queryClient.invalidateQueries(["mostrar detalle venta"])
+    onError:(error)=>{
+      toast.error(`Error: ${error.message}`);
+    },
+    onSettled: (_data, error, _variables, context) => {
+      if (error && context?.previous) {
+        queryClient.setQueryData(queryKey, context.previous);
+        reemplazarDetalleLocal(context.previous);
+      }
     }
   });
   const handleEditClick = (index, cantidad) => {
@@ -65,7 +137,7 @@ export function AreaDetalleventaPos() {
     setNewCantidad(value);
   };
   const handleInputBlur = (item) => {
-    mutateEditarCantidadDV({id:item.id,cantidad:newCantidad})
+    updateQuantityImmediately(item, newCantidad, { flush: true });
     setEditIndex(null); // Salir del modo edición
   };
   const handleKeyDown = (e, item) => {
@@ -74,15 +146,18 @@ export function AreaDetalleventaPos() {
     }
   };
   const { data: items } = useQuery({
-    queryKey: ["mostrar detalle venta", { id_venta: idventa }],
+    queryKey,
     queryFn: () => mostrardetalleventa({ id_venta: idventa }),
+    enabled: Boolean(idventa),
+    staleTime: 30_000,
+    refetchOnWindowFocus: false,
   });
   return (
     <AreaDetalleventa className={items?.length > 0 ? "" : "animacion"}>
     {items?.length > 0 ? (
       items?.map((item, index) => {
         return (
-          <Itemventa key={index}>
+          <Itemventa key={item.public_id || item.id}>
             <article className="contentdescripcion">
               <span className="descripcion">{item.descripcion}</span>
               <span className="importe">
@@ -126,10 +201,7 @@ export function AreaDetalleventaPos() {
             <article className="contentbtn">
               <Btn1
                 funcion={() =>
-                  mutateEditarCantidadDV({
-                    id: item.id,
-                    cantidad: item.cantidad + 1,
-                  })
+                  updateQuantityImmediately(item, Number(item.cantidad) + 1)
                 }
                 width="20px"
                 height="35px"
@@ -160,10 +232,7 @@ export function AreaDetalleventaPos() {
 
               <Btn1
                 funcion={() =>
-                  mutateEditarCantidadDV({
-                    id: item.id,
-                    cantidad: item.cantidad - 1,
-                  })
+                  updateQuantityImmediately(item, Number(item.cantidad) - 1)
                 }
                 width="20px"
                 height="35px"

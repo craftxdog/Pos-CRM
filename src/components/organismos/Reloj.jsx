@@ -43,7 +43,6 @@ export function Reloj() {
       const hr = horaActual > 12 ? horaActual - 12 : horaActual;
       const am = horaActual < 12 ? "AM" : "PM";
 
-      const formattedHora = horaActual < 10 ? "0" + horaActual : horaActual;
       const formattedMinutos =
         minutosActual < 10 ? "0" + minutosActual : minutosActual;
       const formattedSegundos =
@@ -63,11 +62,11 @@ export function Reloj() {
 
   return (
     <Container>
-      <div class="cont-reloj">
-        <div class="reloj" id="reloj">
+      <div className="cont-reloj">
+        <div className="reloj" id="reloj">
          {<Icon icon="icon-park:alarm-clock" />} {hora}
         </div>
-        <div class="datos">
+        <div className="datos">
           <span id="fec_Datos">{fecha}</span>
         </div>
       </div>

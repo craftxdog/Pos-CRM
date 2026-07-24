@@ -27,7 +27,7 @@ export function Welcome() {
               target="_blank"
               href="https://t.me/+7sFLx37KM4xjYzkx"
               className="btn"
-              aria-label="submit"
+              aria-label="submit" rel="noreferrer"
             >
               <span>Grupo telegram del curso</span>
               <ion-icon name="arrow-forward-outline"></ion-icon>
@@ -36,7 +36,7 @@ export function Welcome() {
               target="_blank"
               href="https://www.udemy.com/course/punto-de-venta-con-react-full-stack/?couponCode=NOVIEMBREFIN2024"
               className="btn"
-              aria-label="submit"
+              aria-label="submit" rel="noreferrer"
             >
               <span>Inscribirse</span>
               <ion-icon name="arrow-forward-outline"></ion-icon>

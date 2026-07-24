@@ -1,15 +1,17 @@
 import styled from "styled-components";
-import { useState } from "react";
-import {
-  LinksArray,
-  SecondarylinksArray,
-  ToggleTema,
-} from "../../../index";
+import { CrmLinksArray, PosLinksArray, SecondarylinksArray } from "../../../utils/dataEstatica";
+import { ToggleTema } from "../ToggleTema";
 import { v } from "../../../styles/variables";
 import { NavLink } from "react-router-dom";
 import { Icon } from "@iconify/react";
+import { useTenantAccessStore } from "../../../store/TenantAccessStore";
 export const MenuMovil = ({ setState }) => {
-  const [state, setstate] = useState(true);
+  const state = true;
+  const { features } = useTenantAccessStore();
+  const sections = [
+    { label: "PUNTO DE VENTA", enabled: features.pos, links: PosLinksArray },
+    { label: "CRM", enabled: features.crm, links: CrmLinksArray },
+  ];
 
   return (
     <Container>
@@ -20,9 +22,12 @@ export const MenuMovil = ({ setState }) => {
             <div className="imgcontent">
               <img src={v.logo} />
             </div>
-            <h2>Ada369 3.0</h2>
+            <h2>ASC</h2>
           </div>
-          {LinksArray.map(({ icon, label, to }) => (
+          {sections.filter((section) => section.enabled).map((section) => (
+            <section key={section.label}>
+              <div className="domain-label">{section.label}</div>
+              {section.links.map(({ icon, label, to }) => (
             <div
               onClick={setState}
               className={state ? "LinkContainer active" : "LinkContainer"}
@@ -42,6 +47,8 @@ export const MenuMovil = ({ setState }) => {
                 </section>
               </NavLink>
             </div>
+              ))}
+            </section>
           ))}
           <Divider />
           {SecondarylinksArray.map(({ icon, label, to, color }) => (
@@ -65,24 +72,6 @@ export const MenuMovil = ({ setState }) => {
               </NavLink>
             </div>
           ))}
-          <div className={state ? "LinkContainer active" : "LinkContainer"}>
-            <div
-              className="Links"
-              onClick={() => SetstateDesplegableLinks(!stateDesplegableLinks)}
-            >
-              <section className={state ? "content open" : "content"}>
-                <Icon
-                  color="#CE82FF"
-                  className="Linkicon"
-                  icon="heroicons:ellipsis-horizontal-circle-solid"
-                />
-                <span className={state ? "label_ver" : "label_oculto"}>
-                  MÁS
-                </span>
-              </section>
-            </div>
-          </div>
-
           <ToggleTema />
         </Container>
       </Main>
@@ -144,6 +133,13 @@ const Container = styled.div`
     position: relative;
     text-transform: uppercase;
     font-weight: 700;
+  }
+  .domain-label {
+    padding: 14px 20px 4px;
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    opacity: 0.6;
+    font-weight: 800;
   }
 
   .Links {

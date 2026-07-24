@@ -23,10 +23,8 @@ export function TablaProductos({
   setdataSelect,
   setAccion,
 }) {
-  if (data == null) return;
-  const [pagina, setPagina] = useState(1);
-  const [datas, setData] = useState(data);
-  const [columnFilters, setColumnFilters] = useState([]);
+  const [, setPagina] = useState(1);
+  const [columnFilters] = useState([]);
 
   const { eliminarProductos } = useProductosStore();
   function eliminar(p) {
@@ -64,9 +62,9 @@ export function TablaProductos({
       accessorKey: "nombre",
       header: "Descripcion",
       cell: (info) => (
-        <td data-title="DESCRIPCION" className="ContentCell">
+        <div data-title="DESCRIPCION" className="ContentCell">
           <span>{info.getValue()}</span>
-        </td>
+        </div>
       ),
       enableColumnFilter: true,
       filterFn: (row, columnId, filterStatuses) => {
@@ -79,9 +77,9 @@ export function TablaProductos({
       accessorKey: "p_venta",
       header: "P. venta",
       cell: (info) => (
-        <td data-title="P. venta" className="ContentCell">
+        <div data-title="P. venta" className="ContentCell">
           <span>{info.getValue()}</span>
-        </td>
+        </div>
       ),
       enableColumnFilter: true,
       filterFn: (row, columnId, filterStatuses) => {
@@ -94,9 +92,9 @@ export function TablaProductos({
       accessorKey: "p_compra",
       header: "P. compra",
       cell: (info) => (
-        <td data-title="P. compra" className="ContentCell">
+        <div data-title="P. compra" className="ContentCell">
           <span>{info.getValue()}</span>
-        </td>
+        </div>
       ),
       enableColumnFilter: true,
       filterFn: (row, columnId, filterStatuses) => {
@@ -109,9 +107,9 @@ export function TablaProductos({
       accessorKey: "sevende_por",
       header: "Se vende por",
       cell: (info) => (
-        <td data-title="Se vende por" className="ContentCell">
+        <div data-title="Se vende por" className="ContentCell">
           <span>{info.getValue()}</span>
-        </td>
+        </div>
       ),
       enableColumnFilter: true,
       filterFn: (row, columnId, filterStatuses) => {
@@ -124,9 +122,9 @@ export function TablaProductos({
       accessorKey: "maneja_inventarios",
       header: "Inventarios",
       cell: (info) => (
-        <td data-title="Inventarios" className="ContentCell">
-          <Checkbox1 isChecked={info.getValue()}/>
-        </td>
+        <div data-title="Inventarios" className="ContentCell">
+          <Checkbox1 isChecked={info.getValue()} readOnly label="Maneja inventario" />
+        </div>
       ),
       enableColumnFilter: true,
       filterFn: (row, columnId, filterStatuses) => {
@@ -157,7 +155,7 @@ export function TablaProductos({
     },
   ];
   const table = useReactTable({
-    data,
+    data: data || [],
     columns,
     state: {
       columnFilters,
@@ -167,19 +165,6 @@ export function TablaProductos({
     getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
     columnResizeMode: "onChange",
-    meta: {
-      updateData: (rowIndex, columnId, value) =>
-        setData((prev) =>
-          prev.map((row, index) =>
-            index === rowIndex
-              ? {
-                  ...prev[rowIndex],
-                  [columnId]: value,
-                }
-              : row
-          )
-        ),
-    },
   });
   return (
     <>
@@ -371,7 +356,7 @@ const Container = styled.div`
           text-align: center;
         }
       }
-      td[data-title]:before {
+      [data-title]:before {
         content: attr(data-title);
         float: left;
         font-size: 0.8em;

@@ -40,7 +40,7 @@ export const useCierreCajaStore = create((set) => ({
     if (error) {
       throw new Error(error.message);
     }
-    return data;
+    return data || [];
   },
   mostrarCierreCajaPorUsuario: async (p) => {
     const { data, error } = await supabase

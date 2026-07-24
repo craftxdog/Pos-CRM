@@ -4,14 +4,11 @@ import { TotalPos } from "./TotalPos";
 import { Device } from "../../../styles/breakpoints";
 import { useVentasStore } from "../../../store/VentasStore";
 
-import { useEmpresaStore } from "../../../store/EmpresaStore";
 import { useMetodosPagoStore } from "../../../store/MetodosPagoStore";
-import { useQuery } from "@tanstack/react-query";
 import { useValidarPermisosOperativos } from "../../../hooks/useValidarPermisosOperativos";
 import { useDetalleVentasStore } from "../../../store/DetalleVentasStore";
 export function AreaTecladoPos() {
   const { setStatePantallaCobro, stateMetodosPago } = useVentasStore();
-  const { dataempresa } = useEmpresaStore();
   const { dataMetodosPago: datametodospago } = useMetodosPagoStore();
   const {datadetalleventa} = useDetalleVentasStore()
   const { validarPermiso } = useValidarPermisosOperativos();
@@ -28,7 +25,7 @@ export function AreaTecladoPos() {
   };
 
   return (
-    <Container stateMetodosPago={stateMetodosPago}>
+    <Container $stateMetodosPago={stateMetodosPago}>
       <section className="areatipopago">
         {datametodospago?.map((item, index) => {
           return (
@@ -75,7 +72,7 @@ const Container = styled.div`
     bottom: initial;
   }
   .areatipopago {
-    display: ${({ stateMetodosPago }) => (stateMetodosPago ? "flex" : "none")};
+    display: ${({ $stateMetodosPago }) => ($stateMetodosPago ? "flex" : "none")};
     flex-wrap: wrap;
     gap: 10px;
     padding: 10px;

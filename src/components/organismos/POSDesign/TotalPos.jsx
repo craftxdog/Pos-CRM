@@ -7,7 +7,7 @@ import {FormatearNumeroDinero} from "../../../utils/Conversiones"
 import {useValidarPermisosOperativos} from "../../../hooks/useValidarPermisosOperativos"
 export function TotalPos() {
   const {setStateMetodosPago} = useVentasStore()
-  const {total} = useDetalleVentasStore()
+  const { total, saleTotals } = useDetalleVentasStore()
   const {dataempresa} = useEmpresaStore()
   const {validarPermiso} = useValidarPermisosOperativos()
   // const textLength = total.length;
@@ -35,6 +35,10 @@ export function TotalPos() {
           <Btn1 border="2px"  bgcolor="#ffffff"   color="#207c33" funcion={validarPermisoCobrar} titulo="COBRAR" icono={<Icon icon="fluent-emoji:money-with-wings" />} />
          
         </section>
+        <div className="breakdown">
+          <small>Subtotal {FormatearNumeroDinero(saleTotals.subtotal,dataempresa?.currency,dataempresa?.iso)}</small>
+          <small>{dataempresa?.impuesto || "Impuesto"} {FormatearNumeroDinero(saleTotals.tax,dataempresa?.currency,dataempresa?.iso)}</small>
+        </div>
         <span>{FormatearNumeroDinero(total,dataempresa?.currency,dataempresa?.iso)}</span>
       
       </section> 
@@ -92,6 +96,13 @@ const Container = styled.div`
     margin-top: 10px;
     display: flex;
     flex-direction: column;
+    align-items: flex-end;
+    .breakdown {
+      display: flex;
+      gap: 10px;
+      font-size: 12px;
+      font-weight: 600;
+    }
     .contentTituloTotal {
       display: flex;
       align-items: center;

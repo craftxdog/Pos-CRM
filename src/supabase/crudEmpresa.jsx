@@ -1,5 +1,4 @@
-import Swal from "sweetalert2";
-import { supabase } from "../index";
+import { supabase } from "./supabase.config";
 const tabla = "empresa";
 export async function InsertarEmpresa(p) {
   const { data, error } = await supabase
@@ -14,7 +13,17 @@ export async function InsertarEmpresa(p) {
 }
 
 export async function MostrarEmpresaXidsuario(p) {
-  const { data } = await supabase.rpc("mostrarempresaxiduser", p).maybeSingle();
+  if (!p?.id_empresa && !p?._id_usuario) return null;
+
+  let query = supabase.from(tabla).select("*");
+  query = p.id_empresa
+    ? query.eq("id", p.id_empresa)
+    : query.eq("id_usuario", p._id_usuario);
+
+  const { data, error } = await query.maybeSingle();
+  if (error) {
+    throw new Error(`No se pudo cargar la empresa: ${error.message}`);
+  }
   return data;
 }
 export async function EditarMonedaEmpresa(p){
@@ -50,10 +59,11 @@ export async function EditarEmpresa(p,fileold,filenew){
 
 export async function EditarIconoStorage(id,file){
   const ruta = "empresa/"+id
-  await supabase.storage.from("imagenes").update(ruta,file,{
+  const { error } = await supabase.storage.from("imagenes").update(ruta,file,{
     cacheControl:"0",
     upsert:true
   })
+  if (error) throw new Error(`No se pudo actualizar el logo: ${error.message}`);
 }
 async function subirImagen (idempresa,file){
   const ruta = "empresa/"+idempresa

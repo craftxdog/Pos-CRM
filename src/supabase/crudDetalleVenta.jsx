@@ -1,5 +1,4 @@
-import Swal from "sweetalert2";
-import { supabase } from "../index";
+import { supabase } from "./supabase.config";
 const tabla = "detalle_venta";
 export async function InsertarDetalleVentas(p) {
   const { error } = await supabase.rpc("insertardetalleventa", p);
@@ -8,10 +7,15 @@ export async function InsertarDetalleVentas(p) {
   }
 }
 export async function EditarCantidadDetalleVenta(p) {
-  const { error } = await supabase.rpc("editarcantidaddv", p);
+  const isUuid = typeof p?._id === "string" && p._id.includes("-");
+  const { data, error } = await supabase.rpc(
+    isUuid ? "editar_cantidad_detalle_uuid" : "editarcantidaddv",
+    p
+  );
   if (error) {
     throw new Error(error.message);
   }
+  return data;
 }
 export async function MostrarDetalleVenta(p) {
   const { data, error } = await supabase
@@ -25,22 +29,30 @@ export async function MostrarDetalleVenta(p) {
 }
 
 export async function EliminarDetalleVentas(p) {
-  const { error } = await supabase.from(tabla).delete().eq("id", p.id);
+  const column = p.public_id ? "public_id" : "id";
+  const value = p.public_id || p.id;
+  const { error } = await supabase.from(tabla).delete().eq(column, value);
   if (error) {
     throw new Error(error.message);
   }
 }
 export async function Mostrartop5productosmasvendidosxcantidad(p) {
-  const { data } = await supabase.rpc(
+  const { data, error } = await supabase.rpc(
     "mostrartop5productosmasvendidosxcantidad",
     p
   );
-  return data;
+  if (error) {
+    throw new Error(error.message);
+  }
+  return data || [];
 }
 export async function Mostrartop10productosmasvendidosxmonto(p) {
-  const { data } = await supabase.rpc(
+  const { data, error } = await supabase.rpc(
     "mostrartop10productosmasvendidosxmonto",
     p
   );
-  return data;
+  if (error) {
+    throw new Error(error.message);
+  }
+  return data || [];
 }

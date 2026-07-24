@@ -17,6 +17,9 @@ const fetchWithTimeout = (url, timeout = 5000) => {
       });
   });
 };
+const printServiceUrl = import.meta.env.VITE_PRINT_SERVICE_URL ||
+  (navigator.userAgent.includes("Mac") ? null : "http://localhost:5075");
+export const getPrintServiceUrl = () => printServiceUrl;
 export const useImpresorasStore = create((set, get) => ({
   dataImpresorasPorCaja: null,
   selectImpresora: {
@@ -30,9 +33,10 @@ export const useImpresorasStore = create((set, get) => ({
     set((state) => ({ statePrintDirecto: !state.statePrintDirecto }));
   },
   mostrarDatosPc: async () => {
+    if (!printServiceUrl) return null;
     try {
       const response = await fetchWithTimeout(
-        "http://localhost:5075/api/get-local-ip",
+        `${printServiceUrl}/api/get-local-ip`,
         5000
       );
       if (!response.ok) {
@@ -45,7 +49,9 @@ export const useImpresorasStore = create((set, get) => ({
     }
   },
   mostrarListaImpresoraLocales: async () => {
-    const response = await fetch("http://localhost:5075/api/list");
+    if (!printServiceUrl) return [];
+    const response = await fetch(`${printServiceUrl}/api/list`).catch(() => null);
+    if (!response) return [];
     if (!response.ok) {
       return;
     }

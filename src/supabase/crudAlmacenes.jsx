@@ -1,5 +1,4 @@
-import Swal from "sweetalert2";
-import { supabase } from "../index";
+import { supabase } from "./supabase.config";
 const tabla = "almacen";
 
 
@@ -17,6 +16,7 @@ export async function InsertarAlmacen(p) {
 }
 
 export async function MostrarAlmacenXSucursal(p) {
+  if (!p?.id_sucursal) return null;
   const { data } = await supabase
     .from(tabla)
     .select()
@@ -25,6 +25,7 @@ export async function MostrarAlmacenXSucursal(p) {
   return data;
 }
 export async function MostrarAlmacenesXEmpresa(p) {
+  if (!p?.id_empresa) return [];
   const { data } = await supabase
     .from("sucursales")
     .select(`*, almacen(*)`)
@@ -32,6 +33,7 @@ export async function MostrarAlmacenesXEmpresa(p) {
   return data;
 }
 export async function MostrarAlmacenesXSucursal(p) {
+  if (!p?.id_sucursal) return [];
   const { data } = await supabase
     .from(tabla)
     .select()

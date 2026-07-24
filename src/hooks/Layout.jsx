@@ -1,69 +1,49 @@
 import styled from "styled-components";
-import {
-  Sidebar,
-  SwitchHamburguesa,
-  Spinner1,
-  useEmpresaStore,
-  useUsuariosStore,
-  MenuMovil,
-  useSucursalesStore,
-  useAuthStore,
-  UserAuth,
-} from "../index";
+import { Sidebar } from "../components/organismos/sidebar/Sidebar";
+import { MenuMovil } from "../components/organismos/sidebar/MenuMovil";
+import { SwitchHamburguesa } from "../components/moleculas/SwitchHamburguesa";
+import { Spinner1 } from "../components/moleculas/Spinner1";
+import { useEmpresaStore } from "../store/EmpresaStore";
+import { useUsuariosStore } from "../store/UsuariosStore";
+import { UserAuth } from "../context/AuthContent";
 import { useState } from "react";
 import { Device } from "../styles/breakpoints";
 import { useQuery } from "@tanstack/react-query";
-import { useAsignacionCajaSucursalStore } from "../store/AsignacionCajaSucursalStore";
-import { usePermisosStore } from "../store/PermisosStore";
 import { useMostrarSucursalAsignadasQuery } from "../tanstack/AsignacionesSucursalStack";
+
 export function Layout({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [stateMenu, setStateMenu] = useState(false);
 
-  const { mostrarusuarios } = useUsuariosStore();
+  const { datausuarios } = useUsuariosStore();
   const { mostrarempresa } = useEmpresaStore();
-    const { user } = UserAuth(); // Accedemos al contexto
-  const id_auth = user?.id; // Obtenemos el id_auth del usuario autenticado
-  const { mostrarSucursalCajaAsignada } = useAsignacionCajaSucursalStore();
-
+  const { user } = UserAuth() ?? { user: null };
+  const id_auth = user?.id;
 
   const {
-    data: datausuarios,
-    isLoading: isLoadingUsuarios,
-    error: errorUsuarios,
-    refetch: refetchUsuarios,
-  } = useQuery({
-    queryKey: ["mostrar usuarios"],
-    queryFn: () => mostrarusuarios({ id_auth: id_auth }),
-    refetchOnWindowFocus: false,
-    enabled: !!id_auth,
-  });
-
-  const {
-    data: dataSucursales,
     isLoading: isLoadingSucursales,
     error: errorSucursales,
   } = useMostrarSucursalAsignadasQuery();
 
   const {
-    data: dataEmpresa,
     isLoading: isLoadingEmpresa,
     error: errorEmpresa,
   } = useQuery({
-    queryKey: ["mostrar empresa", datausuarios?.id],
-    queryFn: () => mostrarempresa({ _id_usuario: datausuarios?.id }),
-    enabled: !!datausuarios,
+    queryKey: ["mostrar empresa", datausuarios?.id_empresa || datausuarios?.id],
+    queryFn: () =>
+      mostrarempresa({
+        id_empresa: datausuarios?.id_empresa,
+        _id_usuario: datausuarios?.id,
+      }),
+    enabled: !!datausuarios?.id,
     refetchOnWindowFocus: false,
   });
 
   // Consolidación de isLoading y error
   const isLoading =
-    isLoadingUsuarios || isLoadingSucursales || isLoadingEmpresa;
-  const error = errorUsuarios || errorSucursales || errorEmpresa;
+    (!!id_auth && !datausuarios?.id) || isLoadingSucursales || isLoadingEmpresa;
+  const error = errorSucursales || errorEmpresa;
 
-  //  if (datausuarios == null) {
-  //    refetchUsuarios();
-  //  }
   if (isLoading) {
     return <Spinner1 />;
   }

@@ -30,25 +30,26 @@ export const useMostrarSerializacionesVentasQuery = () => {
   });
 };
 export const useEditarSerializacionDefaultMutation = () => {
-    const queryClient = useQueryClient();
+  const queryClient = useQueryClient();
   const { itemSelect } = useGlobalStore();
   const { editarSerializacionDefault } = useSerializacionStore();
   return useMutation({
     mutationKey: ["editar serializacion default"],
-    mutationFn: async () => {
+    mutationFn: async (serializacion) => {
+      const selected = serializacion || itemSelect;
       const p = {
-        _id: itemSelect?.id,
-        _id_sucursal: itemSelect?.sucursal_id,
+        _id: selected?.id,
+        _id_sucursal: selected?.sucursal_id,
       };
       await editarSerializacionDefault(p);
     },
     onError: (error) => {
-        toast.error("Error al editar por default: " + error.message);
-      },
-      onSuccess: () => {
-        toast.success("Datos guardados");
-        queryClient.invalidateQueries(["mostrar serializaciones"])
-      }
+      toast.error("Error al editar por default: " + error.message);
+    },
+    onSuccess: () => {
+      toast.success("Datos guardados");
+      queryClient.invalidateQueries({ queryKey: ["mostrar serializaciones"] });
+    },
   });
 };
 export const useEditarSerializacionMutation = () => {
@@ -71,9 +72,8 @@ return useMutation({
     },
     onSuccess: () => {
       toast.success("Datos guardados");
-      queryClient.invalidateQueries(["mostrar serializaciones"])
-      setStateClose(false)
+      queryClient.invalidateQueries({ queryKey: ["mostrar serializaciones"] });
+      setStateClose(false);
     }
 });
 };
-
