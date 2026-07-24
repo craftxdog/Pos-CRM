@@ -27,10 +27,8 @@ export function TablaInventarios({
   setdataSelect,
   setAccion,
 }) {
-  if (data == null) return;
-  const [pagina, setPagina] = useState(1);
-  const [datas, setData] = useState(data);
-  const [columnFilters, setColumnFilters] = useState([]);
+  const [, setPagina] = useState(1);
+  const [columnFilters] = useState([]);
   const queryClient = useQueryClient();
   const { eliminarUsuarioAsignado } = useUsuariosStore();
   function eliminar(p) {
@@ -143,7 +141,7 @@ export function TablaInventarios({
     },
   ];
   const table = useReactTable({
-    data,
+    data: data || [],
     columns,
     state: {
       columnFilters,
@@ -153,19 +151,6 @@ export function TablaInventarios({
     getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
     columnResizeMode: "onChange",
-    meta: {
-      updateData: (rowIndex, columnId, value) =>
-        setData((prev) =>
-          prev.map((row, index) =>
-            index === rowIndex
-              ? {
-                  ...prev[rowIndex],
-                  [columnId]: value,
-                }
-              : row
-          )
-        ),
-    },
   });
   return (
     <>

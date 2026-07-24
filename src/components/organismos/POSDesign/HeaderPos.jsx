@@ -1,6 +1,5 @@
 import styled from "styled-components";
 import {
-  Btn1,
   InputText2,
   ListaDesplegable,
   Reloj,
@@ -11,24 +10,20 @@ import {
   useAlmacenesStore,
   useDetalleVentasStore,
 } from "../../../index";
-import { v } from "../../../styles/variables";
 import { Device } from "../../../styles/breakpoints";
-import { Icon } from "@iconify/react";
 import { useEffect, useRef, useState } from "react";
 
 import { useFormattedDate } from "../../../hooks/useFormattedDate";
 import { useCierreCajaStore } from "../../../store/CierreCajaStore";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { SelectList } from "../../ui/lists/SelectList";
 import { useStockStore } from "../../../store/StockStore";
 import { useEliminarVentasIncompletasMutate } from "../../../tanstack/VentasStack";
 
 
 export function HeaderPos() {
-  const [stateLectora, setStateLectora] = useState(true);
+  const [stateLectora] = useState(true);
   const [cantidadInput, setCantidadInput] = useState(1);
-  const [stateTeclado, setStateTeclado] = useState(false);
   const [stateListaproductos, setStateListaproductos] = useState(false);
   const { setBuscador, dataProductos, selectProductos, buscador } =
     useProductosStore();
@@ -40,20 +35,13 @@ export function HeaderPos() {
 
   const { dataempresa } = useEmpresaStore();
   const { dataCierreCaja } = useCierreCajaStore();
-  const { almacenSelectItem, dataAlmacenesXsucursal, setAlmacenSelectItem } =
-    useAlmacenesStore();
+  const { almacenSelectItem } = useAlmacenesStore();
   const { insertarDetalleVentas } = useDetalleVentasStore();
   const queryClient = useQueryClient();
 
   const buscadorRef = useRef(null);
   const fechaactual = useFormattedDate();
 
-  function focusclick() {
-    buscadorRef.current.focus();
-    buscadorRef.current.value.trim() === ""
-      ? setStateListaproductos(false)
-      : setStateListaproductos(true);
-  }
   function buscar(e) {
     setBuscador(e.target.value);
     let texto = e.target.value;
@@ -88,17 +76,19 @@ export function HeaderPos() {
   async function insertarDVentas(idventa) {
     const productosItemSelect =
       useProductosStore.getState().productosItemSelect;
+    const cantidad = parseFloat(cantidadInput) || 1;
+    const precioVenta = Number(productosItemSelect.precio_venta || 0);
     const pDetalleVentas = {
       _id_venta: idventa,
-      _cantidad: parseFloat(cantidadInput) || 1,
-      _precio_venta: productosItemSelect.precio_venta,
+      _cantidad: cantidad,
+      _precio_venta: precioVenta,
+      _total: cantidad * precioVenta,
       _descripcion: productosItemSelect.nombre,
       _id_producto: productosItemSelect.id,
       _precio_compra: productosItemSelect.precio_compra,
       _id_sucursal:  dataCierreCaja?.caja?.id_sucursal,
       _id_almacen: almacenSelectItem?.id,
     };
-    console.log("pDetalleVentas", pDetalleVentas);
     await insertarDetalleVentas(pDetalleVentas);
   }
   const { mutate: mutationInsertarVentas } = useMutation({
@@ -106,13 +96,15 @@ export function HeaderPos() {
     mutationFn: insertarventas,
     onError: (error) => {
       toast.error(`Error: ${error.message}`);
-      queryClient.invalidateQueries(["mostrar Stock XAlmacenes YProducto"]);
+      queryClient.invalidateQueries({
+        queryKey: ["mostrar Stock XAlmacenes YProducto"],
+      });
       if (dataStockXAlmacenesYProducto) {
         setStateModal(true);
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries(["mostrar detalle venta"]);
+      queryClient.invalidateQueries({ queryKey: ["mostrar detalle venta"] });
     },
   });
   //validar cantidad
@@ -120,15 +112,17 @@ export function HeaderPos() {
     const value = Math.max(0, parseFloat(e.target.value));
     setCantidadInput(value);
   };
-  const {mutate} = useEliminarVentasIncompletasMutate();
+  const { mutate } = useEliminarVentasIncompletasMutate();
   useEffect(() => {
     buscadorRef.current.focus();
-   mutate()
-  }, []);
+    mutate();
+  }, [mutate]);
+
   useEffect(() => {
-    let timeout;
     const texto = buscador.trim();
     const isCodigoDeBarras = /^[0-9]{3,}$/.test(texto);
+    let timeout;
+
     if (isCodigoDeBarras) {
       setStateListaproductos(false);
       timeout = setTimeout(() => {
@@ -153,7 +147,8 @@ export function HeaderPos() {
         setStateListaproductos(false);
       }
     }
-  }, [buscador]);
+    return () => clearTimeout(timeout);
+  }, [buscador, dataProductos, mutationInsertarVentas, selectProductos, setBuscador]);
   return (
     <Header>
       <ContentSucursal>

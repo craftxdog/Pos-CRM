@@ -1,5 +1,5 @@
 import Swal from "sweetalert2";
-import { supabase } from "../index";
+import { supabase } from "./supabase.config";
 const tabla = "categorias";
 export async function InsertarCategorias(p, file) {
   const { error, data } = await supabase.rpc("insertarcategorias", p);

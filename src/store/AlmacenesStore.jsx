@@ -7,7 +7,7 @@ import {
   InsertarAlmacen,
   EditarAlmacen,
   MostrarAlmacenesXSucursal,
-} from "../index";
+} from "../supabase/crudAlmacenes";
 
 export const useAlmacenesStore = create((set, get) => ({
   stateAlmacen: false,

@@ -1,15 +1,6 @@
 import styled from "styled-components";
-import { InputText2 } from "../../formularios/InputText2";
-import { Btn1 } from "../../../moleculas/Btn1";
-import { useState } from "react";
-import { useUsuariosStore } from "../../../../store/UsuariosStore";
-
 import { useCierreCajaStore } from "../../../../store/CierreCajaStore";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { toast, Toaster } from "sonner";
-import { useFormattedDate } from "../../../../hooks/useFormattedDate";
-import { useMetodosPagoStore } from "../../../../store/MetodosPagoStore";
-import { useMovCajaStore } from "../../../../store/MovCajaStore";
+import { Toaster } from "sonner";
 import { useAsignacionCajaSucursalStore } from "../../../../store/AsignacionCajaSucursalStore";
 import { CardListCajas } from "./CardListCajas";
 import { Device } from "../../../../styles/breakpoints";
@@ -33,7 +24,7 @@ export function PantallaAperturaCaja() {
           let aperturaActiva = null;
           if (Array.isArray(dataCierreCajaPorEmpresa)) {
             aperturaActiva = dataCierreCajaPorEmpresa.find(
-              (a) => a.id_caja === item.id
+              (a) => a.id_caja === item.id_caja
             );
             state = Boolean(aperturaActiva);
           }

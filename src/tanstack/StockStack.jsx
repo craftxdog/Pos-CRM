@@ -29,7 +29,7 @@ export const useMostrarStockXAlmacenesYProductoQuery = () => {
         id_producto: productosItemSelect?.id,
         id_almacen: almacenSelectItem?.id,
       }),
-    enabled: !!almacenSelectItem,
+    enabled: !!almacenSelectItem?.id && !!productosItemSelect?.id,
     refetchOnWindowFocus: false,
   });
 };
@@ -53,7 +53,7 @@ export const useMostrarStockXAlmacenYProductoQuery = () => {
         id_almacen: almacenSelectItem?.id,
         id_producto: productosItemSelect?.id,
       }),
-    enabled: !!dataSucursales,
+    enabled: !!almacenSelectItem?.id && !!productosItemSelect?.id,
   });
 };
 export const useMostrarStockPorProductoQuery = () => {
@@ -74,7 +74,6 @@ export const useMostrarStockPorProductoQuery = () => {
   });
 };
 export const useInsertarStockMutation = () => {
-  const { itemSelect, setStateClose } = useGlobalStore();
   const queryClient = useQueryClient();
   const { insertarProductos, productosItemSelect } = useProductosStore();
   const { categoriaItemSelect } = useCategoriasStore();

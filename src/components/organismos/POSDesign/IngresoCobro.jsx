@@ -21,6 +21,7 @@ import { useFormattedDate } from "../../../hooks/useFormattedDate";
 import { useAsignacionCajaSucursalStore } from "../../../store/AsignacionCajaSucursalStore";
 import { useSerializacionStore } from "../../../store/SerializacionStore";
 import { useImpresorasStore } from "../../../store/ImpresorasStore";
+import { getPrintServiceUrl } from "../../../store/ImpresorasStore";
 import ticket from "../../../reports/TicketVenta";
 import { RegistrarClientesProveedores } from "../formularios/RegistrarClientesProveedores";
 import { useGlobalStore } from "../../../store/GlobalStore";
@@ -196,6 +197,11 @@ export const IngresoCobro = forwardRef((props, ref) => {
     await ticket("print", p);
   };
   const imprimirDirectoTicket = async (p) => {
+    const printServiceUrl = getPrintServiceUrl();
+    if (!printServiceUrl) {
+      toast.info("En macOS se abrirá el diálogo de impresión del sistema.");
+      return imprimirConVentanaEmergente(p);
+    }
     if (dataImpresorasPorCaja?.name === "-") {
       return toast.error(
         "Impresora no reconocida, configura tu impresora desde modulo de configuración"
@@ -217,7 +223,7 @@ export const IngresoCobro = forwardRef((props, ref) => {
     const formData = new FormData();
     formData.append("file", file);
     formData.append("printerName", dataImpresorasPorCaja?.name);
-    const responseApi = await fetch("http://localhost:5075/api/print-ticket", {
+    const responseApi = await fetch(`${printServiceUrl}/api/print-ticket`, {
       method: "POST",
       body: formData,
     });
@@ -383,6 +389,7 @@ export const IngresoCobro = forwardRef((props, ref) => {
     </Container>
   );
 });
+IngresoCobro.displayName = "IngresoCobro";
 const Container = styled.div`
   position: relative;
   box-sizing: border-box;

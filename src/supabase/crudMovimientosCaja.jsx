@@ -8,17 +8,25 @@ export async function InsertarMovCaja(p) {
 }
 export async function MostrarEfectivoSinVentasMovcierrecaja(p) {
 
-  const { data } = await supabase.rpc("sumarefectivosinventasmovcierrecaja",p)
-  return data;
+  const { data, error } = await supabase.rpc("sumarefectivosinventasmovcierrecaja",p)
+  if (error) {
+    throw new Error(error.message);
+  }
+  return data || [];
 }
 export async function MostrarVentasMetodoPagoMovCaja(p) {
   
-  const { data } = await supabase.rpc("sumarventasmetodopagomovcierrecaja",p)
-  return data;
+  const { data, error } = await supabase.rpc("sumarventasmetodopagomovcierrecaja",p)
+  if (error) {
+    throw new Error(error.message);
+  }
+  return data || [];
 }
 export async function Mostrarmovimientoscajalive(p) {
   
-  const { data } = await supabase.rpc("mostrarmovimientoscajalive",p)
-  return data;
+  const { data, error } = await supabase.rpc("mostrarmovimientoscajalive",p)
+  if (error) {
+    throw new Error(error.message);
+  }
+  return data || [];
 }
-

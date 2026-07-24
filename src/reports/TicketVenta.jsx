@@ -1,5 +1,4 @@
 import { numeroALetras, urlToBase64 } from "../utils/Conversiones";
-import createPdf from "../utils/CreatePdf";
 const TicketVenta = async (output, data) => {
   const fechaCompleta = data.dataventas?.fecha;
   const fechaObj = new Date(fechaCompleta);
@@ -72,7 +71,7 @@ const TicketVenta = async (output, data) => {
       {},
       {},
     ],
-    ...data.metodosPago?.flatMap((item) =>
+    ...(data.metodosPago?.flatMap((item) =>
       item.tipo === "Efectivo"
         ? [
             [
@@ -116,7 +115,7 @@ const TicketVenta = async (output, data) => {
               {},
             ],
           ]
-    ),
+    ) ?? []),
   ];
 
   const content = [
@@ -224,10 +223,10 @@ const TicketVenta = async (output, data) => {
         body: productTableBody,
       },
       layout: {
-        hLineWidth: function (i, node) {
+        hLineWidth: function (i) {
           return i == 2 ? 0.5 : 0;
         },
-        vLineWidth: function (i, node) {
+        vLineWidth: function () {
           return 0;
         },
         hLineColor: function () {
@@ -323,8 +322,7 @@ const TicketVenta = async (output, data) => {
           style: "text",
         },
         {
-          text: "https://codigo369web.com/",
-          link: "https://codigo369web.com/",
+          text: "ActiveSelfControl",
           style: "link",
         },
       ],
@@ -377,6 +375,7 @@ const TicketVenta = async (output, data) => {
       alignment: "center",
     },
   };
+  const { default: createPdf } = await import("../utils/CreatePdf");
   const response = await createPdf({ content, styles }, output);
   return response;
 };

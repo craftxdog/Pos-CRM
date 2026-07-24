@@ -33,7 +33,8 @@ export const useMostrarAlmacenesXSucursalSelectQuery = () => {
       mostrarAlmacenesXSucursal({
         id_sucursal: sucursalesItemSelect?.id,
       }),
-   
+    enabled: !!sucursalesItemSelect?.id,
+    refetchOnWindowFocus: false,
   });
 };
 export const useMostrarAlmacenesXSucursalInventarioQuery = () => {

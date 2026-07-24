@@ -1,43 +1,41 @@
 import styled from "styled-components";
-import { CrudTemplate } from "../components/templates/CrudTemplate";
 import { RegistrarInventario } from "../components/organismos/formularios/RegistrarInventario";
 import { TablaInventarios } from "../components/organismos/tablas/TablaInventarios";
 import { useQuery } from "@tanstack/react-query";
 
-import { useMovStockStore } from "../store/MovStockStore";
 import { useEmpresaStore } from "../store/EmpresaStore";
 import { useProductosStore } from "../store/ProductosStore";
 import { Title } from "../components/atomos/Title";
 import { Btn1 } from "../components/moleculas/Btn1";
-import { useState } from "react";
 import { BuscadorList } from "../components/ui/lists/BuscadorList";
 import { useGlobalStore } from "../store/GlobalStore";
+import { BuscarProductos } from "../supabase/crudProductos";
+import { MostrarMovStock } from "../supabase/crudMovStock";
 export const Inventario = () => {
-  const { mostrarMovStock } = useMovStockStore();
-  const { dataempresa } = useEmpresaStore();
-  const { buscarProductos, buscador } = useProductosStore();
-  const { productosItemSelect, setBuscador, selectProductos } =
-    useProductosStore();
-  const [openRegistro, SetopenRegistro] = useState(false);
-  const { setStateClose, setAccion, stateClose, accion } = useGlobalStore();
+  const dataempresa = useEmpresaStore((state) => state.dataempresa);
+  const buscador = useProductosStore((state) => state.buscador);
+  const productosItemSelect = useProductosStore(
+    (state) => state.productosItemSelect,
+  );
+  const setBuscador = useProductosStore((state) => state.setBuscador);
+  const selectProductos = useProductosStore((state) => state.selectProductos);
+  const setStateClose = useGlobalStore((state) => state.setStateClose);
+  const setAccion = useGlobalStore((state) => state.setAccion);
+  const stateClose = useGlobalStore((state) => state.stateClose);
+  const terminoBusqueda = buscador.trim();
 
-  const [dataSelect, setdataSelect] = useState([]);
-  const [isExploding, setIsExploding] = useState(false);
-  const {
-    data: dataproductos,
-    isLoading: isLoadingBuscarProductos,
-    error,
-  } = useQuery({
-    queryKey: ["buscar productos", buscador],
+  const { data: dataproductos = [] } = useQuery({
+    queryKey: ["buscar productos", dataempresa?.id, terminoBusqueda],
     queryFn: () =>
-      buscarProductos({
+      BuscarProductos({
         id_empresa: dataempresa?.id,
-        buscador: buscador,
+        buscador: terminoBusqueda,
       }),
-    enabled: !!dataempresa,
+    enabled: Boolean(dataempresa?.id && terminoBusqueda.length >= 2),
+    staleTime: 30_000,
   });
 
-  const { data, isLoading } = useQuery({
+  const { data = [] } = useQuery({
     queryKey: [
       "mostrar movimientos de stock",
       {
@@ -46,17 +44,17 @@ export const Inventario = () => {
       },
     ],
     queryFn: () =>
-      mostrarMovStock({
+      MostrarMovStock({
         id_empresa: dataempresa?.id,
         id_producto: productosItemSelect?.id,
       }),
-    enabled: !!dataempresa,
+    enabled: Boolean(dataempresa?.id && productosItemSelect?.id),
+    staleTime: 30_000,
   });
 
   function nuevoRegistro() {
     setStateClose(true);
     setAccion("Nuevo");
-    setItemSelect([]);
   }
   return (
     <Container>
@@ -83,9 +81,7 @@ export const Inventario = () => {
 
       <section className="main">
         <TablaInventarios
-          setdataSelect={setdataSelect}
           setAccion={setAccion}
-          SetopenRegistro={SetopenRegistro}
           data={data}
         />
       </section>

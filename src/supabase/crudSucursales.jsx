@@ -1,5 +1,5 @@
 import Swal from "sweetalert2";
-import { supabase } from "../index";
+import { supabase } from "./supabase.config";
 const tabla = "sucursales";
 export async function MostrarSucursales(p) {
   const { data, error } = await supabase

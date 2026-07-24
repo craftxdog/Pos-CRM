@@ -25,7 +25,8 @@ export const SelectAlmacenModal = () => {
   const { dataempresa } = useEmpresaStore();
   const { productosItemSelect } = useProductosStore();
   const { sucursalesItemSelectAsignadas } = useAsignacionCajaSucursalStore();
-  const { almacenSelectItem, setAlmacenSelectItem } = useAlmacenesStore();
+  const { setAlmacenSelectItem } = useAlmacenesStore();
+  const { dataAlmacenesXsucursal } = useAlmacenesStore();
   const { insertarVentas, idventa } = useVentasStore();
   const { insertarDetalleVentas } = useDetalleVentasStore();
   const { cliproItemSelect } = useClientesProveedoresStore();
@@ -33,7 +34,7 @@ export const SelectAlmacenModal = () => {
   const { setStateModal, dataStockXAlmacenesYProducto: data } = useStockStore();
   const {datausuarios} = useUsuariosStore()
   const queryClient = useQueryClient();
-  async function insertarventas() {
+  async function insertarventas(selectedWarehouse) {
     if (idventa === 0) {
       const pventas = {
         fecha: fechaactual,
@@ -42,34 +43,40 @@ export const SelectAlmacenModal = () => {
         id_empresa: dataempresa?.id,
         id_cierre_caja: dataCierreCaja?.id,
       };
-       console.log("pventas",pventas)
       const result = await insertarVentas(pventas);
       if (result?.id > 0) {
-        await insertarDVentas(result?.id);
+        await insertarDVentas(result?.id, selectedWarehouse);
       }
     } else {
-      await insertarDVentas(idventa);
+      await insertarDVentas(idventa, selectedWarehouse);
     }
   }
-  async function insertarDVentas(idventa) {
+  async function insertarDVentas(idventa, selectedWarehouse) {
     const productosItemSelect =
       useProductosStore.getState().productosItemSelect;
+    const cantidad = Math.max(1, parseFloat(cantidadInput) || 1);
+    const precioVenta = Number(productosItemSelect.precio_venta || 0);
     const pDetalleVentas = {
       _id_venta: idventa,
-      _cantidad: parseFloat(cantidadInput) || 1,
-      _precio_venta: productosItemSelect.precio_venta,
+      _cantidad: cantidad,
+      _precio_venta: precioVenta,
+      _total: cantidad * precioVenta,
       _descripcion: productosItemSelect.nombre,
       _id_producto: productosItemSelect.id,
       _precio_compra: productosItemSelect.precio_compra,
       _id_sucursal: sucursalesItemSelectAsignadas.id_sucursal,
-      _id_almacen: almacenSelectItem?.id_almacen,
+      _id_almacen: selectedWarehouse.id_almacen,
     };
-    console.log("pDetalleVentas",pDetalleVentas)
     await insertarDetalleVentas(pDetalleVentas);
   }
   async function Controladorinsertarventas(item) {
+    const cantidad = Math.max(1, parseFloat(cantidadInput) || 1);
+    if (cantidad > Number(item.stock || 0)) {
+      toast.error(`Solo hay ${item.stock || 0} unidad(es) disponibles en este almacén`);
+      return;
+    }
     setAlmacenSelectItem(item);
-    doInsertarVentas();
+    doInsertarVentas(item);
   }
   const { mutate: doInsertarVentas, isPending } = useMutation({
     mutationKey: ["insertar ventas"],
@@ -79,12 +86,12 @@ export const SelectAlmacenModal = () => {
       setStateModal(false);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries(["mostrar detalle venta"]);
+      queryClient.invalidateQueries({ queryKey: ["mostrar detalle venta"] });
       setStateModal(false);
     },
   });
   const ValidarCantidad = (e) => {
-    const value = Math.max(0, parseFloat(e.target.value));
+    const value = Math.max(1, parseFloat(e.target.value) || 1);
     setCantidadInput(value);
   };
   return (
@@ -140,7 +147,10 @@ export const SelectAlmacenModal = () => {
                       key={index}
                       onClick={() => Controladorinsertarventas(item)}
                     >
-                      <td>{item?.almacen.nombre} </td>
+                      <td>
+                        {dataAlmacenesXsucursal?.find((almacen) => almacen.id === item.id_almacen)?.nombre ||
+                          `Almacen #${item.id_almacen}`}
+                      </td>
                       <td>{item?.stock} </td>
                     </tr>
                   );
