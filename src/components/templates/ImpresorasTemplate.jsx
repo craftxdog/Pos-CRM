@@ -4,7 +4,8 @@ import { slideBackground } from "../../styles/keyframes";
 import { Icon } from "@iconify/react/dist/iconify.js";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useImpresorasStore } from "../../store/ImpresorasStore";
-import { BarLoader } from "react-spinners";
+import { getPrintServiceUrl } from "../../store/ImpresorasStore";
+import { BarLoader } from "../ui/loaders/BarLoader";
 import { Switch } from "../ui/toggles/Switch";
 import { SelectList } from "../ui/lists/SelectList";
 import { toast, Toaster } from "sonner";
@@ -86,6 +87,12 @@ export const ImpresorasTemplate = () => {
     await editarImpresoras(p);
   }
   const probarTicket = async () => {
+    const printServiceUrl = getPrintServiceUrl();
+    if (!printServiceUrl) {
+      toast.info("En macOS se abrirá el diálogo de impresión del sistema.");
+      await ticket("print");
+      return;
+    }
     const response = await ticket("b64");
     // Convertir el contenido base64 en un archivo Blob
     const binaryString = atob(response.content);
@@ -103,7 +110,7 @@ export const ImpresorasTemplate = () => {
     const formData = new FormData();
     formData.append("file", file);
     formData.append("printerName", selectImpresora?.name);
-    const responseApi = await fetch("http://localhost:5075/api/print-ticket", {
+    const responseApi = await fetch(`${printServiceUrl}/api/print-ticket`, {
       method: "POST",
       body: formData,
     });

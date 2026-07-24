@@ -1,13 +1,12 @@
 import styled from "styled-components";
-import { Icono } from "../../index";
+import { Icono } from "../atomos/Icono";
 export function Btngenerarcodigo({
   funcion,
   titulo,
   bgcolor,
   icono,
-  url,
   color,
-  disabled,width
+  width
 }) {
   return (
     <Container $width={width}

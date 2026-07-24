@@ -22,7 +22,9 @@ export function BuscadorList({
   }
   const handleSelect = (item) => {
     setSelected(item);
+    setInputValue(item?.[displayField] || "");
     setIsOpen(false);
+    setBuscador("");
     onSelect(item);
   };
 
@@ -43,7 +45,7 @@ export function BuscadorList({
                 <DropdownItem
                   key={index}
                   onClick={() => handleSelect(item)}
-                  isSelected={item?.[displayField] === selected?.[displayField]}
+                  $isSelected={item?.[displayField] === selected?.[displayField]}
                 >
                   {item === selected && <CheckMark>✔</CheckMark>}
                   {item?.[displayField]}
@@ -108,8 +110,8 @@ const DropdownItem = styled.div`
   align-items: center;
   gap: 8px;
   cursor: pointer;
-  background-color: ${({ isSelected }) =>
-    isSelected ? (theme) => theme.bg : "transparent"};
+  background-color: ${({ $isSelected }) =>
+    $isSelected ? (theme) => theme.bg : "transparent"};
   transition: background-color 0.2s ease;
 
   &:hover {

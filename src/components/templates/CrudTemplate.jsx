@@ -1,7 +1,6 @@
 import styled from "styled-components";
 import { Btn1, Buscador, Title } from "../../index";
 import { v } from "../../styles/variables";
-import { useState } from "react";
 import ConfettiExplosion from "react-confetti-explosion";
 import { Toaster } from "sonner";
 import { BuscadorList } from "../ui/lists/BuscadorList";
@@ -69,7 +68,7 @@ export function CrudTemplate({
   );
 }
 const Container = styled.div`
-  height: calc(100vh - 80px);
+  min-height: calc(100vh - 80px);
 
   margin-top: 50px;
   padding: 15px;
@@ -82,7 +81,7 @@ const Container = styled.div`
     grid-area: area1;
     /* background-color: rgba(103, 93, 241, 0.14); */
     display: flex;
-    justify-content: end;
+    justify-content: space-between;
     align-items: center;
     gap: 15px;
   }
@@ -96,5 +95,7 @@ const Container = styled.div`
   .main {
     grid-area: main;
     /* background-color: rgba(237, 7, 221, 0.14); */
+    min-height: 0;
+    overflow: auto;
   }
 `;

@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import styled from "styled-components";
 import { useSucursalesStore } from "../../../store/SucursalesStore";
 import { useEmpresaStore } from "../../../store/EmpresaStore";
-import { BarLoader } from "react-spinners";
+import { BarLoader } from "../../ui/loaders/BarLoader";
 import { Icon } from "@iconify/react/dist/iconify.js";
 import { Device } from "../../../styles/breakpoints";
 import { ButtonDashed } from "../../ui/buttons/ButtonDashed";
