@@ -7,20 +7,24 @@ import {
   Mostrartop10productosmasvendidosxmonto,
   EditarCantidadDetalleVenta,
 } from "../index";
+import { calculateSaleTotals } from "../utils/posCalculations";
 function calcularTotal(items) {
-  return items.reduce(
-    (total, item) => total + item.precio_venta * item.cantidad,
-    0
-  );
+  return calculateSaleTotals(items).total;
 }
 export const useDetalleVentasStore = create((set, get) => ({
   datadetalleventa: [],
   parametros: {},
   total: 0,
+  saleTotals: calculateSaleTotals([]),
+  reemplazarDetalleLocal: (items) =>
+    set({
+      datadetalleventa: items,
+      total: calcularTotal(items),
+      saleTotals: calculateSaleTotals(items),
+    }),
   mostrardetalleventa: async (p) => {
     const response = await MostrarDetalleVenta(p);
-    set({ datadetalleventa: response });
-    set({ total: calcularTotal(response) });
+    get().reemplazarDetalleLocal(response);
     return response;
   },
   insertarDetalleVentas: async (p) => {

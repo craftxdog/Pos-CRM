@@ -3,7 +3,7 @@ import {
   MostrarSucursales,
   
   MostrarCajasXSucursal,InsertarSucursal,EditarSucursal,EliminarSucursal
-} from "../index";
+} from "../supabase/crudSucursales";
 
 export const useSucursalesStore = create((set) => ({
   stateSucursal: false,

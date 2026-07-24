@@ -1,5 +1,4 @@
 import { urlToBase64 } from "../utils/Conversiones";
-import createPdf from "../utils/CreatePdf";
 const TicketPrueba = async (output) => {
   const content = [
     {
@@ -55,6 +54,7 @@ const TicketPrueba = async (output) => {
       alignment: "center",
     },
   };
+  const { default: createPdf } = await import("../utils/CreatePdf");
   const response = await createPdf({ content, styles }, output);
   return response;
 };

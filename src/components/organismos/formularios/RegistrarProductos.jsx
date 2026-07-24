@@ -34,7 +34,6 @@ export function RegistrarProductos({
   setIsExploding,
   state,
 }) {
-  if (!state) return;
   //validar checkboxs
   const [isChecked1, setIsChecked1] = useState(true);
   const [isChecked2, setIsChecked2] = useState(false);
@@ -96,6 +95,7 @@ export function RegistrarProductos({
         id_almacen: almacenSelectItem?.id,
         id_producto: dataSelect?.id,
       }),
+    enabled: !!almacenSelectItem?.id && !!dataSelect?.id,
   });
   const {
     data: dataAlmacenes,
@@ -104,12 +104,13 @@ export function RegistrarProductos({
   } = useQuery({
     queryKey: [
       "mostrar almacenes x sucursal",
-      { id_producto: dataSelect.id, id_sucursal: sucursalesItemSelect.id },
+      { id_producto: dataSelect?.id, id_sucursal: sucursalesItemSelect?.id },
     ],
     queryFn: () =>
       mostrarAlmacenesXSucursal({
-        id_sucursal: sucursalesItemSelect.id,
+        id_sucursal: sucursalesItemSelect?.id,
       }),
+    enabled: !!sucursalesItemSelect?.id,
   });
 
   const {

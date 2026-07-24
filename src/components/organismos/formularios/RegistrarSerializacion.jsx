@@ -1,120 +1,111 @@
-import React, { useState } from "react";
 import { v } from "../../../styles/variables";
 import styled from "styled-components";
-import { useForm } from "react-hook-form";
-import { InputText, Btn1 } from "../../../index";
+import { useState } from "react";
 
 import { BtnClose } from "../../ui/buttons/BtnClose";
 import { useGlobalStore } from "../../../store/GlobalStore";
 import { useAsignacionCajaSucursalStore } from "../../../store/AsignacionCajaSucursalStore";
 import { useEditarSerializacionMutation } from "../../../tanstack/SerializacionStack";
 
+function clampNumber(value, fallback, min = 0) {
+  const parsed = Number.parseInt(value, 10);
+  if (Number.isNaN(parsed)) return fallback;
+  return Math.max(min, parsed);
+}
 
 export const RegistrarSerializacion = () => {
   const { setStateClose, itemSelect } = useGlobalStore();
-  const [cantidadNumeros, setCantidadNumeros] = useState(
-    itemSelect?.cantidad_numeros
-  );
-  const {sucursalesItemSelectAsignadas} = useAsignacionCajaSucursalStore()
-  const {mutate} = useEditarSerializacionMutation()
-  const [correlativo, setCorrelativo] = useState(itemSelect?.correlativo);
-  const [serie, setSerie] = useState(itemSelect?.serie);
+  const [cantidadNumeros, setCantidadNumeros] = useState(itemSelect?.cantidad_numeros || 8);
+  const { sucursalesItemSelectAsignadas } = useAsignacionCajaSucursalStore();
+  const { mutate, isPending } = useEditarSerializacionMutation();
+  const [correlativo, setCorrelativo] = useState(itemSelect?.correlativo || 1);
+  const [serie, setSerie] = useState(itemSelect?.serie || "A001");
 
-  // Función para formatear el correlativo con ceros a la izquierda
   const formatearCorrelativo = (numero, longitud) => {
     return String(numero).padStart(longitud, "0");
   };
 
-  
-  const {
-    register,
-    formState: { errors },
-    handleSubmit,
-    watch,
-  } = useForm({
-    defaultValues: {
-      cantidad_numeros: itemSelect?.cantidad_numeros,
-      correlativo: itemSelect?.correlativo,
-      serie: itemSelect?.serie,
+  const guardar = (event) => {
+    event.preventDefault();
+    mutate({
+      cantidad_numeros: Number(cantidadNumeros),
+      correlativo: Number(correlativo),
+      serie: serie.trim().toUpperCase(),
       sucursal_id: sucursalesItemSelectAsignadas?.id_sucursal,
-    },
-  });
+    });
+  };
+
   return (
     <Container>
       <section className="sub-container">
+        <BtnClose color={"#000"} funcion={() => setStateClose(false)} />
         <div className="comprobante">
-          <BtnClose color={"#000"} funcion={() => setStateClose(false)} />
           <span className="title">Comprobante</span>
           <div className="tipo"> {itemSelect?.tipo_comprobantes?.nombre} </div>
           <div className="numero">
-            <span>{serie}-</span>
+            <span>{serie.trim().toUpperCase()}-</span>
             <span>{formatearCorrelativo(correlativo, cantidadNumeros)}</span>
           </div>
         </div>
 
-        <form className="form" onSubmit={handleSubmit(mutate)}>
-          <article>
-            <InputText icono={<v.iconoflechaderecha />}>
+        <form className="form" onSubmit={guardar}>
+          <label>
+            <span>Cantidad de numeros</span>
+            <div className="input-shell">
+              <v.iconoflechaderecha />
               <input
-                className="form__field"
-                placeholder="Cantidad de numeros"
+                aria-label="Cantidad de numeros"
                 type="number"
+                min="1"
+                max="12"
                 value={cantidadNumeros}
-                {...register("cantidad_numeros", {
-                  required: true,
-                })}
                 onChange={(e) =>
-                  setCantidadNumeros(Math.max(1, parseInt(e.target.value) || 1))
+                  setCantidadNumeros(clampNumber(e.target.value, 1, 1))
                 }
+                required
               />
-              <label className="form__label">Cantidad de numeros</label>
-              {errors.cantidad_numeros?.type === "required" && (
-                <p>Campo requerido</p>
-              )}
-            </InputText>
-          </article>
-          <article>
-            <InputText icono={<v.iconoflechaderecha />}>
-              <input
-                className="form__field"
-                placeholder="Correlativos"
-                type="number"
-                value={correlativo}
-                {...register("correlativo", {
-                  required: true,
-                })}
-                onChange={(e) =>
-                  setCorrelativo(Math.max(0, parseInt(e.target.value) || 0))
-                }
-              />
-              <label className="form__label">Correlativo</label>
-              {errors.correlativo?.type === "required" && (
-                <p>Campo requerido</p>
-              )}
-            </InputText>
-          </article>
+            </div>
+          </label>
 
-          <article>
-            <InputText icono={<v.iconoflechaderecha />}>
+          <label>
+            <span>Correlativo actual</span>
+            <div className="input-shell">
+              <v.iconoflechaderecha />
               <input
-                className="form__field"
-                placeholder="Serie"
+                aria-label="Correlativo"
+                type="number"
+                min="0"
+                value={correlativo}
+                onChange={(e) =>
+                  setCorrelativo(clampNumber(e.target.value, 0, 0))
+                }
+                required
+              />
+            </div>
+          </label>
+
+          <label>
+            <span>Serie</span>
+            <div className="input-shell">
+              <v.iconoflechaderecha />
+              <input
+                aria-label="Serie"
                 type="text"
                 value={serie}
-                {...register("serie", {
-                  required: true,
-                })}
                 onChange={(e) => setSerie(e.target.value.toUpperCase())}
+                maxLength="12"
+                required
               />
-              <label className="form__label">Serie</label>
-              {errors.correlativo?.type === "required" && (
-                <p>Campo requerido</p>
-              )}
-            </InputText>
-          </article>
+            </div>
+          </label>
 
           <div className="buttons">
-            <Btn1 titulo={"Guardar"} bgcolor={"#fff"} />
+            <button type="button" className="secondary" onClick={() => setStateClose(false)}>
+              Cancelar
+            </button>
+            <button type="submit" disabled={isPending}>
+              {isPending ? "Guardando..." : "Guardar"}
+            </button>
           </div>
         </form>
       </section>
@@ -134,39 +125,35 @@ const Container = styled.div`
   align-items: center;
   justify-content: center;
   z-index: 1000;
-  backdrop-filter: blur(5px);
+  padding: 18px;
+  background: rgba(15, 23, 42, 0.35);
   input {
     color: ${({ theme }) => theme.text};
   }
   .sub-container {
-    display: flex;
+    width: min(440px, 100%);
+    display: grid;
     position: relative;
-    flex-direction: column;
-    align-items: center;
     background: ${({ theme }) => theme.bgtotal};
-    padding: 20px;
+    padding: 22px;
     border-radius: 8px;
-    box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
-    align-items: center;
-    justify-content: center;
+    box-shadow: 0 24px 70px rgba(15, 23, 42, 0.22);
+    gap: 18px;
+
     .form {
-      display: flex;
-      flex-direction: column;
+      display: grid;
       gap: 12px;
     }
   }
   .comprobante {
-    display: flex;
+    display: grid;
     gap: 8px;
-    flex-direction: column;
-    align-items: center;
+    justify-items: center;
     background: #fff;
-    padding: 15px;
+    padding: 18px;
     border-radius: 8px;
-    width: 300px;
     text-align: center;
     position: relative;
-    margin-bottom: 20px;
     .title {
       color: #000;
       font-weight: bold;
@@ -174,7 +161,7 @@ const Container = styled.div`
     }
     .tipo {
       background: #ea5605;
-
+      color: #111;
       padding: 5px 10px;
       border-radius: 4px;
       font-size: 14px;
@@ -206,31 +193,68 @@ const Container = styled.div`
     gap: 10px;
   }
 
-  .buttons {
-    display: flex;
-    margin-top: 20px;
-    gap: 10px;
+  label {
+    display: grid;
+    gap: 6px;
+    color: ${({ theme }) => theme.text};
+    font-weight: 700;
 
-    .guardar {
-      background: #ffcc00;
-      color: black;
-      font-size: 14px;
-      font-weight: bold;
-      padding: 10px 15px;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
+    span {
+      font-size: 13px;
+      color: ${({ theme }) => theme.colorSubtitle};
+    }
+  }
+
+  .input-shell {
+    min-height: 46px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border: 1px solid ${({ theme }) => theme.color2};
+    border-radius: 8px;
+    background: ${({ theme }) => theme.bgcards};
+    padding: 0 12px;
+
+    svg {
+      flex: 0 0 auto;
+      color: ${({ theme }) => theme.colorSubtitle};
     }
 
-    .volver {
-      background: #777;
-      color: white;
-      font-size: 14px;
-      font-weight: bold;
-      padding: 10px 15px;
-      border: none;
-      border-radius: 4px;
+    input {
+      width: 100%;
+      min-width: 0;
+      border: 0;
+      outline: 0;
+      background: transparent;
+      font: inherit;
+      font-weight: 700;
+    }
+  }
+
+  .buttons {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+
+    button {
+      min-height: 44px;
+      border: 0;
+      border-radius: 8px;
       cursor: pointer;
+      color: black;
+      font-weight: bold;
+      background: ${v.colorPrincipal};
+    }
+
+    button:disabled {
+      opacity: 0.7;
+      cursor: wait;
+    }
+
+    .secondary {
+      background: ${({ theme }) => theme.bgcards};
+      color: ${({ theme }) => theme.text};
+      border: 1px solid ${({ theme }) => theme.color2};
     }
   }
 `;

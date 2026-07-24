@@ -13,6 +13,7 @@ import { useForm } from "react-hook-form";
 import { CirclePicker } from "react-color";
 import { useEmpresaStore } from "../../../store/EmpresaStore";
 import { useMutation } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 export function RegistrarClientesProveedores({
   onClose,
@@ -40,7 +41,7 @@ export function RegistrarClientesProveedores({
   const { isPending, mutate: doInsertar } = useMutation({
     mutationFn: insertar,
     mutationKey: "insertar clientes proveedores mutation",
-    onError: (err) => console.log("El error", err.message),
+    onError: (err) => toast.error(`No se pudo guardar: ${err.message}`),
     onSuccess: () => cerrarFormulario(),
   });
   const handlesub = (data) => {
@@ -80,10 +81,6 @@ export function RegistrarClientesProveedores({
     }
   }
 
-  useEffect(() => {
-    if (accion === "Editar") {
-    }
-  }, []);
   return (
     <Container>
       {isPending ? (
@@ -181,11 +178,16 @@ export function RegistrarClientesProveedores({
                     placeholder="identificador_nacional"
                     {...register("identificador_nacional", {
                       required: true,
+                      pattern: /^[0-9]{13}[A-Za-z]$/,
+                      setValueAs: (value) => value?.trim().toUpperCase(),
                     })}
                   />
                   <label className="form__label">identificador nacional</label>
                   {errors.identificador_nacional?.type === "required" && (
                     <p>Campo requerido</p>
+                  )}
+                  {errors.identificador_nacional?.type === "pattern" && (
+                    <p>Usa 13 números y una letra final.</p>
                   )}
                 </InputText>
               </article>

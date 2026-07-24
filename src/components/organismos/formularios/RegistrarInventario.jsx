@@ -4,49 +4,41 @@ import {
   InputText,
   Btn1,
   useSucursalesStore,
-  ConvertirCapitalize,
   useEmpresaStore,
   useProductosStore,
   useAlmacenesStore,
 } from "../../../index";
 import { useForm } from "react-hook-form";
 import { BtnClose } from "../../ui/buttons/BtnClose";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
-import { useCajasStore } from "../../../store/CajasStore";
+import { useQuery } from "@tanstack/react-query";
 import { useMovStockStore } from "../../../store/MovStockStore";
 import { BuscadorList } from "../../ui/lists/BuscadorList";
 import { SelectList } from "../../ui/lists/SelectList";
-import { useFormattedDate } from "../../../hooks/useFormattedDate";
-import { useStockStore } from "../../../store/StockStore";
 import { RadioChecks } from "../../ui/toggles/RadioChecks";
 import { useGlobalStore } from "../../../store/GlobalStore";
-import { useBuscarProductosQuery } from "../../../tanstack/ProductosStack";
 import { useInsertarMovStockMutation } from "../../../tanstack/MovStockStack";
-import { useMostrarSucursalesQuery } from "../../../tanstack/SucursalesStack";
-import {
-  useMostrarAlmacenesXSucursalInventarioQuery,
-  useMostrarAlmacenesXSucursalQuery,
-} from "../../../tanstack/AlmacenesStack";
-import { useMostrarStockXAlmacenYProductoQuery } from "../../../tanstack/StockStack";
 import { MessageComponent } from "../../ui/messages/MessageComponent";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { BuscarProductos } from "../../../supabase/crudProductos";
+import { MostrarSucursales } from "../../../supabase/crudSucursales";
+import { MostrarAlmacenesXSucursal } from "../../../supabase/crudAlmacenes";
+import { MostrarStockXAlmacenYProducto } from "../../../supabase/crudStock";
 export function RegistrarInventario() {
-  const { setStateClose } = useGlobalStore();
+  const setStateClose = useGlobalStore((state) => state.setStateClose);
+  const dataempresa = useEmpresaStore((state) => state.dataempresa);
+  const [busquedaProducto, setBusquedaProducto] = useState("");
 
-  const { tipo, setTipo } = useMovStockStore();
-  const {
-    selectProductos,
-    setBuscador,
-    productosItemSelect,
-    dataProductos,
-    resetProductosItemSelect,
-  } = useProductosStore();
+  const tipo = useMovStockStore((state) => state.tipo);
+  const selectProductos = useProductosStore((state) => state.selectProductos);
+  const productosItemSelect = useProductosStore((state) => state.productosItemSelect);
+  const resetProductosItemSelect = useProductosStore(
+    (state) => state.resetProductosItemSelect,
+  );
   const {
     register,
     formState: { errors },
     handleSubmit,
-    reset,
+    setValue,
   } = useForm({
     defaultValues: {
       precio_compra: productosItemSelect?.precio_compra,
@@ -54,34 +46,80 @@ export function RegistrarInventario() {
     },
   });
   useEffect(() => {
-    if (productosItemSelect) {
-      reset({
-        cantidad: "", // o 0
-        precio_compra: productosItemSelect.precio_compra || 0,
-        precio_venta: productosItemSelect.precio_venta || 0,
-      });
-    }
-  }, [productosItemSelect]);
+    setValue("cantidad", "");
+    setValue("precio_compra", productosItemSelect?.precio_compra ?? 0);
+    setValue("precio_venta", productosItemSelect?.precio_venta ?? 0);
+  }, [productosItemSelect?.id, productosItemSelect?.precio_compra, productosItemSelect?.precio_venta, setValue]);
 
-  useBuscarProductosQuery();
-  const { selectSucursal, sucursalesItemSelect } = useSucursalesStore();
+  const terminoBusqueda = busquedaProducto.trim();
+  const { data: productosEncontrados = [], isFetching: buscandoProductos } =
+    useQuery({
+      queryKey: ["buscar productos inventario", dataempresa?.id, terminoBusqueda],
+      queryFn: () =>
+        BuscarProductos({
+          id_empresa: dataempresa.id,
+          buscador: terminoBusqueda,
+        }),
+      enabled: Boolean(dataempresa?.id && terminoBusqueda.length >= 2),
+      staleTime: 30_000,
+    });
+  const selectSucursal = useSucursalesStore((state) => state.selectSucursal);
+  const sucursalesItemSelect = useSucursalesStore(
+    (state) => state.sucursalesItemSelect,
+  );
+  const setAlmacenSelectItem = useAlmacenesStore(
+    (state) => state.setAlmacenSelectItem,
+  );
+  const almacenSelectItem = useAlmacenesStore((state) => state.almacenSelectItem);
 
-  const { data: dataSucursales, isLoading: isLoadingSucursal } =
-    useMostrarSucursalesQuery();
-  const { data: dataAlmacenes, isLoading: isLoadingAlmacenes } =
-    useMostrarAlmacenesXSucursalInventarioQuery();
+  const { data: dataSucursales = [], isLoading: isLoadingSucursal } = useQuery({
+    queryKey: ["inventario sucursales", dataempresa?.id],
+    queryFn: () => MostrarSucursales({ id_empresa: dataempresa.id }),
+    enabled: Boolean(dataempresa?.id),
+    staleTime: 5 * 60_000,
+  });
 
-  const { setAlmacenSelectItem, almacenSelectItem } = useAlmacenesStore();
+  useEffect(() => {
+    if (!dataSucursales.length) return;
+    const selectionIsValid = dataSucursales.some(
+      (item) => item.id === sucursalesItemSelect?.id,
+    );
+    if (!selectionIsValid) selectSucursal(dataSucursales[0]);
+  }, [dataSucursales, selectSucursal, sucursalesItemSelect?.id]);
 
-  const { data: dataStock, isLoading: isLoadingStockXAlmacenYProducto } =
-    useMostrarStockXAlmacenYProductoQuery();
+  const { data: dataAlmacenes = [], isLoading: isLoadingAlmacenes } = useQuery({
+    queryKey: ["inventario almacenes", sucursalesItemSelect?.id],
+    queryFn: () =>
+      MostrarAlmacenesXSucursal({ id_sucursal: sucursalesItemSelect.id }),
+    enabled: Boolean(sucursalesItemSelect?.id),
+    staleTime: 5 * 60_000,
+  });
+
+  useEffect(() => {
+    if (!dataAlmacenes.length) return;
+    const selectionIsValid = dataAlmacenes.some(
+      (item) => item.id === almacenSelectItem?.id,
+    );
+    if (!selectionIsValid) setAlmacenSelectItem(dataAlmacenes[0]);
+  }, [almacenSelectItem?.id, dataAlmacenes, setAlmacenSelectItem]);
+
+  const { data: dataStock } = useQuery({
+    queryKey: [
+      "inventario stock",
+      almacenSelectItem?.id,
+      productosItemSelect?.id,
+    ],
+    queryFn: () =>
+      MostrarStockXAlmacenYProducto({
+        id_almacen: almacenSelectItem.id,
+        id_producto: productosItemSelect.id,
+      }),
+    enabled: Boolean(almacenSelectItem?.id && productosItemSelect?.id),
+    staleTime: 30_000,
+  });
 
   const { mutate, isPending } = useInsertarMovStockMutation();
 
-  const resetFuction = () => {
-    reset();
-    setTipo("ingreso");
-  };
   const isLoading = isLoadingSucursal || isLoadingAlmacenes;
   if (isLoading) {
     return <span>cargando almacenes...</span>;
@@ -114,10 +152,11 @@ export function RegistrarInventario() {
           </div>
           <section className="containerListas">
             <BuscadorList
-              data={dataProductos}
+              data={productosEncontrados}
               onSelect={selectProductos}
-              setBuscador={setBuscador}
+              setBuscador={setBusquedaProducto}
             />
+            {buscandoProductos && <small>Buscando productos...</small>}
             <span>
               Producto:{" "}
               <strong>
@@ -128,7 +167,11 @@ export function RegistrarInventario() {
             </span>
             <span>
               Stock:{" "}
-              <strong>{dataStock?.stock ? dataStock?.stock : "-"} </strong>
+              <strong>
+                {productosItemSelect?.id && dataStock?.stock != null
+                  ? dataStock.stock
+                  : "-"}{" "}
+              </strong>
             </span>
 
             <ContainerSelector>
@@ -158,13 +201,26 @@ export function RegistrarInventario() {
                     <input
                       className="form__field"
                       type="number"
+                      min="0.01"
+                      step="0.01"
                       {...register("cantidad", {
                         required: true,
+                        min: 0.01,
+                        validate: (value) =>
+                          tipo !== "salida" ||
+                          Number(value) <= Number(dataStock?.stock || 0) ||
+                          `Stock insuficiente. Disponible: ${dataStock?.stock || 0}`,
                       })}
                     />
                     <label className="form__label">Cantidad</label>
                     {errors.cantidad?.type === "required" && (
                       <p>Campo requerido</p>
+                    )}
+                    {errors.cantidad?.type === "min" && (
+                      <p>La cantidad debe ser mayor que cero</p>
+                    )}
+                    {errors.cantidad?.type === "validate" && (
+                      <p>{errors.cantidad.message}</p>
                     )}
                   </InputText>
                 </article>

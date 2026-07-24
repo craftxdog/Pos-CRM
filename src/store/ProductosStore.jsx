@@ -11,9 +11,7 @@ export const useProductosStore = create((set, get) => ({
     set({ buscador: p });
   },
   dataProductos: [],
-  productosItemSelect: {
-    id:1
-  },
+  productosItemSelect: null,
   parametros: {},
   mostrarProductos: async (p) => {
     const response = await MostrarProductos(p);

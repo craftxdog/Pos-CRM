@@ -12,7 +12,7 @@ import {
 export function Productos() {
   const {mostrarCategorias} = useCategoriasStore();
   const {mostrarSucursales} = useSucursalesStore();
-  const {} =useAlmacenesStore()
+  useAlmacenesStore()
   const { mostrarProductos, buscarProductos, buscador,setRefetch } =
     useProductosStore();
   const { dataempresa } = useEmpresaStore();

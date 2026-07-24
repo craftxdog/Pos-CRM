@@ -19,16 +19,15 @@ import { useGlobalStore } from "../../../store/GlobalStore";
 import { Check } from "../../ui/toggles/Check";
 import { useEditarSerializacionDefaultMutation } from "../../../tanstack/SerializacionStack";
 export function TablaSerializaciones({ data }) {
-  if (data == null) return;
-  const [pagina, setPagina] = useState(1);
-  const [datas, setData] = useState(data);
-  const [columnFilters, setColumnFilters] = useState([]);
+  const tableData = Array.isArray(data) ? data : [];
+  const [, setPagina] = useState(1);
+  const [columnFilters] = useState([]);
   const { setStateClose, setItemSelect, setAccion } = useGlobalStore();
   const {mutate:mutateEditarPorDefault} = useEditarSerializacionDefaultMutation()
 
   function editarPorDefault(data) {
     setItemSelect(data); 
-    mutateEditarPorDefault()
+    mutateEditarPorDefault(data)
   }
 
   function editar(data) {
@@ -105,7 +104,7 @@ export function TablaSerializaciones({ data }) {
     },
   ];
   const table = useReactTable({
-    data,
+    data: tableData,
     columns,
     state: {
       columnFilters,
@@ -115,19 +114,6 @@ export function TablaSerializaciones({ data }) {
     getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
     columnResizeMode: "onChange",
-    meta: {
-      updateData: (rowIndex, columnId, value) =>
-        setData((prev) =>
-          prev.map((row, index) =>
-            index === rowIndex
-              ? {
-                  ...prev[rowIndex],
-                  [columnId]: value,
-                }
-              : row
-          )
-        ),
-    },
   });
   return (
     <>
@@ -251,13 +237,4 @@ const Container = styled.div`
       }
     }
   }
-`;
-const Colorcontent = styled.div`
-  justify-content: center;
-  min-height: ${(props) => props.$alto};
-  width: ${(props) => props.$ancho};
-  display: flex;
-  background-color: ${(props) => props.color};
-  border-radius: 50%;
-  text-align: center;
 `;
