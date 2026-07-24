@@ -1,0 +1,13 @@
+name: active-self-control
+
+services:
+  active-self-control:
+    build:
+      context: .
+      args:
+        VITE_APP_SUPABASE_URL: ${VITE_APP_SUPABASE_URL}
+        VITE_APP_SUPABASE_ANON_KEY: ${VITE_APP_SUPABASE_ANON_KEY}
+    image: active-self-control:local
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
