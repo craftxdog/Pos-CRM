@@ -4,7 +4,7 @@ import { TablaMovimientosCajaLive } from "../../organismos/tablas/TablaMovimient
 import { useEmpresaStore } from "../../..";
 import { useMovCajaStore } from "../../../store/MovCajaStore";
 import { useQuery } from "@tanstack/react-query";
-import { BarLoader } from "react-spinners";
+import { BarLoader } from "../../ui/loaders/BarLoader";
 import { useSupabaseSubscription } from "../../../hooks/useSupabaseSubscription";
 export const CardMovimientosCajaLive = () => {
   const { dataempresa } = useEmpresaStore();

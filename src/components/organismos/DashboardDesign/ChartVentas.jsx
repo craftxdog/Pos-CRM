@@ -20,12 +20,11 @@ import {
 } from "../../../tanstack/ReportesStack";
 import { useReportesStore } from "../../../store/ReportesStore";
 export const ChartVentas = () => {
-  const { data, isLoading } = useMostrarVentasDashboardQuery();
-  const { data: data2 } = useMostrarVentasDashboardPeriodoAnteriorQuery();
-
- const {data:data3}= useMostrarCantidadDetalleVentaDashboardQuery();
+  const { data = [] } = useMostrarVentasDashboardQuery();
+  useMostrarVentasDashboardPeriodoAnteriorQuery();
+  useMostrarCantidadDetalleVentaDashboardQuery();
   const { totalventas, porcentajeCambio } = useReportesStore();
-  const {data:data4} = useGananciasDetalleVentaQuery()
+  useGananciasDetalleVentaQuery()
   const { dataempresa } = useEmpresaStore();
 
   const { themeStyle } = useThemeStore();
@@ -47,7 +46,7 @@ export const ChartVentas = () => {
           )}
         </Revenue>
         <Change>
-          <Percentage>
+          <Percentage $isPositive={isPositive} $isNeutral={isNeutral}>
             <Icon
               width="26"
               height="26"
@@ -171,5 +170,5 @@ const Percentage = styled.span`
   align-items: center;
   font-size: 14px;
   color: ${(props) =>
-    props.isNeutral ? "#6b7280" : props.isPositive ? "#12ca3a" : "#d32f5b"};
+    props.$isNeutral ? "#6b7280" : props.$isPositive ? "#12ca3a" : "#d32f5b"};
 `;

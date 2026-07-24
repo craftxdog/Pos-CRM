@@ -15,7 +15,7 @@ import { Icon } from "@iconify/react/dist/iconify.js";
 import { useThemeStore } from "../../../store/ThemeStore";
 import { useDetalleVentasStore } from "../../../store/DetalleVentasStore";
 import { useQuery } from "@tanstack/react-query";
-import { BarLoader } from "react-spinners";
+import { BarLoader } from "../../ui/loaders/BarLoader";
 import { useDashboardStore } from "../../../store/DashboardStore";
 import { Lottieanimacion } from "../../atomos/Lottieanimacion";
 import animacionvacio from "../../../assets/vacioanimacion.json"
