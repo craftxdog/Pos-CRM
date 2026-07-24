@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { EditarEmpresa, EditarMonedaEmpresa, InsertarEmpresa, MostrarEmpresaXidsuario } from "../index";
+import { EditarEmpresa, EditarMonedaEmpresa, InsertarEmpresa, MostrarEmpresaXidsuario } from "../supabase/crudEmpresa";
 export const useEmpresaStore = create((set) => ({
   dataempresa: [],
   mostrarempresa: async (p) => {

@@ -17,13 +17,14 @@ export const useUpdateEmpresaMutation = ( ) => {
         direccion_fiscal: data.direccion,
         impuesto: data.impuesto,
         valor_impuesto: parseFloat(data.valor_impuesto),
+        precios_incluyen_impuesto: Boolean(data.precios_incluyen_impuesto),
       };
       await editarEmpresa(p,dataempresa?.logo,file);
     },
     onError: (error) => toast.error(error.message),
     onSuccess: () => {
       toast.success("Datos guardados");
-      queyClient.invalidateQueries(["mostrar empresa"]);
+      queyClient.invalidateQueries({ queryKey: ["mostrar empresa"] });
     },
   });
 };

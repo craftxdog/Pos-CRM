@@ -1,12 +1,23 @@
 import { create } from "zustand";
-import { supabase, MostrarUsuarios, ObtenerIdAuthSupabase } from "../index";
-import { useQueryClient } from "@tanstack/react-query";
+import { supabase } from "../supabase/supabase.config";
 
-export const useAuthStore = create((set) => ({
+export const useAuthStore = create(() => ({
   loginGoogle: async () => {
-    await supabase.auth.signInWithOAuth({
+    if (import.meta.env.VITE_APP_GOOGLE_AUTH_ENABLED !== "true") {
+      throw new Error(
+        "Google Auth no está configurado en Supabase. Falta Client ID y Client Secret de Google Cloud."
+      );
+    }
+
+    const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
+      options: {
+        redirectTo: window.location.origin,
+      },
     });
+    if (error) {
+      throw new Error(error.message);
+    }
   },
   cerrarSesion: async () => {
     await supabase.auth.signOut();
@@ -26,16 +37,25 @@ export const useAuthStore = create((set) => ({
     }
     return data.user
   },
-  crearUserYLogin:async(p)=>{
-    const { data, error } = await supabase.auth.signUp({
-      email: p.email,
-      password: p.password,
-      
-    })
+  loginInvitadoQA: async () => {
+    if (!import.meta.env.DEV) {
+      throw new Error("El modo invitado QA solo está disponible en desarrollo local.");
+    }
+
+    const email = import.meta.env.VITE_APP_QA_EMAIL;
+    const password = import.meta.env.VITE_APP_QA_PASSWORD;
+
+    if (!email || !password) {
+      throw new Error("Faltan VITE_APP_QA_EMAIL y VITE_APP_QA_PASSWORD en .env.");
+    }
+
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+    if (error) {
+      throw new Error("No se pudo iniciar el modo invitado QA: " + error.message);
+    }
     return data.user
   },
-  // obtenerIdAuthSupabase: async () => {
-  //     const response = await ObtenerIdAuthSupabase();
-  //     return response;
-  //   },
 }));

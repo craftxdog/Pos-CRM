@@ -1,8 +1,4 @@
 import { v } from "../styles/variables";
-import {
-  AiOutlineHome,
-  AiOutlineSetting,
-} from "react-icons/ai";
 
 export const DesplegableUser = [
   {
@@ -53,6 +49,14 @@ export const LinksArray = [
   },
  
 ];
+export const PosLinksArray = LinksArray;
+export const CrmLinksArray = [
+  {
+    label: "CRM",
+    icon: "flat-color-icons:conference-call",
+    to: "/crm",
+  },
+];
 export const SecondarylinksArray = [
  
   {
@@ -87,6 +91,12 @@ export const TemasData = [
 
 //data configuracion
 export const DataModulosConfiguracion =[
+  {
+    title:"CRM",
+    subtitle:"clientes, pagos, horarios y permisos",
+    icono:"https://i.ibb.co/5vgZ0fX/hombre.png",
+    link:"/configuracion/crm",
+  },
   {
     title:"Productos",
     subtitle:"registra tus productos",

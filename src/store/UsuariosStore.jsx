@@ -4,7 +4,7 @@ import {
   EliminarUsuarioAsignado,
   InsertarCredencialesUser,
   InsertarUsuarios,
-} from "../index";
+} from "../supabase/crudUsuarios";
 import { InsertarAsignacionCajaSucursal } from "../supabase/crudAsignacionCajaSucursal";
 import { usePermisosStore } from "./PermisosStore";
 import { InsertarPermisos } from "../supabase/crudPermisos";
@@ -16,15 +16,12 @@ export const useUsuariosStore = create((set) => ({
   itemSelect: null,
   setItemSelect: (p) => set({ itemSelect: p }),
   mostrarusuarios: async (p) => {
-    console.log("🏁 Ejecutando mostrarusuarios con:", p.id_auth);
     try {
       const { data, error } = await supabase
         .from(tabla)
         .select(`*, roles(*)`)
         .eq("id_auth", p.id_auth)
         .maybeSingle();
-
-      console.log("📥 Resultado Supabase:", data);
 
       if (error) {
         console.error("💥 Supabase error en MostrarUsuarios:", error);
@@ -49,6 +46,7 @@ export const useUsuariosStore = create((set) => ({
       pass: p.pass,
     });
     const dataUserNew = await InsertarUsuarios({
+      id_empresa: p.id_empresa,
       nombres: p.nombres,
       nro_doc: p.nro_doc,
       telefono: p.telefono,

@@ -1,7 +1,6 @@
 import { create } from "zustand";
 import {
   BuscarUsuariosAsignados,
-  MostrarSucursalCajaAsignada,
   MostrarUsuariosAsignados,
 } from "../supabase/crudAsignacionCajaSucursal";
 import { supabase } from "../supabase/supabase.config";
@@ -23,10 +22,19 @@ export const useAsignacionCajaSucursalStore = create((set) => ({
   dataSucursalesAsignadas: null,
   sucursalesItemSelectAsignadas: null,
   mostrarSucursalAsignadas: async (p) => {
-    const { data } = await supabase
+    if (!p?.id_usuario) {
+      set({ dataSucursalesAsignadas: [] });
+      set({ sucursalesItemSelectAsignadas: null });
+      return [];
+    }
+
+    const { data, error } = await supabase
       .from(tabla)
       .select(`*, sucursales(*), caja(*)`)
       .eq("id_usuario", p.id_usuario);
+    if (error) {
+      throw new Error(error.message);
+    }
     set({ dataSucursalesAsignadas: data });
     set({ sucursalesItemSelectAsignadas: data && data[0] });
     return data;

@@ -14,7 +14,7 @@ import { toast } from "sonner";
 import { useCajasStore } from "../../../store/CajasStore";
 import { Icon } from "@iconify/react/dist/iconify.js";
 import { SelectList } from "../../ui/lists/SelectList";
-import { BarLoader } from "react-spinners";
+import { BarLoader } from "../../ui/loaders/BarLoader";
 import { PermisosUser } from "../UsuariosDesign/PermisosUser";
 import { useRolesStore } from "../../../store/RolesStore";
 export function RegistrarUsuarios({ accion, dataSelect, onClose }) {
@@ -74,7 +74,7 @@ export function RegistrarUsuarios({ accion, dataSelect, onClose }) {
       await editarUsuarios(p);
     } else {
       const p = {
-        
+        id_empresa: dataempresa?.id,
         nombres: data.nombres,
         nro_doc: data.nro_doc,
         telefono: data.telefono,
@@ -200,11 +200,21 @@ export function RegistrarUsuarios({ accion, dataSelect, onClose }) {
                 >
                   <input
                     className="form__field"
-                    type="number"
-                    {...register("nro_doc", { required: true })}
+                    type="text"
+                    inputMode="text"
+                    autoCapitalize="characters"
+                    placeholder="Ej. 0012604991059Q"
+                    {...register("nro_doc", {
+                      required: true,
+                      pattern: /^[0-9]{13}[A-Za-z]$/,
+                      setValueAs: (value) => value?.trim().toUpperCase(),
+                    })}
                   />
                   <label className="form__label">Nro. doc</label>
-                  {errors.nrodoc?.type === "required" && <p>Campo requerido</p>}
+                  {errors.nro_doc?.type === "required" && <p>Campo requerido</p>}
+                  {errors.nro_doc?.type === "pattern" && (
+                    <p>Usa 13 números y una letra final.</p>
+                  )}
                 </InputText>
               </article>
               <article>

@@ -1,10 +1,13 @@
-import React, { useEffect } from "react";
+import { useEffect } from "react";
 import styled from "styled-components";
 import { CardFuncion } from "./CardFuncion";
 import { Device } from "../../../styles/breakpoints";
 import ScrollReveal from "scrollreveal";
 import { BtnLink } from "../../moleculas/BtnLink";
 import { useUsuariosStore } from "../../../store/UsuariosStore";
+
+const supabaseUrl = import.meta.env.VITE_APP_SUPABASE_URL;
+
 export const LandingPagesWelcome = () => {
   const {datausuarios} = useUsuariosStore()
   useEffect(() => {
@@ -35,7 +38,7 @@ export const LandingPagesWelcome = () => {
       <ContentSection>
         <SubContentSection>
           <LeftSection className="left-section">
-            <h1>POS VENTAS CON REACT.JS {datausuarios?.id} </h1>
+            <h1>ActiveSelfControl {datausuarios?.id} </h1>
             <Step>
               <IconPlaceholder>
                 <img src="https://i.ibb.co/h19LCXP/aprendiendo.png" />
@@ -43,8 +46,8 @@ export const LandingPagesWelcome = () => {
               <Text>
                 <Title>Aprende desde cero</Title>
                 <Description>
-                  Descubre cómo crear tu sistema de postventa profesional paso a
-                  paso.
+                  Gestiona clientes, ventas, pagos y asistencia desde un mismo
+                  sistema.
                 </Description>
               </Text>
             </Step>
@@ -55,7 +58,7 @@ export const LandingPagesWelcome = () => {
               <Text>
                 <Title>Domina herramientas esenciales</Title>
                 <Description>
-                  Desarrolla habilidades clave en programación.
+                  Administra productos, trabajadores, roles y permisos.
                 </Description>
               </Text>
             </Step>
@@ -66,14 +69,14 @@ export const LandingPagesWelcome = () => {
               <Text>
                 <Title>Aplica lo aprendido</Title>
                 <Description>
-                  Desde la idea inicial hasta la implementación.
+                  Usa el POS existente junto al control completo de clientes.
                 </Description>
               </Text>
             </Step>
             
             <div style={{ display: "flex", gap: "10px" }}>
-            <BtnLink url={"https://codigo369.com/detallecurso/24"} color={"#fff"} bgcolor={"#ff6a00"} titulo={"inscribete aquí"} />
-              <BtnLink url={"https://t.me/ada369react"} color={"#2f2f2f"} bgcolor={"#ffffff"} titulo={"+ grupo telegram"} />
+            <BtnLink url={"/crm"} color={"#fff"} bgcolor={"#ff6a00"} titulo={"abrir CRM"} />
+              <BtnLink url={"/pos"} color={"#2f2f2f"} bgcolor={"#ffffff"} titulo={"abrir POS"} />
             </div>
           </LeftSection>
           <RightSection className="right-section">
@@ -107,7 +110,7 @@ export const LandingPagesWelcome = () => {
                 left={"-20px"}
                 title={"Multi-almacen"}
                 imagen={
-                  "https://qkzybkelsdmoezaaypou.supabase.co/storage/v1/object/public/imagenes/modulos/almacen.png"
+                  `${supabaseUrl}/storage/v1/object/public/imagenes/modulos/almacen.png`
                 }
               />
                <CardFuncion
@@ -117,7 +120,7 @@ export const LandingPagesWelcome = () => {
                 title={"Imprime directo"}
                 subtitle={"sin cuadro de diálogo"}
                 imagen={
-                  "https://qkzybkelsdmoezaaypou.supabase.co/storage/v1/object/public/imagenes/modulos/impresora.png"
+                  `${supabaseUrl}/storage/v1/object/public/imagenes/modulos/impresora.png`
                 }
               />
             </MockupImage>
@@ -248,31 +251,6 @@ const Description = styled.p`
 
   @media ${Device.desktop} {
     font-size: 14px;
-  }
-`;
-
-const Highlight = styled.span`
-  color: #0077ff;
-  cursor: pointer;
-`;
-
-const RegisterButton = styled.button`
-  background-color: #ff6a00;
-  color: white;
-  border: none;
-  padding: 10px 20px;
-  font-size: 14px;
-  font-weight: bold;
-  border-radius: 5px;
-  cursor: pointer;
-  align-self: center;
-  &:hover {
-    background-color: #e65c00;
-  }
-
-  @media ${Device.desktop} {
-    align-self: flex-start;
-    font-size: 16px;
   }
 `;
 
