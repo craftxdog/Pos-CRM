@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import {
   ActualizarEstadoCrmSuscripcion,
+  AsignarCrmHorarioCliente,
   CancelarInvitacionCliente,
   CompletarInvitacionCliente,
   ActualizarWhatsappMensaje,
@@ -10,6 +11,8 @@ import {
   EditarWhatsappPlantilla,
   EnviarInvitacionCliente,
   FacturarPlanCliente,
+  FacturarSuscripcionCliente,
+  GestionarCrmSuscripcion,
   InsertarCargo,
   InsertarCrmAsistencia,
   InsertarCrmCliente,
@@ -19,8 +22,10 @@ import {
   InsertarCrmSuscripcion,
   InsertarTrabajador,
   MostrarCrmData,
+  MostrarCrmClientesAsistencia,
   MostrarCrmSuscripcionesPage,
   MostrarInvitacionClienteActual,
+  RegistrarCrmAsistencia,
   UpsertCrmAutomatizacion,
   UpsertEmpresaModulo,
   UpsertRolModulo,
@@ -64,10 +69,16 @@ export const useCrmStore = create((set) => ({
   insertarSuscripcion: (payload) => InsertarCrmSuscripcion(payload),
   insertarPago: (payload) => InsertarCrmPago(payload),
   facturarPlan: (payload) => FacturarPlanCliente(payload),
+  facturarSuscripcion: (payload) => FacturarSuscripcionCliente(payload),
   mostrarSuscripcionesPage: (payload) =>
     MostrarCrmSuscripcionesPage(payload),
   actualizarEstadoSuscripcion: (payload) =>
     ActualizarEstadoCrmSuscripcion(payload),
+  gestionarSuscripcion: (payload) => GestionarCrmSuscripcion(payload),
+  mostrarClientesAsistencia: (payload) =>
+    MostrarCrmClientesAsistencia(payload),
+  asignarHorarioCliente: (payload) => AsignarCrmHorarioCliente(payload),
+  registrarAsistencia: (payload) => RegistrarCrmAsistencia(payload),
   insertarAsistencia: (payload) => InsertarCrmAsistencia(payload),
   insertarCargo: (payload) => InsertarCargo(payload),
   insertarTrabajador: (payload) => InsertarTrabajador(payload),

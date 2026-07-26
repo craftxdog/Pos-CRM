@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="x-apple-disable-message-reformatting">
+    <title>Invitación de {{ companyName }}</title>
+  </head>
+  <body style="margin:0;padding:0;background:#eef3f8;font-family:Arial,Helvetica,sans-serif;color:#0f172a">
+    <div style="display:none;max-height:0;overflow:hidden;opacity:0">
+      Activa tu cuenta y comienza con el plan {{ planName }}.
+    </div>
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#eef3f8">
+      <tr>
+        <td align="center" style="padding:34px 14px">
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:620px;background:#ffffff;border:1px solid #dbe4ee;border-radius:20px;overflow:hidden">
+            <tr>
+              <td style="height:8px;background:#f3d20c;font-size:0;line-height:0">&nbsp;</td>
+            </tr>
+            <tr>
+              <td style="padding:34px 38px 22px">
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                  <tr>
+                    <td>
+                      <span style="display:inline-block;border-radius:999px;background:#fff8c5;color:#786600;padding:7px 11px;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase">
+                        Invitación privada
+                      </span>
+                    </td>
+                    <td align="right" style="color:#64748b;font-size:12px">
+                      {{ companyName }}
+                    </td>
+                  </tr>
+                </table>
+                <h1 style="margin:26px 0 10px;font-size:30px;line-height:1.2;color:#0f172a">
+                  Tu acceso está listo
+                </h1>
+                <p style="margin:0;color:#475569;font-size:16px;line-height:1.65">
+                  {{ companyName }} te invita a completar tu perfil. Al aceptar, tu cuenta y tu suscripción quedarán activas automáticamente.
+                </p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:0 38px 24px">
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="border:1px solid #e2e8f0;border-radius:15px;background:#f8fafc">
+                  <tr>
+                    <td style="padding:20px">
+                      <p style="margin:0 0 5px;color:#64748b;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase">
+                        Plan asignado
+                      </p>
+                      <h2 style="margin:0;color:#0f172a;font-size:21px">{{ planName }}</h2>
+                      {% if planDescription %}
+                      <p style="margin:7px 0 0;color:#64748b;font-size:13px;line-height:1.5">{{ planDescription }}</p>
+                      {% endif %}
+                    </td>
+                    <td align="right" style="padding:20px;white-space:nowrap">
+                      <strong style="display:block;color:#0f172a;font-size:18px">{{ planPrice }}</strong>
+                      <span style="color:#64748b;font-size:12px">{{ planDuration }} días · {{ planPeriodicity }}</span>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            <tr>
+              <td align="center" style="padding:0 38px 30px">
+                <a href="{{ actionLink }}" style="display:inline-block;border-radius:12px;background:#f3d20c;color:#111827;text-decoration:none;padding:15px 26px;font-size:15px;font-weight:900">
+                  Aceptar invitación y activar cuenta
+                </a>
+                <p style="margin:16px 0 0;color:#64748b;font-size:12px;line-height:1.55">
+                  El enlace es personal, de un solo uso y vence en {{ expiresDays }} días.
+                </p>
+              </td>
+            </tr>
+            <tr>
+              <td style="border-top:1px solid #e2e8f0;background:#f8fafc;padding:22px 38px">
+                <p style="margin:0;color:#64748b;font-size:12px;line-height:1.6">
+                  Si no esperabas este correo, puedes ignorarlo con seguridad.
+                  {% if replyTo %}¿Necesitas ayuda? Escríbenos a {{ replyTo }}.{% endif %}
+                </p>
+                <p style="margin:10px 0 0;color:#94a3b8;font-size:11px">
+                  © {{ currentYear }} {{ companyName }} · Enviado de forma segura por MultiLot 360
+                </p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>

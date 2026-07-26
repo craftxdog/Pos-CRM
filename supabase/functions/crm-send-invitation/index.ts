@@ -1,9 +1,29 @@
 import "@supabase/functions-js/edge-runtime.d.ts";
 import { withSupabase } from "@supabase/server";
 import nodemailer from "nodemailer";
+// @ts-types="npm:@types/nunjucks@3.2.6"
+import nunjucks from "nunjucks";
 
 const ADMIN_ROLES = new Set(["superadmin", "administrador", "admin"]);
 const EMAIL_PATTERN = /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i;
+const htmlEnvironment = new nunjucks.Environment(null, {
+  autoescape: true,
+  throwOnUndefined: true,
+  trimBlocks: true,
+  lstripBlocks: true,
+});
+const textEnvironment = new nunjucks.Environment(null, {
+  autoescape: false,
+  throwOnUndefined: true,
+  trimBlocks: true,
+  lstripBlocks: true,
+});
+const invitationHtmlTemplate = await Deno.readTextFile(
+  new URL("./templates/invitation.html.njk", import.meta.url)
+);
+const invitationTextTemplate = await Deno.readTextFile(
+  new URL("./templates/invitation.txt.njk", import.meta.url)
+);
 
 function requiredEnv(name: string) {
   const value = Deno.env.get(name)?.trim();
@@ -13,59 +33,14 @@ function requiredEnv(name: string) {
   return value;
 }
 
-function escapeHtml(value: unknown) {
-  return String(value ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
-}
-
-function invitationHtml({
-  companyName,
-  planName,
-  actionLink,
-  replyTo,
-}: {
-  companyName: string;
-  planName: string | null;
-  actionLink: string;
-  replyTo: string | null;
-}) {
-  const safeCompany = escapeHtml(companyName);
-  const planCopy = planName
-    ? `<p style="margin:0 0 20px;color:#475569">Plan seleccionado: <strong>${escapeHtml(planName)}</strong></p>`
-    : "";
-  const supportCopy = replyTo
-    ? `<p style="margin:18px 0 0;color:#64748b;font-size:13px">¿Necesitas ayuda? Responde este correo o escribe a ${escapeHtml(replyTo)}.</p>`
-    : "";
-
-  return `<!doctype html>
-<html lang="es">
-  <body style="margin:0;background:#f1f5f9;font-family:Arial,sans-serif;color:#0f172a">
-    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="padding:32px 16px">
-      <tr>
-        <td align="center">
-          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:560px;background:#ffffff;border-radius:16px;overflow:hidden;border:1px solid #e2e8f0">
-            <tr><td style="height:8px;background:#f3d20c"></td></tr>
-            <tr>
-              <td style="padding:34px">
-                <p style="margin:0 0 8px;color:#8a7600;font-weight:700;font-size:13px;text-transform:uppercase;letter-spacing:.08em">${safeCompany}</p>
-                <h1 style="margin:0 0 14px;font-size:26px">Completa tu registro</h1>
-                <p style="margin:0 0 20px;color:#475569;line-height:1.6">Has recibido una invitación para registrar tus datos como cliente. El proceso toma menos de un minuto.</p>
-                ${planCopy}
-                <a href="${escapeHtml(actionLink)}" style="display:inline-block;background:#f3d20c;color:#111827;text-decoration:none;font-weight:800;padding:13px 22px;border-radius:10px">Aceptar invitación</a>
-                <p style="margin:22px 0 0;color:#64748b;font-size:13px;line-height:1.5">Este enlace es personal y de un solo uso. Si no esperabas esta invitación, puedes ignorar el mensaje.</p>
-                ${supportCopy}
-              </td>
-            </tr>
-          </table>
-        </td>
-      </tr>
-    </table>
-  </body>
-</html>`;
+function publicErrorMessage(message: string) {
+  if (
+    message.includes("MS42225") ||
+    message.toLowerCase().includes("trial account unique recipients limit")
+  ) {
+    return "MailerSend alcanzó el límite de destinatarios únicos de la cuenta de prueba. Verifica el dominio o actualiza el plan de MailerSend antes de invitar nuevos correos.";
+  }
+  return message;
 }
 
 export default {
@@ -85,7 +60,7 @@ export default {
       const body = await request.json();
       const email = String(body.email || "").trim().toLowerCase();
       const companyId = Number(body.id_empresa);
-      const planId = body.id_plan ? Number(body.id_plan) : null;
+      const planId = Number(body.id_plan);
 
       if (!EMAIL_PATTERN.test(email)) {
         throw new Error("Ingresa un correo válido");
@@ -93,8 +68,8 @@ export default {
       if (!Number.isSafeInteger(companyId) || companyId <= 0) {
         throw new Error("La empresa no es válida");
       }
-      if (planId !== null && (!Number.isSafeInteger(planId) || planId <= 0)) {
-        throw new Error("El plan no es válido");
+      if (!Number.isSafeInteger(planId) || planId <= 0) {
+        throw new Error("Selecciona el plan que tendrá el cliente");
       }
 
       const callerAuthId = ctx.userClaims?.id || ctx.jwtClaims?.sub;
@@ -121,24 +96,22 @@ export default {
         await Promise.all([
           ctx.supabaseAdmin
             .from("empresa")
-            .select("nombre")
+            .select("nombre, currency")
             .eq("id", companyId)
             .maybeSingle(),
-          planId
-            ? ctx.supabaseAdmin
-                .from("crm_planes")
-                .select("id, nombre")
-                .eq("id", planId)
-                .eq("id_empresa", companyId)
-                .eq("activo", true)
-                .maybeSingle()
-            : Promise.resolve({ data: null, error: null }),
+          ctx.supabaseAdmin
+            .from("crm_planes")
+            .select("id, nombre, descripcion, precio, periodicidad, duracion_dias")
+            .eq("id", planId)
+            .eq("id_empresa", companyId)
+            .eq("activo", true)
+            .maybeSingle(),
         ]);
 
       if (companyError || !company) {
         throw new Error("No se encontró la empresa");
       }
-      if (planError || (planId && !plan)) {
+      if (planError || !plan) {
         throw new Error("El plan seleccionado no existe o está inactivo");
       }
 
@@ -225,19 +198,35 @@ export default {
       const fromEmail = requiredEnv("MAILERSEND_FROM_EMAIL");
       const fromName = Deno.env.get("MAILERSEND_FROM_NAME")?.trim() || company.nombre;
       const replyTo = Deno.env.get("MAILERSEND_REPLY_TO_EMAIL")?.trim() || null;
+      const templateContext = {
+        companyName: company.nombre,
+        planName: plan.nombre,
+        planDescription: plan.descripcion || "",
+        planPrice: new Intl.NumberFormat("es-NI", {
+          style: "currency",
+          currency: company.currency || "USD",
+        }).format(Number(plan.precio || 0)),
+        planDuration: plan.duracion_dias,
+        planPeriodicity: plan.periodicidad,
+        actionLink: linkData.properties.action_link,
+        replyTo: replyTo || "",
+        expiresDays: 7,
+        currentYear: new Date().getUTCFullYear(),
+      };
 
       await transporter.sendMail({
         from: { name: fromName, address: fromEmail },
         to: email,
         replyTo: replyTo || undefined,
         subject: `${company.nombre} te invita a completar tu registro`,
-        text: `Has recibido una invitación de ${company.nombre}. Completa tu registro aquí: ${linkData.properties.action_link}`,
-        html: invitationHtml({
-          companyName: company.nombre,
-          planName: plan?.nombre || null,
-          actionLink: linkData.properties.action_link,
-          replyTo,
-        }),
+        text: textEnvironment.renderString(
+          invitationTextTemplate,
+          templateContext
+        ),
+        html: htmlEnvironment.renderString(
+          invitationHtmlTemplate,
+          templateContext
+        ),
       });
 
       const { error: trackingError } = await ctx.supabaseAdmin
@@ -261,6 +250,7 @@ export default {
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : "No se pudo enviar la invitación";
+      const clientMessage = publicErrorMessage(message);
       console.error("crm-send-invitation:", message);
 
       if (invitationId) {
@@ -274,7 +264,7 @@ export default {
           .eq("id", invitationId);
       }
 
-      return Response.json({ error: message }, { status: 400 });
+      return Response.json({ error: clientMessage }, { status: 400 });
     }
   }),
 };

@@ -1,0 +1,18 @@
+{{ companyName }} te invita a activar tu cuenta
+
+Tu plan asignado:
+{{ planName }} — {{ planPrice }} — {{ planDuration }} días ({{ planPeriodicity }})
+{% if planDescription %}
+{{ planDescription }}
+{% endif %}
+
+Acepta la invitación y completa tu perfil:
+{{ actionLink }}
+
+Al finalizar, tu cuenta y tu suscripción quedarán activas automáticamente.
+Este enlace es personal, de un solo uso y vence en {{ expiresDays }} días.
+{% if replyTo %}
+Ayuda: {{ replyTo }}
+{% endif %}
+
+© {{ currentYear }} {{ companyName }}
