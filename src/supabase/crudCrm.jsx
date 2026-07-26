@@ -6,12 +6,17 @@ function throwIfError(error) {
   }
 }
 
-async function sha256(value) {
-  const bytes = new TextEncoder().encode(value);
-  const digest = await crypto.subtle.digest("SHA-256", bytes);
-  return Array.from(new Uint8Array(digest))
-    .map((byte) => byte.toString(16).padStart(2, "0"))
-    .join("");
+async function throwFunctionError(error) {
+  if (!error) return;
+  try {
+    const payload = await error.context?.json();
+    throw new Error(payload?.error || payload?.message || error.message);
+  } catch (contextError) {
+    if (contextError instanceof Error && contextError.message !== error.message) {
+      throw contextError;
+    }
+    throw new Error(error.message);
+  }
 }
 
 export async function MostrarCrmData({ id_empresa }) {
@@ -57,12 +62,14 @@ export async function MostrarCrmData({ id_empresa }) {
       .order("created_at", { ascending: false }),
     supabase
       .from("crm_suscripciones")
-      .select("*, clientes_crm(nombres, apellidos, email), crm_planes(nombre)")
+      .select("*, clientes_crm(nombres, apellidos, email), crm_planes(nombre, descripcion, precio, periodicidad, duracion_dias)")
       .eq("id_empresa", id_empresa)
       .order("created_at", { ascending: false }),
     supabase
       .from("crm_pagos")
-      .select("*, clientes_crm(nombres, apellidos, email)")
+      .select(
+        "*, clientes_crm(nombres, apellidos, email, telefono, direccion, identificador_nacional, identificador_fiscal), crm_suscripciones(id, fecha_inicio, fecha_fin, crm_planes(nombre, descripcion, precio, periodicidad))"
+      )
       .eq("id_empresa", id_empresa)
       .order("created_at", { ascending: false }),
     supabase
@@ -195,31 +202,31 @@ export async function EnviarInvitacionCliente({
   id_empresa,
   email,
   id_plan,
-  invited_by,
-  redirectTo,
 }) {
-  const token = crypto.randomUUID();
-  const token_hash = await sha256(token);
-  const { data, error } = await supabase
-    .from("crm_invitaciones")
-    .insert({
+  const { data, error } = await supabase.functions.invoke("crm-send-invitation", {
+    body: {
       id_empresa,
       email,
       id_plan: id_plan || null,
-      invited_by,
-      token_hash,
-    })
+    },
+  });
+  await throwFunctionError(error);
+  return data?.invitation || data;
+}
+
+export async function CancelarInvitacionCliente({ id, id_empresa }) {
+  const { data, error } = await supabase
+    .from("crm_invitaciones")
+    .update({ estado: "cancelada" })
+    .eq("id", id)
+    .eq("id_empresa", id_empresa)
+    .eq("estado", "pendiente")
     .select()
     .maybeSingle();
   throwIfError(error);
-
-  const { error: authError } = await supabase.auth.signInWithOtp({
-    email,
-    options: {
-      emailRedirectTo: redirectTo,
-    },
-  });
-  throwIfError(authError);
+  if (!data) {
+    throw new Error("La invitación ya no está pendiente");
+  }
   return data;
 }
 
@@ -260,6 +267,94 @@ export async function InsertarCrmPago(payload) {
     .select()
     .maybeSingle();
   throwIfError(error);
+  return data;
+}
+
+export async function FacturarPlanCliente(payload) {
+  const { data, error } = await supabase.rpc("crm_facturar_plan", {
+    p_id_cliente_crm: Number(payload.id_cliente_crm),
+    p_id_plan: Number(payload.id_plan),
+    p_fecha_inicio: payload.fecha_inicio || new Date().toISOString().slice(0, 10),
+    p_estado: payload.estado || "pagado",
+    p_metodo_pago: payload.metodo_pago || null,
+    p_auto_renovar: Boolean(payload.auto_renovar),
+    p_notas: payload.notas || null,
+  });
+  throwIfError(error);
+  return data;
+}
+
+export async function MostrarCrmSuscripcionesPage({
+  id_empresa,
+  page = 1,
+  pageSize = 10,
+  search = "",
+  status = "todos",
+  planId = "todos",
+}) {
+  const safePage = Math.max(1, Number(page) || 1);
+  const safePageSize = Math.min(50, Math.max(5, Number(pageSize) || 10));
+  const from = (safePage - 1) * safePageSize;
+  const to = from + safePageSize - 1;
+
+  let query = supabase
+    .from("crm_suscripciones_operativas")
+    .select("*", { count: "exact" })
+    .eq("id_empresa", id_empresa)
+    .order("fecha_fin", { ascending: true })
+    .order("id", { ascending: false })
+    .range(from, to);
+
+  const normalizedSearch = String(search || "").trim().toLowerCase();
+  if (normalizedSearch) {
+    query = query.ilike("busqueda", `%${normalizedSearch}%`);
+  }
+  if (status && status !== "todos") {
+    query = query.eq("estado_operativo", status);
+  }
+  if (planId && planId !== "todos") {
+    query = query.eq("id_plan", Number(planId));
+  }
+
+  const { data, error, count } = await query;
+  throwIfError(error);
+
+  const total = Number(count || 0);
+  const totalPages = Math.max(1, Math.ceil(total / safePageSize));
+  return {
+    data: data || [],
+    pagination: {
+      page: Math.min(safePage, totalPages),
+      pageSize: safePageSize,
+      total,
+      totalPages,
+      from: total ? from + 1 : 0,
+      to: Math.min(from + safePageSize, total),
+      hasPreviousPage: safePage > 1,
+      hasNextPage: safePage < totalPages,
+    },
+  };
+}
+
+export async function ActualizarEstadoCrmSuscripcion({
+  id,
+  id_empresa,
+  estado,
+}) {
+  if (!["activa", "pausada", "cancelada"].includes(estado)) {
+    throw new Error("Estado de suscripción no permitido");
+  }
+  const { data, error } = await supabase
+    .from("crm_suscripciones")
+    .update({ estado })
+    .eq("id", id)
+    .eq("id_empresa", id_empresa)
+    .select()
+    .maybeSingle();
+  throwIfError(error);
+  if (!data) {
+    throw new Error("No se encontró la suscripción");
+  }
   return data;
 }
 
@@ -403,35 +498,20 @@ export async function MostrarInvitacionClienteActual() {
 }
 
 export async function CompletarInvitacionCliente({ invitacion, cliente }) {
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser();
-  throwIfError(userError);
-
-  const { data: nuevoCliente, error } = await supabase
-    .from("clientes_crm")
-    .insert({
-      ...cliente,
-      id_empresa: invitacion.id_empresa,
-      email: user.email,
-      id_auth: user.id,
-      estado: "activo",
-      origen: "invitacion",
-    })
-    .select()
-    .maybeSingle();
+  const { data: nuevoCliente, error } = await supabase.rpc(
+    "crm_completar_invitacion",
+    {
+      p_invitacion_id: invitacion.id,
+      p_nombres: cliente.nombres,
+      p_apellidos: cliente.apellidos || null,
+      p_telefono: cliente.telefono || null,
+      p_direccion: cliente.direccion || null,
+      p_identificador_nacional: cliente.identificador_nacional || null,
+      p_identificador_fiscal: cliente.identificador_fiscal || null,
+      p_fecha_nacimiento: cliente.fecha_nacimiento || null,
+      p_notas: cliente.notas || null,
+    }
+  );
   throwIfError(error);
-
-  const { error: inviteError } = await supabase
-    .from("crm_invitaciones")
-    .update({
-      estado: "aceptada",
-      accepted_at: new Date().toISOString(),
-      id_cliente_crm: nuevoCliente.id,
-    })
-    .eq("id", invitacion.id);
-  throwIfError(inviteError);
-
   return nuevoCliente;
 }

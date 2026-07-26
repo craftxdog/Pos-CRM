@@ -72,7 +72,7 @@ export function Layout({ children }) {
 }
 const Container = styled.main`
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr);
   transition: 0.1s ease-in-out;
   color: ${({ theme }) => theme.text};
   .contentSidebar {
@@ -84,9 +84,9 @@ const Container = styled.main`
     /* background-color: rgba(53, 219, 11, 0.5); */
   }
   @media ${Device.tablet} {
-    grid-template-columns: 88px 1fr;
+    grid-template-columns: 88px minmax(0, 1fr);
     &.active {
-      grid-template-columns: 260px 1fr;
+      grid-template-columns: 260px minmax(0, 1fr);
     }
     .contentSidebar {
       display: initial;
@@ -99,6 +99,7 @@ const Container = styled.main`
 const Containerbody = styled.section`
   /* background-color: rgba(231, 13, 136, 0.5); */
   grid-column: 1;
+  min-width: 0;
   width: 100%;
 
   @media ${Device.tablet} {

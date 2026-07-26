@@ -161,6 +161,7 @@ export function MyRoutes() {
       {[
         "/crm",
         "/crm/clientes",
+        "/crm/suscripciones",
         "/crm/pagos",
         "/crm/horarios",
         "/crm/trabajadores",
