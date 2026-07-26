@@ -23,28 +23,34 @@ import {
   FiCreditCard,
   FiEdit3,
   FiEye,
+  FiFileText,
   FiLayers,
   FiLock,
   FiMail,
   FiMessageCircle,
   FiPlusCircle,
+  FiPrinter,
   FiSearch,
   FiSend,
   FiShield,
   FiTrash2,
   FiTrendingUp,
   FiUsers,
+  FiXCircle,
 } from "react-icons/fi";
 import { MdOutlineBadge, MdOutlinePointOfSale } from "react-icons/md";
 import { toast, Toaster } from "sonner";
 import { useCrmStore } from "../../store/CrmStore";
 import { useEmpresaStore } from "../../store/EmpresaStore";
 import { useUsuariosStore } from "../../store/UsuariosStore";
+import { CrmSubscriptionsWorkspace } from "../organismos/CRMDesign/CrmSubscriptionsWorkspace";
+import FacturaCliente from "../../reports/FacturaCliente";
 import { v } from "../../styles/variables";
 
 const tabs = [
   { id: "procesos", label: "Procesos", icon: FiActivity },
   { id: "clientes", label: "Clientes", icon: FiUsers },
+  { id: "suscripciones", label: "Suscripciones", icon: FiLayers },
   { id: "pagos", label: "Pagos", icon: FiCreditCard },
   { id: "horarios", label: "Horarios", icon: FiCalendar },
   { id: "trabajadores", label: "Trabajadores", icon: MdOutlineBadge },
@@ -80,6 +86,11 @@ const statusLabels = {
   salida_registrada: "Salidas",
   borrador: "Borradores",
   enviado: "Enviados",
+  aceptada: "Aceptadas",
+  expirada: "Expiradas",
+  cancelado: "Cancelados",
+  por_vencer: "Próximas a vencer",
+  morosa: "Morosas",
   error: "Con error",
   conectado: "Conectado",
   pausado: "Pausado",
@@ -87,8 +98,10 @@ const statusLabels = {
 
 const actionMessages = {
   cliente: "Cliente guardado",
-  invitacion: "Invitacion creada",
+  invitacion: "Invitación enviada por correo",
+  cancelar_invitacion: "Invitación cancelada",
   plan: "Plan creado",
+  facturar_plan: "Factura creada",
   suscripcion: "Suscripcion asignada",
   pago: "Pago registrado",
   horario: "Horario creado",
@@ -186,6 +199,21 @@ function labelFor(value) {
   return statusLabels[value] || String(value || "Sin dato");
 }
 
+function invitationState(item) {
+  if (item.estado === "aceptada") return { key: "aceptada", label: "Aceptada" };
+  if (item.estado === "cancelada") return { key: "cancelada", label: "Cancelada" };
+  if (item.estado === "expirada" || new Date(item.expires_at) < new Date()) {
+    return { key: "expirada", label: "Expirada" };
+  }
+  if (item.estado_envio === "error" || item.ultimo_error_email) {
+    return { key: "error", label: "Error de envío" };
+  }
+  if (item.estado_envio === "enviado" || item.email_enviado_at) {
+    return { key: "enviada", label: "Enviada · esperando registro" };
+  }
+  return { key: "pendiente", label: "Preparando envío" };
+}
+
 function countBy(items, key, expected = []) {
   const totals = new Map(expected.map((item) => [item, 0]));
   items.forEach((item) => {
@@ -257,6 +285,7 @@ export function CRMTemplate({ initialTab = "procesos" }) {
   const [activeTab, setActiveTab] = useState(initialTab);
   const [search, setSearch] = useState("");
   const [clientStatusFilter, setClientStatusFilter] = useState("todos");
+  const [clientPage, setClientPage] = useState(1);
   const [paymentClientId, setPaymentClientId] = useState("");
   const queryClient = useQueryClient();
   const { dataempresa } = useEmpresaStore();
@@ -301,8 +330,13 @@ export function CRMTemplate({ initialTab = "procesos" }) {
           id_empresa,
           email: values.email,
           id_plan: values.id_plan || null,
-          invited_by: registrado_por,
-          redirectTo: `${window.location.origin}/onboarding-cliente`,
+        });
+      }
+
+      if (action === "cancelar_invitacion") {
+        return crm.cancelarInvitacion({
+          id: values.id,
+          id_empresa,
         });
       }
 
@@ -347,6 +381,18 @@ export function CRMTemplate({ initialTab = "procesos" }) {
           estado: values.estado || "pendiente",
           registrado_por,
           notas: values.notas || null,
+        });
+      }
+
+      if (action === "facturar_plan") {
+        return crm.facturarPlan({
+          id_cliente_crm: values.id_cliente_crm,
+          id_plan: values.id_plan,
+          fecha_inicio: values.fecha_inicio,
+          estado: values.estado,
+          metodo_pago: values.metodo_pago,
+          auto_renovar: values.auto_renovar === "on",
+          notas: values.notas,
         });
       }
 
@@ -522,9 +568,19 @@ export function CRMTemplate({ initialTab = "procesos" }) {
         });
       }
     },
-    onSuccess: (_, variables) => {
+    onSuccess: (result, variables) => {
       toast.success(actionMessages[variables.action] || "Datos guardados");
       queryClient.invalidateQueries({ queryKey: ["crm-data"] });
+      queryClient.invalidateQueries({ queryKey: ["crm-subscriptions"] });
+      if (variables.action === "facturar_plan" && result?.pago) {
+        void FacturaCliente("print", {
+          dataempresa,
+          pago: result.pago,
+          cliente: result.cliente,
+          suscripcion: result.suscripcion,
+          plan: result.plan,
+        }).catch((error) => toast.error(error?.message || "No se pudo imprimir la factura"));
+      }
     },
     onError: (error) => {
       toast.error(error.message);
@@ -577,6 +633,13 @@ export function CRMTemplate({ initialTab = "procesos" }) {
     form.elements.namedItem("monto").value = Number(subscription.precio_pactado || subscription.crm_planes?.precio || 0);
     form.elements.namedItem("fecha_vencimiento").value = dateOnly(subscription.fecha_fin) || "";
     form.elements.namedItem("referencia").value = `Suscripcion #${subscription.id}`;
+  };
+
+  const printInvoice = (payment) => {
+    void FacturaCliente("print", {
+      dataempresa,
+      pago: payment,
+    }).catch((error) => toast.error(error?.message || "No se pudo imprimir la factura"));
   };
 
   const operational = useMemo(() => {
@@ -673,7 +736,7 @@ export function CRMTemplate({ initialTab = "procesos" }) {
     const pagosEstado = countBy(crm.pagos, "estado", ["pagado", "pendiente", "vencido", "anulado"]);
     const suscripcionesEstado = countBy(crm.suscripciones, "estado", ["activa", "pendiente", "vencida", "cancelada"]);
     const asistenciasEstado = countBy(crm.asistencias, "estado", ["presente", "tarde", "ausente", "salida_registrada"]);
-    const invitacionesEstado = countBy(crm.invitaciones, "estado", ["pendiente", "completada", "expirada"]);
+    const invitacionesEstado = countBy(crm.invitaciones, "estado", ["pendiente", "aceptada", "expirada"]);
     const whatsappEstado = countBy(crm.whatsappMensajes, "estado", ["borrador", "pendiente", "enviado", "error"]);
     const trabajadoresEstado = countBy(crm.trabajadores, "estado", ["activo", "inactivo"]);
     const ingresosPorMes = buildRevenueTrend(crm.pagos);
@@ -748,6 +811,21 @@ export function CRMTemplate({ initialTab = "procesos" }) {
     );
   }, [clientStatusFilter, crm.clientes, search]);
 
+  useEffect(() => {
+    setClientPage(1);
+  }, [clientStatusFilter, search]);
+
+  const clientPageSize = 10;
+  const clientTotalPages = Math.max(
+    1,
+    Math.ceil(filteredClients.length / clientPageSize)
+  );
+  const safeClientPage = Math.min(clientPage, clientTotalPages);
+  const paginatedClients = filteredClients.slice(
+    (safeClientPage - 1) * clientPageSize,
+    safeClientPage * clientPageSize
+  );
+
   if (query.isLoading) {
     return <StateMessage>Cargando CRM...</StateMessage>;
   }
@@ -773,9 +851,9 @@ export function CRMTemplate({ initialTab = "procesos" }) {
       <Toaster position="top-right" richColors />
       <header className="header">
         <section>
-          <span className="eyebrow"><FiActivity /> ASC CRM</span>
-          <h1>ActiveSelfControl</h1>
-          <p>Clientes, membresías, pagos, horarios y automatizaciones del gimnasio.</p>
+          <span className="eyebrow"><FiActivity /> CRM OPERATIVO</span>
+          <h1>{dataempresa?.nombre || "CRM"}</h1>
+          <p>Clientes, planes, facturación e invitaciones en pocos pasos.</p>
         </section>
         <section className="pos-badge">
           <span className="connection-dot" aria-hidden="true" />
@@ -783,6 +861,25 @@ export function CRMTemplate({ initialTab = "procesos" }) {
           <span>POS conectado</span>
         </section>
       </header>
+
+      <section className="quick-actions" aria-label="Acciones rápidas">
+        <button type="button" onClick={() => setActiveTab("clientes")}>
+          <FiUsers />
+          <span><strong>Nuevo cliente</strong><small>Registro manual</small></span>
+        </button>
+        <button type="button" onClick={() => setActiveTab("clientes")}>
+          <FiMail />
+          <span><strong>Enviar invitación</strong><small>Correo de acceso</small></span>
+        </button>
+        <button type="button" onClick={() => setActiveTab("suscripciones")}>
+          <FiPlusCircle />
+          <span><strong>Asignar suscripción</strong><small>Cliente y plan</small></span>
+        </button>
+        <button type="button" className="primary" onClick={() => setActiveTab("pagos")}>
+          <FiFileText />
+          <span><strong>Crear factura</strong><small>Cobrar e imprimir</small></span>
+        </button>
+      </section>
 
       <nav className="tabs" aria-label="CRM">
         {tabs.map((item) => {
@@ -1099,8 +1196,30 @@ export function CRMTemplate({ initialTab = "procesos" }) {
             <div className="list compact">
               {crm.invitaciones.slice(0, 6).map((item) => (
                 <article key={item.id}>
-                  <strong>{item.email}</strong>
-                  <span>{item.estado}</span>
+                  <span className="invitation-copy">
+                    <strong>{item.email}</strong>
+                    <small className={`invitation-status ${invitationState(item).key}`}>
+                      {invitationState(item).label}
+                    </small>
+                  </span>
+                  {item.estado === "pendiente" &&
+                  new Date(item.expires_at) >= new Date() ? (
+                    <button
+                      type="button"
+                      className="cancel-invitation"
+                      title="Cancelar invitación"
+                      onClick={() =>
+                        mutation.mutate({
+                          action: "cancelar_invitacion",
+                          values: { id: item.id },
+                        })
+                      }
+                      disabled={mutation.isPending}
+                    >
+                      <FiXCircle />
+                      Cancelar
+                    </button>
+                  ) : null}
                 </article>
               ))}
             </div>
@@ -1137,7 +1256,7 @@ export function CRMTemplate({ initialTab = "procesos" }) {
                 <span>Telefono</span>
                 <span>Estado</span>
               </div>
-              {filteredClients.map((item) => (
+              {paginatedClients.map((item) => (
                 <div className="row" key={item.id}>
                   <span>{fullName(item)}</span>
                   <span>{item.email || "-"}</span>
@@ -1147,9 +1266,45 @@ export function CRMTemplate({ initialTab = "procesos" }) {
               ))}
               {!filteredClients.length && <p className="empty">No hay clientes con esos filtros.</p>}
             </div>
+            {filteredClients.length ? (
+              <div className="client-pagination">
+                <span>
+                  Página {safeClientPage} de {clientTotalPages} · {filteredClients.length} cliente(s)
+                </span>
+                <div>
+                  <button
+                    type="button"
+                    onClick={() => setClientPage((current) => Math.max(1, current - 1))}
+                    disabled={safeClientPage === 1}
+                  >
+                    Anterior
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setClientPage((current) => Math.min(clientTotalPages, current + 1))
+                    }
+                    disabled={safeClientPage === clientTotalPages}
+                  >
+                    Siguiente
+                  </button>
+                </div>
+              </div>
+            ) : null}
           </div>
         </section>
         </>
+      )}
+
+      {activeTab === "suscripciones" && (
+        <CrmSubscriptionsWorkspace
+          crm={crm}
+          dataempresa={dataempresa}
+          mutation={mutation}
+          submitForm={submitForm}
+          fillSubscriptionDefaults={fillSubscriptionDefaults}
+          updateSubscriptionEnd={updateSubscriptionEnd}
+        />
       )}
 
       {activeTab === "pagos" && (
@@ -1202,6 +1357,60 @@ export function CRMTemplate({ initialTab = "procesos" }) {
         </section>
 
         <section className="workspace two-cols">
+          <div className="panel wide invoice-checkout">
+            <div className="invoice-checkout-copy">
+              <span><FiFileText /></span>
+              <div>
+                <h2>Facturar un plan</h2>
+                <p>Selecciona cliente y plan. El CRM crea la suscripción, registra el cobro y abre la factura para imprimir.</p>
+              </div>
+            </div>
+            <form onSubmit={submitForm("facturar_plan")}>
+              <select name="id_cliente_crm" required defaultValue="">
+                <option value="">Selecciona un cliente</option>
+                {crm.clientes
+                  .filter((cliente) => cliente.estado !== "inactivo")
+                  .map((cliente) => (
+                    <option key={cliente.id} value={cliente.id}>{fullName(cliente)}</option>
+                  ))}
+              </select>
+              <select name="id_plan" required defaultValue="">
+                <option value="">Selecciona un plan</option>
+                {crm.planes
+                  .filter((plan) => plan.activo)
+                  .map((plan) => (
+                    <option key={plan.id} value={plan.id}>
+                      {plan.nombre} · {money(plan.precio, dataempresa?.currency, dataempresa?.iso)}
+                    </option>
+                  ))}
+              </select>
+              <input
+                name="fecha_inicio"
+                type="date"
+                defaultValue={new Date().toISOString().slice(0, 10)}
+                required
+              />
+              <input name="metodo_pago" list="crm-payment-methods" placeholder="Método de pago" />
+              <select name="estado" defaultValue="pagado">
+                <option value="pagado">Pagada</option>
+                <option value="pendiente">Pendiente</option>
+                <option value="vencido">Vencida</option>
+              </select>
+              <label className="checkline">
+                <input name="auto_renovar" type="checkbox" />
+                Renovar automáticamente
+              </label>
+              <textarea name="notas" placeholder="Notas opcionales de la factura" />
+              <button
+                className="invoice-action"
+                disabled={mutation.isPending || !crm.clientes.length || !crm.planes.length}
+              >
+                <FiPrinter />
+                Crear e imprimir factura
+              </button>
+            </form>
+          </div>
+
           <div className="panel">
             <h2>Planes</h2>
             <form onSubmit={submitForm("plan")}>
@@ -1229,45 +1438,18 @@ export function CRMTemplate({ initialTab = "procesos" }) {
             <div className="list">
               {crm.planes.map((plan) => (
                 <article key={plan.id}>
-                  <strong>{plan.nombre}</strong>
-                  <span>{money(plan.precio, dataempresa?.currency, dataempresa?.iso)} / {plan.periodicidad}</span>
+                  <span className="plan-copy">
+                    <strong>{plan.nombre}</strong>
+                    <small>{plan.descripcion || "Sin descripción"}</small>
+                  </span>
+                  <span>
+                    {money(plan.precio, dataempresa?.currency, dataempresa?.iso)}
+                    {" · "}
+                    {plan.duracion_dias} días
+                  </span>
                 </article>
               ))}
             </div>
-          </div>
-
-          <div className="panel">
-            <h2>Suscripcion</h2>
-            <p className="hint">Selecciona un cliente y un plan activo. Si no aparecen opciones, crealos primero en este mismo modulo.</p>
-            <form onSubmit={submitForm("suscripcion")}>
-              <select name="id_cliente_crm" required defaultValue="">
-                <option value="">Cliente</option>
-                {crm.clientes.map((cliente) => (
-                  <option key={cliente.id} value={cliente.id}>{fullName(cliente)}</option>
-                ))}
-              </select>
-              <select name="id_plan" required defaultValue="" onChange={fillSubscriptionDefaults}>
-                <option value="">Plan</option>
-                {crm.planes.map((plan) => (
-                  <option key={plan.id} value={plan.id}>{plan.nombre}</option>
-                ))}
-              </select>
-              <input
-                name="fecha_inicio"
-                type="date"
-                defaultValue={new Date().toISOString().slice(0, 10)}
-                onChange={updateSubscriptionEnd}
-              />
-              <input name="fecha_fin" type="date" />
-              <input name="precio_pactado" type="number" min="0" step="0.01" placeholder="Precio pactado" />
-              <label className="checkline">
-                <input name="auto_renovar" type="checkbox" />
-                Renovar automaticamente
-              </label>
-              <button disabled={mutation.isPending || !crm.clientes.length || !crm.planes.length}>
-                Asignar suscripcion
-              </button>
-            </form>
           </div>
 
           <div className="panel">
@@ -1324,8 +1506,19 @@ export function CRMTemplate({ initialTab = "procesos" }) {
             <div className="list">
               {crm.pagos.slice(0, 12).map((pago) => (
                 <article key={pago.id}>
-                  <strong>{pago.clientes_crm?.nombres || "Cliente"}</strong>
-                  <span>{money(pago.monto, pago.moneda, dataempresa?.iso)} - {pago.estado}</span>
+                  <span className="payment-copy">
+                    <strong>{fullName(pago.clientes_crm) || "Cliente"}</strong>
+                    <small>{pago.referencia || `Factura #${pago.id}`} · {money(pago.monto, pago.moneda, dataempresa?.iso)} · {pago.estado}</small>
+                  </span>
+                  <button
+                    type="button"
+                    className="print-invoice"
+                    onClick={() => printInvoice(pago)}
+                    title="Imprimir factura"
+                  >
+                    <FiPrinter />
+                    Imprimir
+                  </button>
                 </article>
               ))}
             </div>
@@ -1907,6 +2100,8 @@ const StateMessage = styled.div`
 `;
 
 const Container = styled.main`
+  width: 100%;
+  min-width: 0;
   min-height: calc(100vh - 50px);
   margin-top: 50px;
   padding: 22px 24px 48px;
@@ -1983,6 +2178,77 @@ const Container = styled.main`
     border-radius: 50%;
     background: #4ade80;
     box-shadow: 0 0 0 4px rgba(74, 222, 128, 0.14);
+  }
+
+  .quick-actions {
+    width: min(1380px, 100%);
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+    margin: 12px auto 0;
+
+    button {
+      min-width: 0;
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      align-items: center;
+      gap: 11px;
+      border: 1px solid ${({ theme }) => theme.color2};
+      border-radius: 14px;
+      background: ${({ theme }) => theme.bgcards};
+      color: ${({ theme }) => theme.text};
+      padding: 13px 15px;
+      text-align: left;
+      cursor: pointer;
+      transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+
+      > svg {
+        width: 36px;
+        height: 36px;
+        padding: 9px;
+        border-radius: 10px;
+        background: ${({ theme }) => theme.bgtotal};
+        color: #172554;
+      }
+
+      > span {
+        min-width: 0;
+        display: grid;
+        gap: 2px;
+      }
+
+      strong,
+      small {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      small {
+        color: ${({ theme }) => theme.colorSubtitle};
+      }
+    }
+
+    button:hover {
+      transform: translateY(-2px);
+      border-color: ${v.colorPrincipal};
+      box-shadow: 0 10px 24px rgba(15, 23, 42, 0.1);
+    }
+
+    button.primary {
+      border-color: ${v.colorPrincipal};
+      background: ${v.colorPrincipal};
+      color: #111827;
+
+      > svg {
+        background: rgba(255, 255, 255, 0.55);
+        color: #111827;
+      }
+
+      small {
+        color: rgba(17, 24, 39, 0.7);
+      }
+    }
   }
 
   .summary-grid {
@@ -2321,6 +2587,61 @@ const Container = styled.main`
     }
   }
 
+  .invoice-checkout {
+    display: grid;
+    grid-template-columns: minmax(240px, 0.7fr) minmax(0, 1.3fr);
+    gap: 22px;
+    border-color: rgba(243, 210, 12, 0.62);
+    background:
+      linear-gradient(135deg, rgba(243, 210, 12, 0.08), transparent 42%),
+      ${({ theme }) => theme.bgcards};
+  }
+
+  .invoice-checkout-copy {
+    display: flex;
+    align-items: flex-start;
+    gap: 13px;
+
+    > span {
+      width: 44px;
+      height: 44px;
+      flex: 0 0 auto;
+      display: grid;
+      place-items: center;
+      border-radius: 13px;
+      background: ${v.colorPrincipal};
+      color: #111827;
+      font-size: 20px;
+    }
+
+    h2,
+    p {
+      margin: 0;
+    }
+
+    p {
+      max-width: 390px;
+      margin-top: 6px;
+      color: ${({ theme }) => theme.colorSubtitle};
+      font-size: 13px;
+      line-height: 1.5;
+    }
+  }
+
+  .invoice-checkout > form {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+
+    textarea,
+    .invoice-action {
+      grid-column: 1 / -1;
+    }
+
+    .invoice-action {
+      min-height: 48px;
+      font-size: 14px;
+    }
+  }
+
   .hint {
     margin: 0 0 12px;
     color: ${({ theme }) => theme.colorSubtitle};
@@ -2469,12 +2790,144 @@ const Container = styled.main`
     font-size: 13px;
   }
 
+  .invitation-copy {
+    display: grid;
+    gap: 4px;
+    color: ${({ theme }) => theme.text} !important;
+    text-align: left !important;
+
+    small {
+      width: fit-content;
+      border-radius: 999px;
+      padding: 3px 8px;
+      background: ${({ theme }) => theme.bgtotal};
+      color: ${({ theme }) => theme.colorSubtitle};
+      font-size: 10px;
+      font-weight: 800;
+    }
+
+    .enviada,
+    .aceptada {
+      background: rgba(22, 163, 74, 0.12);
+      color: #15803d;
+    }
+
+    .error,
+    .cancelada {
+      background: rgba(220, 38, 38, 0.1);
+      color: #dc2626;
+    }
+
+    .expirada {
+      background: rgba(100, 116, 139, 0.12);
+      color: #64748b;
+    }
+  }
+
+  .cancel-invitation {
+    min-height: 32px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border: 1px solid ${({ theme }) => theme.color2};
+    border-radius: 8px;
+    background: ${({ theme }) => theme.bgtotal};
+    color: ${({ theme }) => theme.colorSubtitle};
+    padding: 0 9px;
+    font-size: 11px;
+    font-weight: 800;
+    cursor: pointer;
+
+    &:hover {
+      border-color: #dc2626;
+      color: #dc2626;
+    }
+  }
+
+  .payment-copy {
+    display: grid;
+    gap: 3px;
+    color: ${({ theme }) => theme.text} !important;
+    text-align: left !important;
+
+    small {
+      color: ${({ theme }) => theme.colorSubtitle};
+      line-height: 1.35;
+    }
+  }
+
+  .plan-copy {
+    display: grid;
+    gap: 3px;
+    color: ${({ theme }) => theme.text} !important;
+    text-align: left !important;
+
+    small {
+      max-width: 330px;
+      overflow: hidden;
+      color: ${({ theme }) => theme.colorSubtitle};
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  }
+
+  .print-invoice {
+    min-height: 36px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    border: 1px solid ${({ theme }) => theme.color2};
+    border-radius: 9px;
+    background: ${({ theme }) => theme.bgtotal};
+    color: ${({ theme }) => theme.text};
+    padding: 0 11px;
+    font-weight: 800;
+    cursor: pointer;
+
+    &:hover {
+      border-color: ${v.colorPrincipal};
+      color: #8a7600;
+    }
+  }
+
   .table {
     display: grid;
     overflow: auto;
     margin-top: 10px;
     border: 1px solid ${({ theme }) => theme.color2};
     border-radius: 8px;
+  }
+
+  .client-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 12px;
+    color: ${({ theme }) => theme.colorSubtitle};
+    font-size: 12px;
+
+    > div {
+      display: flex;
+      gap: 7px;
+    }
+
+    button {
+      min-height: 34px;
+      border: 1px solid ${({ theme }) => theme.color2};
+      border-radius: 8px;
+      background: ${({ theme }) => theme.bgtotal};
+      color: ${({ theme }) => theme.text};
+      padding: 0 10px;
+      font-weight: 800;
+      cursor: pointer;
+
+      &:disabled {
+        cursor: not-allowed;
+        opacity: 0.35;
+      }
+    }
   }
 
   .row {
@@ -3024,6 +3477,7 @@ const Container = styled.main`
     }
 
     .summary-grid,
+    .quick-actions,
     .metric-grid,
     .operations-grid,
     .chart-grid,
@@ -3036,6 +3490,10 @@ const Container = styled.main`
     }
 
     .panel > form {
+      grid-template-columns: 1fr;
+    }
+
+    .invoice-checkout {
       grid-template-columns: 1fr;
     }
 
@@ -3092,6 +3550,10 @@ const Container = styled.main`
       button {
         flex: 0 0 auto;
       }
+    }
+
+    .quick-actions {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
     .permissions-heading {

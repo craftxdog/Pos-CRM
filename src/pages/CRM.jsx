@@ -5,6 +5,7 @@ const tabByPath = {
   "/crm": "procesos",
   "/crm/procesos": "procesos",
   "/crm/clientes": "clientes",
+  "/crm/suscripciones": "suscripciones",
   "/crm/pagos": "pagos",
   "/crm/horarios": "horarios",
   "/crm/trabajadores": "trabajadores",
