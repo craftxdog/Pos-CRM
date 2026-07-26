@@ -2,6 +2,7 @@
   "imports": {
     "@supabase/functions-js": "jsr:@supabase/functions-js@2.110.8",
     "@supabase/server": "npm:@supabase/server@1.4.1",
-    "nodemailer": "npm:nodemailer@9.0.3"
+    "nodemailer": "npm:nodemailer@9.0.3",
+    "nunjucks": "npm:nunjucks@3.2.4"
   }
 }

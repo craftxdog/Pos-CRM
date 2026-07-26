@@ -5,11 +5,14 @@ import {
   FiChevronRight,
   FiClock,
   FiCreditCard,
+  FiEdit3,
   FiPauseCircle,
   FiPlayCircle,
   FiRefreshCw,
+  FiRotateCw,
   FiSearch,
   FiUserCheck,
+  FiXCircle,
 } from "react-icons/fi";
 import styled from "styled-components";
 import { toast } from "sonner";
@@ -83,6 +86,12 @@ export function CrmSubscriptionsWorkspace({
   const [planId, setPlanId] = useState("todos");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const [leftMode, setLeftMode] = useState("asignar");
+  const [selectedSubscription, setSelectedSubscription] = useState(null);
+  const [newPlanId, setNewPlanId] = useState("");
+  const [effectiveDate, setEffectiveDate] = useState(
+    new Date().toISOString().slice(0, 10)
+  );
   const queryClient = useQueryClient();
 
   useEffect(() => {
@@ -121,15 +130,27 @@ export function CrmSubscriptionsWorkspace({
     refetchOnWindowFocus: false,
   });
 
-  const statusMutation = useMutation({
-    mutationFn: ({ id, estado }) =>
-      crm.actualizarEstadoSuscripcion({
+  const lifecycleMutation = useMutation({
+    mutationFn: ({ id, accion, id_plan = null, fecha = null }) =>
+      crm.gestionarSuscripcion({
         id,
-        id_empresa: dataempresa.id,
-        estado,
+        accion,
+        id_plan,
+        fecha,
       }),
-    onSuccess: () => {
-      toast.success("Estado de suscripción actualizado");
+    onSuccess: (_, variables) => {
+      const messages = {
+        cambiar_plan: "Plan actualizado y nueva vigencia aplicada",
+        renovar: "Suscripción renovada",
+        pausar: "Suscripción pausada",
+        reactivar: "Suscripción reactivada",
+        cancelar: "Suscripción cancelada",
+      };
+      toast.success(messages[variables.accion] || "Suscripción actualizada");
+      if (variables.accion === "cambiar_plan") {
+        setSelectedSubscription(null);
+        setNewPlanId("");
+      }
       queryClient.invalidateQueries({ queryKey: ["crm-subscriptions"] });
       queryClient.invalidateQueries({ queryKey: ["crm-data"] });
     },
@@ -173,14 +194,33 @@ export function CrmSubscriptionsWorkspace({
 
       <section className="subscription-grid">
         <aside className="assignment-card">
-          <header>
-            <span><FiCreditCard /></span>
-            <div>
-              <h3>Asignar suscripción</h3>
-              <p>Cliente + plan + vigencia.</p>
-            </div>
-          </header>
-          <form onSubmit={submitForm("suscripcion")}>
+          <div className="workspace-switcher" role="tablist">
+            <button
+              type="button"
+              className={leftMode === "asignar" ? "active" : ""}
+              onClick={() => setLeftMode("asignar")}
+            >
+              Asignar
+            </button>
+            <button
+              type="button"
+              className={leftMode === "plan" ? "active" : ""}
+              onClick={() => setLeftMode("plan")}
+            >
+              Crear plan
+            </button>
+          </div>
+
+          {leftMode === "asignar" ? (
+            <>
+            <header>
+              <span><FiCreditCard /></span>
+              <div>
+                <h3>Asignar suscripción</h3>
+                <p>Cliente + plan + vigencia.</p>
+              </div>
+            </header>
+            <form onSubmit={submitForm("suscripcion")}>
             <label>
               Cliente
               <select name="id_cliente_crm" required defaultValue="">
@@ -250,7 +290,99 @@ export function CrmSubscriptionsWorkspace({
             >
               {mutation.isPending ? "Asignando..." : "Asignar suscripción"}
             </button>
-          </form>
+            </form>
+            </>
+          ) : (
+            <>
+              <header>
+                <span><FiEdit3 /></span>
+                <div>
+                  <h3>Crear tipo de plan</h3>
+                  <p>Precio, duración y descripción.</p>
+                </div>
+              </header>
+              <form onSubmit={submitForm("plan")}>
+                <label>
+                  Nombre del plan
+                  <input name="nombre" placeholder="Ej. Plan Premium" required />
+                </label>
+                <label>
+                  Precio
+                  <input
+                    name="precio"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="0.00"
+                    required
+                  />
+                </label>
+                <label>
+                  Periodicidad
+                  <select
+                    name="periodicidad"
+                    defaultValue="mensual"
+                    onChange={(event) => {
+                      const days = {
+                        diario: 1,
+                        semanal: 7,
+                        quincenal: 15,
+                        mensual: 30,
+                        trimestral: 90,
+                        anual: 365,
+                      };
+                      event.currentTarget.form.elements.namedItem(
+                        "duracion_dias"
+                      ).value = days[event.target.value];
+                    }}
+                  >
+                    <option value="diario">Diario</option>
+                    <option value="semanal">Semanal</option>
+                    <option value="quincenal">Quincenal</option>
+                    <option value="mensual">Mensual</option>
+                    <option value="trimestral">Trimestral</option>
+                    <option value="anual">Anual</option>
+                  </select>
+                </label>
+                <label>
+                  Duración en días
+                  <input
+                    name="duracion_dias"
+                    type="number"
+                    min="1"
+                    defaultValue="30"
+                    required
+                  />
+                </label>
+                <label>
+                  Descripción
+                  <textarea
+                    name="descripcion"
+                    placeholder="Qué incluye este plan"
+                    required
+                  />
+                </label>
+                <button disabled={mutation.isPending}>
+                  {mutation.isPending ? "Creando..." : "Crear plan"}
+                </button>
+              </form>
+              <div className="plans-mini-list">
+                {crm.planes.slice(0, 5).map((plan) => (
+                  <span key={plan.id}>
+                    <strong>{plan.nombre}</strong>
+                    <small>
+                      {currency(
+                        plan.precio,
+                        dataempresa?.currency,
+                        dataempresa?.iso
+                      )}{" "}
+                      · {plan.duracion_dias} días
+                    </small>
+                  </span>
+                ))}
+              </div>
+            </>
+          )}
         </aside>
 
         <section className="directory-card">
@@ -303,6 +435,60 @@ export function CrmSubscriptionsWorkspace({
             </select>
           </div>
 
+          {selectedSubscription ? (
+            <section className="plan-editor">
+              <div>
+                <span>Cambiar plan</span>
+                <strong>{selectedSubscription.cliente_nombre}</strong>
+                <small>Plan actual: {selectedSubscription.plan_nombre}</small>
+              </div>
+              <select
+                value={newPlanId}
+                onChange={(event) => setNewPlanId(event.target.value)}
+              >
+                <option value="">Selecciona el nuevo plan</option>
+                {crm.planes
+                  .filter(
+                    (plan) =>
+                      plan.activo && plan.id !== selectedSubscription.id_plan
+                  )
+                  .map((plan) => (
+                    <option key={plan.id} value={plan.id}>
+                      {plan.nombre} · {plan.duracion_dias} días
+                    </option>
+                  ))}
+              </select>
+              <input
+                type="date"
+                value={effectiveDate}
+                onChange={(event) => setEffectiveDate(event.target.value)}
+                aria-label="Fecha efectiva del cambio"
+              />
+              <button
+                type="button"
+                onClick={() =>
+                  lifecycleMutation.mutate({
+                    id: selectedSubscription.id,
+                    accion: "cambiar_plan",
+                    id_plan: newPlanId,
+                    fecha: effectiveDate,
+                  })
+                }
+                disabled={!newPlanId || lifecycleMutation.isPending}
+              >
+                Aplicar cambio
+              </button>
+              <button
+                type="button"
+                className="close-editor"
+                onClick={() => setSelectedSubscription(null)}
+                aria-label="Cerrar cambio de plan"
+              >
+                <FiXCircle />
+              </button>
+            </section>
+          ) : null}
+
           {subscriptionsQuery.error ? (
             <p className="error">{subscriptionsQuery.error.message}</p>
           ) : null}
@@ -339,14 +525,41 @@ export function CrmSubscriptionsWorkspace({
                 </span>
                 <SubscriptionStatus item={item} />
                 <span className="actions-cell">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedSubscription(item);
+                      setNewPlanId("");
+                    }}
+                    disabled={lifecycleMutation.isPending}
+                    title="Cambiar plan"
+                  >
+                    <FiEdit3 /> Plan
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      lifecycleMutation.mutate({
+                        id: item.id,
+                        accion: "renovar",
+                      })
+                    }
+                    disabled={lifecycleMutation.isPending}
+                    title="Renovar suscripción"
+                  >
+                    <FiRotateCw /> Renovar
+                  </button>
                   {item.estado_registrado === "pausada" ||
                   item.estado_registrado === "cancelada" ? (
                     <button
                       type="button"
                       onClick={() =>
-                        statusMutation.mutate({ id: item.id, estado: "activa" })
+                        lifecycleMutation.mutate({
+                          id: item.id,
+                          accion: "reactivar",
+                        })
                       }
-                      disabled={statusMutation.isPending}
+                      disabled={lifecycleMutation.isPending}
                       title="Reactivar suscripción"
                     >
                       <FiPlayCircle /> Reactivar
@@ -355,14 +568,39 @@ export function CrmSubscriptionsWorkspace({
                     <button
                       type="button"
                       onClick={() =>
-                        statusMutation.mutate({ id: item.id, estado: "pausada" })
+                        lifecycleMutation.mutate({
+                          id: item.id,
+                          accion: "pausar",
+                        })
                       }
-                      disabled={statusMutation.isPending}
+                      disabled={lifecycleMutation.isPending}
                       title="Pausar suscripción"
                     >
                       <FiPauseCircle /> Pausar
                     </button>
                   )}
+                  {item.estado_registrado !== "cancelada" ? (
+                    <button
+                      type="button"
+                      className="danger"
+                      onClick={() => {
+                        if (
+                          window.confirm(
+                            `¿Cancelar la suscripción de ${item.cliente_nombre}?`
+                          )
+                        ) {
+                          lifecycleMutation.mutate({
+                            id: item.id,
+                            accion: "cancelar",
+                          });
+                        }
+                      }}
+                      disabled={lifecycleMutation.isPending}
+                      title="Cancelar suscripción"
+                    >
+                      <FiXCircle /> Cancelar
+                    </button>
+                  ) : null}
                 </span>
               </article>
             ))}
@@ -506,6 +744,32 @@ const Container = styled.section`
     position: sticky;
     top: 92px;
 
+    .workspace-switcher {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4px;
+      margin-bottom: 16px;
+      border-radius: 11px;
+      background: ${({ theme }) => theme.bgtotal};
+      padding: 4px;
+
+      button {
+        border: 0;
+        border-radius: 8px;
+        background: transparent;
+        color: ${({ theme }) => theme.colorSubtitle};
+        padding: 9px 6px;
+        font-weight: 900;
+        cursor: pointer;
+
+        &.active {
+          background: ${({ theme }) => theme.bgcards};
+          color: ${({ theme }) => theme.text};
+          box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+        }
+      }
+    }
+
     > header {
       display: flex;
       gap: 11px;
@@ -551,16 +815,26 @@ const Container = styled.section`
     }
 
     input,
-    select {
+    select,
+    textarea {
       width: 100%;
       min-width: 0;
-      min-height: 42px;
       border: 1px solid ${({ theme }) => theme.color2};
       border-radius: 10px;
       background: ${({ theme }) => theme.bgtotal};
       color: ${({ theme }) => theme.text};
-      padding: 0 11px;
+      padding: 11px;
       font: inherit;
+    }
+
+    input,
+    select {
+      min-height: 42px;
+    }
+
+    textarea {
+      min-height: 78px;
+      resize: vertical;
     }
 
     .form-row {
@@ -592,6 +866,25 @@ const Container = styled.section`
       &:disabled {
         cursor: wait;
         opacity: 0.55;
+      }
+    }
+
+    .plans-mini-list {
+      display: grid;
+      gap: 6px;
+      margin-top: 14px;
+
+      > span {
+        display: grid;
+        gap: 2px;
+        border-radius: 10px;
+        background: ${({ theme }) => theme.bgtotal};
+        padding: 9px 10px;
+      }
+
+      small {
+        color: ${({ theme }) => theme.colorSubtitle};
+        font-size: 11px;
       }
     }
   }
@@ -694,7 +987,7 @@ const Container = styled.section`
   }
 
   .table-row {
-    min-width: 750px;
+    min-width: 980px;
     display: grid;
     grid-template-columns:
       minmax(135px, 1.2fr)
@@ -702,7 +995,7 @@ const Container = styled.section`
       minmax(105px, 0.82fr)
       minmax(82px, 0.62fr)
       minmax(125px, 0.95fr)
-      minmax(88px, 0.65fr);
+      minmax(255px, 1.8fr);
     align-items: center;
     gap: 10px;
     padding: 12px 14px;
@@ -805,6 +1098,75 @@ const Container = styled.section`
     }
   }
 
+  .actions-cell {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+
+    button.danger {
+      color: #dc2626;
+    }
+  }
+
+  .plan-editor {
+    display: grid;
+    grid-template-columns: minmax(150px, 1fr) minmax(170px, 1fr) auto auto auto;
+    align-items: center;
+    gap: 8px;
+    margin: 0 0 14px;
+    border: 1px solid rgba(243, 210, 12, 0.55);
+    border-radius: 12px;
+    background: rgba(243, 210, 12, 0.08);
+    padding: 10px;
+
+    > div {
+      display: grid;
+      gap: 1px;
+
+      span {
+        color: #8a7600;
+        font-size: 10px;
+        font-weight: 900;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+      }
+
+      small {
+        color: ${({ theme }) => theme.colorSubtitle};
+      }
+    }
+
+    select,
+    input,
+    button {
+      min-width: 0;
+      min-height: 38px;
+      border: 1px solid ${({ theme }) => theme.color2};
+      border-radius: 9px;
+      background: ${({ theme }) => theme.bgcards};
+      color: ${({ theme }) => theme.text};
+      padding: 0 9px;
+    }
+
+    button {
+      border-color: ${v.colorPrincipal};
+      background: ${v.colorPrincipal};
+      color: #111827;
+      font-weight: 900;
+      cursor: pointer;
+    }
+
+    .close-editor {
+      width: 38px;
+      display: grid;
+      place-items: center;
+      border-color: ${({ theme }) => theme.color2};
+      background: transparent;
+      color: ${({ theme }) => theme.text};
+      padding: 0;
+    }
+  }
+
   .empty {
     min-height: 210px;
     display: grid;
@@ -904,6 +1266,14 @@ const Container = styled.section`
     .filters {
       grid-template-columns: 1fr 1fr;
     }
+
+    .plan-editor {
+      grid-template-columns: 1fr 1fr;
+
+      > div {
+        grid-column: 1 / -1;
+      }
+    }
   }
 
   @media (max-width: 560px) {
@@ -920,6 +1290,14 @@ const Container = styled.section`
 
     .pagination nav {
       overflow-x: auto;
+    }
+
+    .plan-editor {
+      grid-template-columns: 1fr;
+
+      > div {
+        grid-column: auto;
+      }
     }
   }
 `;
