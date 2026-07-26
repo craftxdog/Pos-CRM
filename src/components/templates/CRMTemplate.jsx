@@ -43,6 +43,7 @@ import { toast, Toaster } from "sonner";
 import { useCrmStore } from "../../store/CrmStore";
 import { useEmpresaStore } from "../../store/EmpresaStore";
 import { useUsuariosStore } from "../../store/UsuariosStore";
+import { CrmAttendanceWorkspace } from "../organismos/CRMDesign/CrmAttendanceWorkspace";
 import { CrmSubscriptionsWorkspace } from "../organismos/CRMDesign/CrmSubscriptionsWorkspace";
 import FacturaCliente from "../../reports/FacturaCliente";
 import { v } from "../../styles/variables";
@@ -101,7 +102,7 @@ const actionMessages = {
   invitacion: "Invitación enviada por correo",
   cancelar_invitacion: "Invitación cancelada",
   plan: "Plan creado",
-  facturar_plan: "Factura creada",
+  facturar_suscripcion: "Factura creada",
   suscripcion: "Suscripcion asignada",
   pago: "Pago registrado",
   horario: "Horario creado",
@@ -140,7 +141,7 @@ function fullName(item) {
 
 function addDays(date, days) {
   const next = new Date(date);
-  next.setDate(next.getDate() + Number(days || 30));
+  next.setDate(next.getDate() + Math.max(0, Number(days || 30) - 1));
   return next.toISOString().slice(0, 10);
 }
 
@@ -329,7 +330,7 @@ export function CRMTemplate({ initialTab = "procesos" }) {
         return crm.enviarInvitacion({
           id_empresa,
           email: values.email,
-          id_plan: values.id_plan || null,
+          id_plan: values.id_plan,
         });
       }
 
@@ -384,14 +385,11 @@ export function CRMTemplate({ initialTab = "procesos" }) {
         });
       }
 
-      if (action === "facturar_plan") {
-        return crm.facturarPlan({
-          id_cliente_crm: values.id_cliente_crm,
-          id_plan: values.id_plan,
-          fecha_inicio: values.fecha_inicio,
+      if (action === "facturar_suscripcion") {
+        return crm.facturarSuscripcion({
+          id_suscripcion: values.id_suscripcion,
           estado: values.estado,
           metodo_pago: values.metodo_pago,
-          auto_renovar: values.auto_renovar === "on",
           notas: values.notas,
         });
       }
@@ -572,7 +570,7 @@ export function CRMTemplate({ initialTab = "procesos" }) {
       toast.success(actionMessages[variables.action] || "Datos guardados");
       queryClient.invalidateQueries({ queryKey: ["crm-data"] });
       queryClient.invalidateQueries({ queryKey: ["crm-subscriptions"] });
-      if (variables.action === "facturar_plan" && result?.pago) {
+      if (variables.action === "facturar_suscripcion" && result?.pago) {
         void FacturaCliente("print", {
           dataempresa,
           pago: result.pago,
@@ -1179,9 +1177,9 @@ export function CRMTemplate({ initialTab = "procesos" }) {
             <h2>Invitar por correo</h2>
             <form onSubmit={submitForm("invitacion")}>
               <input name="email" placeholder="cliente@correo.com" type="email" required />
-              <select name="id_plan" defaultValue="">
-                <option value="">Sin plan inicial</option>
-                {crm.planes.map((plan) => (
+              <select name="id_plan" defaultValue="" required>
+                <option value="">Selecciona el plan obligatorio</option>
+                {crm.planes.filter((plan) => plan.activo).map((plan) => (
                   <option key={plan.id} value={plan.id}>
                     {plan.nombre} - {money(plan.precio, dataempresa?.currency, dataempresa?.iso)}
                   </option>
@@ -1198,6 +1196,7 @@ export function CRMTemplate({ initialTab = "procesos" }) {
                 <article key={item.id}>
                   <span className="invitation-copy">
                     <strong>{item.email}</strong>
+                    <small>{item.crm_planes?.nombre || "Plan no disponible"}</small>
                     <small className={`invitation-status ${invitationState(item).key}`}>
                       {invitationState(item).label}
                     </small>
@@ -1311,7 +1310,7 @@ export function CRMTemplate({ initialTab = "procesos" }) {
         <>
         <section className="workspace module-overview">
           <section className="metric-grid">
-            <MetricCard label="Planes" value={analytics.totalPlanes} detail="Opciones comerciales" />
+            <MetricCard label="Facturas" value={crm.pagos.length} detail="Cobros registrados" />
             <MetricCard label="Suscripciones activas" value={totals.suscripciones} detail={`${analytics.clientesConSuscripcion} clientes`} tone="ok" />
             <MetricCard
               label="Ingresos pagados"
@@ -1361,95 +1360,37 @@ export function CRMTemplate({ initialTab = "procesos" }) {
             <div className="invoice-checkout-copy">
               <span><FiFileText /></span>
               <div>
-                <h2>Facturar un plan</h2>
-                <p>Selecciona cliente y plan. El CRM crea la suscripción, registra el cobro y abre la factura para imprimir.</p>
+                <h2>Facturar una suscripción</h2>
+                <p>Selecciona una membresía existente. Aquí solo se registra el cobro y se abre la factura para imprimir.</p>
               </div>
             </div>
-            <form onSubmit={submitForm("facturar_plan")}>
-              <select name="id_cliente_crm" required defaultValue="">
-                <option value="">Selecciona un cliente</option>
-                {crm.clientes
-                  .filter((cliente) => cliente.estado !== "inactivo")
-                  .map((cliente) => (
-                    <option key={cliente.id} value={cliente.id}>{fullName(cliente)}</option>
-                  ))}
-              </select>
-              <select name="id_plan" required defaultValue="">
-                <option value="">Selecciona un plan</option>
-                {crm.planes
-                  .filter((plan) => plan.activo)
-                  .map((plan) => (
-                    <option key={plan.id} value={plan.id}>
-                      {plan.nombre} · {money(plan.precio, dataempresa?.currency, dataempresa?.iso)}
+            <form onSubmit={submitForm("facturar_suscripcion")}>
+              <select name="id_suscripcion" required defaultValue="">
+                <option value="">Selecciona cliente y suscripción</option>
+                {crm.suscripciones
+                  .filter((item) => item.estado !== "cancelada")
+                  .map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {fullName(item.clientes_crm)} · {item.crm_planes?.nombre} ·{" "}
+                      {money(item.precio_pactado, dataempresa?.currency, dataempresa?.iso)}
                     </option>
                   ))}
               </select>
-              <input
-                name="fecha_inicio"
-                type="date"
-                defaultValue={new Date().toISOString().slice(0, 10)}
-                required
-              />
               <input name="metodo_pago" list="crm-payment-methods" placeholder="Método de pago" />
               <select name="estado" defaultValue="pagado">
                 <option value="pagado">Pagada</option>
                 <option value="pendiente">Pendiente</option>
                 <option value="vencido">Vencida</option>
               </select>
-              <label className="checkline">
-                <input name="auto_renovar" type="checkbox" />
-                Renovar automáticamente
-              </label>
               <textarea name="notas" placeholder="Notas opcionales de la factura" />
               <button
                 className="invoice-action"
-                disabled={mutation.isPending || !crm.clientes.length || !crm.planes.length}
+                disabled={mutation.isPending || !crm.suscripciones.length}
               >
                 <FiPrinter />
                 Crear e imprimir factura
               </button>
             </form>
-          </div>
-
-          <div className="panel">
-            <h2>Planes</h2>
-            <form onSubmit={submitForm("plan")}>
-              <input name="nombre" placeholder="Nombre del plan" required />
-              <input name="precio" type="number" min="0" step="0.01" placeholder="Precio" required />
-              <select
-                name="periodicidad"
-                defaultValue="mensual"
-                onChange={(event) => {
-                  const days = { diario: 1, semanal: 7, quincenal: 15, mensual: 30, trimestral: 90, anual: 365 };
-                  event.currentTarget.form.elements.namedItem("duracion_dias").value = days[event.target.value];
-                }}
-              >
-                <option value="diario">Diario</option>
-                <option value="semanal">Semanal</option>
-                <option value="quincenal">Quincenal</option>
-                <option value="mensual">Mensual</option>
-                <option value="trimestral">Trimestral</option>
-                <option value="anual">Anual</option>
-              </select>
-              <input name="duracion_dias" type="number" min="1" defaultValue="30" />
-              <textarea name="descripcion" placeholder="Descripcion" />
-              <button disabled={mutation.isPending}>Crear plan</button>
-            </form>
-            <div className="list">
-              {crm.planes.map((plan) => (
-                <article key={plan.id}>
-                  <span className="plan-copy">
-                    <strong>{plan.nombre}</strong>
-                    <small>{plan.descripcion || "Sin descripción"}</small>
-                  </span>
-                  <span>
-                    {money(plan.precio, dataempresa?.currency, dataempresa?.iso)}
-                    {" · "}
-                    {plan.duracion_dias} días
-                  </span>
-                </article>
-              ))}
-            </div>
           </div>
 
           <div className="panel">
@@ -1528,107 +1469,12 @@ export function CRMTemplate({ initialTab = "procesos" }) {
       )}
 
       {activeTab === "horarios" && (
-        <>
-        <section className="workspace module-overview">
-          <section className="metric-grid">
-            <MetricCard label="Horarios" value={analytics.totalHorarios} detail="Turnos configurados" />
-            <MetricCard label="Asistencias hoy" value={operational.asistenciasHoy.length} detail={operational.today} tone="ok" />
-            <MetricCard label="Tardes" value={crm.asistencias.filter((item) => item.estado === "tarde").length} detail="Historial registrado" tone="warning" />
-            <MetricCard label="Ausencias" value={crm.asistencias.filter((item) => item.estado === "ausente").length} detail="Control operativo" tone="danger" />
-          </section>
-          <section className="chart-grid two">
-            <ChartCard title="Asistencia por estado" subtitle="Resumen historico">
-              <ResponsiveContainer width="100%" height={220}>
-                <BarChart data={analytics.asistenciasEstado}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="name" />
-                  <YAxis allowDecimals={false} width={32} />
-                  <Tooltip />
-                  <Bar dataKey="value" fill="#38bdf8" radius={[8, 8, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </ChartCard>
-            <ChartCard title="Suscripciones por vencer" subtitle="Clientes a contactar">
-              <div className="focus-number">
-                <strong>{operational.suscripcionesPorVencer.length}</strong>
-                <span>renovaciones en los proximos 7 dias</span>
-              </div>
-            </ChartCard>
-          </section>
-        </section>
-
-        <section className="workspace two-cols">
-          <div className="panel">
-            <h2>Horario</h2>
-            <form onSubmit={submitForm("horario")}>
-              <input name="nombre" placeholder="Nombre" required />
-              <input name="hora_entrada" type="time" required />
-              <input name="hora_salida" type="time" required />
-              <input name="tolerancia_minutos" type="number" min="0" defaultValue="10" />
-              <button disabled={mutation.isPending}>Crear horario</button>
-            </form>
-            <div className="list">
-              {crm.horarios.map((item) => (
-                <article key={item.id}>
-                  <strong>{item.nombre}</strong>
-                  <span>{item.hora_entrada} - {item.hora_salida}</span>
-                </article>
-              ))}
-            </div>
-          </div>
-
-          <div className="panel">
-            <h2>Asistencia</h2>
-            <form onSubmit={submitForm("asistencia")}>
-              <select name="id_cliente_crm" required defaultValue="">
-                <option value="">Cliente</option>
-                {crm.clientes.map((cliente) => (
-                  <option key={cliente.id} value={cliente.id}>{fullName(cliente)}</option>
-                ))}
-              </select>
-              <select name="id_horario" defaultValue="">
-                <option value="">Horario opcional</option>
-                {crm.horarios.map((item) => (
-                  <option key={item.id} value={item.id}>{item.nombre}</option>
-                ))}
-              </select>
-              <input name="fecha" type="date" />
-              <select name="tipo_registro" defaultValue="entrada">
-                <option value="entrada">Entrada</option>
-                <option value="salida">Salida</option>
-              </select>
-              <select name="estado" defaultValue="presente">
-                <option value="presente">Presente</option>
-                <option value="tarde">Tarde</option>
-                <option value="ausente">Ausente</option>
-                <option value="salida_registrada">Salida registrada</option>
-              </select>
-              <textarea name="notas" placeholder="Notas" />
-              <button disabled={mutation.isPending}>Registrar asistencia</button>
-            </form>
-          </div>
-
-          <div className="panel wide">
-            <h2>Movimientos recientes</h2>
-            <div className="table">
-              <div className="row head">
-                <span>Cliente</span>
-                <span>Fecha</span>
-                <span>Horario</span>
-                <span>Estado</span>
-              </div>
-              {crm.asistencias.slice(0, 12).map((item) => (
-                <div className="row" key={item.id}>
-                  <span>{fullName(item.clientes_crm)}</span>
-                  <span>{item.fecha}</span>
-                  <span>{item.crm_horarios?.nombre || "-"}</span>
-                  <span className={`status ${item.estado}`}>{item.estado}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-        </>
+        <CrmAttendanceWorkspace
+          crm={crm}
+          dataempresa={dataempresa}
+          mutation={mutation}
+          submitForm={submitForm}
+        />
       )}
 
       {activeTab === "trabajadores" && (

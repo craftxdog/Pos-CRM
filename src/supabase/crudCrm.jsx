@@ -2,20 +2,33 @@ import { supabase } from "./supabase.config";
 
 function throwIfError(error) {
   if (error) {
-    throw new Error(error.message);
+    throw new Error(normalizeCrmError(error.message));
   }
+}
+
+function normalizeCrmError(message) {
+  const detail = String(message || "");
+  if (
+    detail.includes("MS42225") ||
+    detail.toLowerCase().includes("trial account unique recipients limit")
+  ) {
+    return "MailerSend alcanzó el límite de destinatarios únicos de la cuenta de prueba. Verifica el dominio o actualiza el plan de MailerSend antes de invitar nuevos correos.";
+  }
+  return detail || "No se pudo completar la operación";
 }
 
 async function throwFunctionError(error) {
   if (!error) return;
   try {
     const payload = await error.context?.json();
-    throw new Error(payload?.error || payload?.message || error.message);
+    throw new Error(
+      normalizeCrmError(payload?.error || payload?.message || error.message)
+    );
   } catch (contextError) {
     if (contextError instanceof Error && contextError.message !== error.message) {
       throw contextError;
     }
-    throw new Error(error.message);
+    throw new Error(normalizeCrmError(error.message));
   }
 }
 
@@ -203,11 +216,14 @@ export async function EnviarInvitacionCliente({
   email,
   id_plan,
 }) {
+  if (!id_plan) {
+    throw new Error("Selecciona el plan que tendrá el cliente");
+  }
   const { data, error } = await supabase.functions.invoke("crm-send-invitation", {
     body: {
       id_empresa,
       email,
-      id_plan: id_plan || null,
+      id_plan: Number(id_plan),
     },
   });
   await throwFunctionError(error);
@@ -278,6 +294,17 @@ export async function FacturarPlanCliente(payload) {
     p_estado: payload.estado || "pagado",
     p_metodo_pago: payload.metodo_pago || null,
     p_auto_renovar: Boolean(payload.auto_renovar),
+    p_notas: payload.notas || null,
+  });
+  throwIfError(error);
+  return data;
+}
+
+export async function FacturarSuscripcionCliente(payload) {
+  const { data, error } = await supabase.rpc("crm_facturar_suscripcion", {
+    p_id_suscripcion: Number(payload.id_suscripcion),
+    p_estado: payload.estado || "pagado",
+    p_metodo_pago: payload.metodo_pago || null,
     p_notas: payload.notas || null,
   });
   throwIfError(error);
@@ -355,6 +382,72 @@ export async function ActualizarEstadoCrmSuscripcion({
   if (!data) {
     throw new Error("No se encontró la suscripción");
   }
+  return data;
+}
+
+export async function GestionarCrmSuscripcion({
+  id,
+  accion,
+  id_plan = null,
+  fecha = null,
+}) {
+  const { data, error } = await supabase.rpc("crm_gestionar_suscripcion", {
+    p_id_suscripcion: Number(id),
+    p_accion: accion,
+    p_id_plan: id_plan ? Number(id_plan) : null,
+    p_fecha: fecha || new Date().toISOString().slice(0, 10),
+  });
+  throwIfError(error);
+  return data;
+}
+
+export async function MostrarCrmClientesAsistencia({
+  id_empresa,
+  search = "",
+  limit = 8,
+}) {
+  let query = supabase
+    .from("crm_clientes_asistencia")
+    .select("*")
+    .eq("id_empresa", id_empresa)
+    .order("nombres", { ascending: true })
+    .limit(Math.min(20, Math.max(1, Number(limit) || 8)));
+
+  const value = String(search || "").trim().toLowerCase();
+  if (value) {
+    query = query.ilike("busqueda", `%${value}%`);
+  }
+
+  const { data, error } = await query;
+  throwIfError(error);
+  return data || [];
+}
+
+export async function AsignarCrmHorarioCliente({
+  id_cliente_crm,
+  id_horario,
+}) {
+  const { data, error } = await supabase.rpc("crm_asignar_horario_cliente", {
+    p_id_cliente_crm: Number(id_cliente_crm),
+    p_id_horario: id_horario ? Number(id_horario) : null,
+  });
+  throwIfError(error);
+  return data;
+}
+
+export async function RegistrarCrmAsistencia({
+  id_cliente_crm,
+  estado,
+  id_horario = null,
+  notas = null,
+}) {
+  const { data, error } = await supabase.rpc("crm_registrar_asistencia", {
+    p_id_cliente_crm: Number(id_cliente_crm),
+    p_estado: estado,
+    p_id_horario: id_horario ? Number(id_horario) : null,
+    p_notas: notas || null,
+  });
+  throwIfError(error);
   return data;
 }
 

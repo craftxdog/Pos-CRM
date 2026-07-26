@@ -45,8 +45,11 @@ export function OnboardingCliente() {
       <Container>
         <section className="done">
           <span>ASC</span>
-          <h1>Perfil completado</h1>
-          <p>Tu informacion fue registrada correctamente.</p>
+          <h1>Cuenta y suscripción activas</h1>
+          <p>
+            Tu perfil quedó registrado y el plan{" "}
+            <strong>{invitationQuery.data?.crm_planes?.nombre}</strong> ya está activo.
+          </p>
         </section>
       </Container>
     );
@@ -70,11 +73,17 @@ export function OnboardingCliente() {
         <span>ActiveSelfControl</span>
         <h1>Completa tus datos</h1>
         <p>
-          Invitacion para {invitationQuery.data.email}
-          {invitationQuery.data.crm_planes?.nombre
-            ? ` - Plan ${invitationQuery.data.crm_planes.nombre}`
-            : ""}
+          Invitación para {invitationQuery.data.email}. Completa los datos y
+          confirma una sola vez.
         </p>
+        <article className="plan-card">
+          <small>Plan asignado</small>
+          <strong>{invitationQuery.data.crm_planes?.nombre}</strong>
+          <span>
+            {invitationQuery.data.crm_planes?.duracion_dias} días ·{" "}
+            {invitationQuery.data.crm_planes?.periodicidad}
+          </span>
+        </article>
         {mutation.error && <p className="error">{mutation.error.message}</p>}
         <form onSubmit={(event) => mutation.mutate(readForm(event))}>
           <input name="nombres" placeholder="Nombres" required />
@@ -85,7 +94,11 @@ export function OnboardingCliente() {
           <input name="identificador_fiscal" placeholder="Identificador fiscal" />
           <input name="fecha_nacimiento" type="date" />
           <textarea name="notas" placeholder="Notas o preferencias" />
-          <button disabled={mutation.isPending}>Guardar mis datos</button>
+          <button disabled={mutation.isPending}>
+            {mutation.isPending
+              ? "Activando cuenta..."
+              : "Aceptar invitación y activar cuenta"}
+          </button>
         </form>
       </section>
     </Container>
@@ -126,6 +139,32 @@ const Container = styled.main`
     display: grid;
     gap: 10px;
     margin-top: 16px;
+  }
+
+  .plan-card {
+    display: grid;
+    gap: 3px;
+    margin-top: 16px;
+    border: 1px solid rgba(243, 210, 12, 0.5);
+    border-radius: 10px;
+    background: rgba(243, 210, 12, 0.08);
+    padding: 14px;
+
+    small {
+      color: ${({ theme }) => theme.colorSubtitle};
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    strong {
+      font-size: 18px;
+    }
+
+    span {
+      color: ${({ theme }) => theme.colorSubtitle};
+      font-size: 12px;
+    }
   }
 
   input,
