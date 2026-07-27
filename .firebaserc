@@ -1,8 +1,8 @@
 {
   "projects": {
-    "default": "active-self-control",
-    "dist": "active-self-control",
-    "active-self-control": "active-self-control"
+    "default": "agoge-academy",
+    "dist": "agoge-academy",
+    "agoge-academy": "agoge-academy"
   },
   "targets": {},
   "etags": {}

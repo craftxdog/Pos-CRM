@@ -30,6 +30,7 @@ import {
   FiMessageCircle,
   FiPlusCircle,
   FiPrinter,
+  FiRefreshCw,
   FiSearch,
   FiSend,
   FiShield,
@@ -232,10 +233,10 @@ function countBy(items, key, expected = []) {
   }));
 }
 
-function buildRevenueTrend(pagos) {
+function buildRevenueTrend(pagos, length = 6) {
   const now = new Date();
-  const months = Array.from({ length: 6 }, (_, index) => {
-    const date = new Date(now.getFullYear(), now.getMonth() - (5 - index), 1);
+  const months = Array.from({ length }, (_, index) => {
+    const date = new Date(now.getFullYear(), now.getMonth() - (length - 1 - index), 1);
     const key = date.toISOString().slice(0, 7);
     return {
       key,
@@ -293,6 +294,9 @@ export function CRMTemplate({ initialTab = "procesos" }) {
   const [clientPage, setClientPage] = useState(1);
   const [paymentClientId, setPaymentClientId] = useState("");
   const [paymentClient, setPaymentClient] = useState(null);
+  const [dashboardMonths, setDashboardMonths] = useState(6);
+  const [debtFilter, setDebtFilter] = useState("todos");
+  const [debtSearch, setDebtSearch] = useState("");
   const queryClient = useQueryClient();
   const { dataempresa } = useEmpresaStore();
   const { datausuarios } = useUsuariosStore();
@@ -756,7 +760,7 @@ export function CRMTemplate({ initialTab = "procesos" }) {
     const invitacionesEstado = countBy(crm.invitaciones, "estado", ["pendiente", "aceptada", "expirada"]);
     const whatsappEstado = countBy(crm.whatsappMensajes, "estado", ["borrador", "pendiente", "enviado", "error"]);
     const trabajadoresEstado = countBy(crm.trabajadores, "estado", ["activo", "inactivo"]);
-    const ingresosPorMes = buildRevenueTrend(crm.pagos);
+    const ingresosPorMes = buildRevenueTrend(crm.pagos, dashboardMonths);
     const totalPagado = crm.pagos
       .filter((item) => item.estado === "pagado")
       .reduce((sum, item) => sum + Number(item.monto || 0), 0);
@@ -770,6 +774,23 @@ export function CRMTemplate({ initialTab = "procesos" }) {
     const clientesConSuscripcion = new Set(crm.suscripciones.map((item) => item.id_cliente_crm)).size;
     const clientesConTelefono = crm.clientes.filter((item) => item.telefono).length;
     const clientesConEmail = crm.clientes.filter((item) => item.email).length;
+
+    const debtorsByClient = operational.pagosVencidos.reduce((items, payment) => {
+      const id = payment.id_cliente_crm;
+      if (!id) return items;
+      const current = items.get(id) || { cliente: payment.clientes_crm, total: 0, documentos: 0, ultimoVencimiento: payment.fecha_vencimiento };
+      current.total += Number(payment.monto || 0);
+      current.documentos += 1;
+      if (!current.ultimoVencimiento || String(payment.fecha_vencimiento || "") < String(current.ultimoVencimiento)) current.ultimoVencimiento = payment.fecha_vencimiento;
+      items.set(id, current);
+      return items;
+    }, new Map());
+    const clientesMorosos = Array.from(debtorsByClient, ([id, value]) => ({
+      id,
+      ...value,
+      gravedad: value.total > 0 && value.documentos > 1 ? "critica" : "moroso",
+      busqueda: [fullName(value.cliente), value.cliente?.email, value.cliente?.telefono].filter(Boolean).join(" ").toLowerCase(),
+    })).sort((a, b) => b.total - a.total || b.documentos - a.documentos);
 
     return {
       clientesEstado,
@@ -793,6 +814,7 @@ export function CRMTemplate({ initialTab = "procesos" }) {
       totalTrabajadores: crm.trabajadores.length,
       totalPlantillas: crm.whatsappPlantillas.length,
       totalAutomatizaciones: crm.automatizaciones.length,
+      clientesMorosos,
     };
   }, [
     crm.asistencias,
@@ -809,7 +831,9 @@ export function CRMTemplate({ initialTab = "procesos" }) {
     crm.trabajadores,
     crm.whatsappMensajes,
     crm.whatsappPlantillas,
+    dashboardMonths,
     operational.clientesPorEstado,
+    operational.pagosVencidos,
   ]);
 
   const filteredClients = useMemo(() => {
@@ -827,6 +851,15 @@ export function CRMTemplate({ initialTab = "procesos" }) {
         .includes(value)
     );
   }, [clientStatusFilter, crm.clientes, search]);
+
+  const filteredDebtors = useMemo(() => {
+    const searchValue = debtSearch.trim().toLowerCase();
+    return analytics.clientesMorosos.filter((item) => {
+      const matchesSearch = !searchValue || item.busqueda.includes(searchValue);
+      const matchesStatus = debtFilter === "todos" || item.gravedad === debtFilter;
+      return matchesSearch && matchesStatus;
+    });
+  }, [analytics.clientesMorosos, debtFilter, debtSearch]);
 
   useEffect(() => {
     setClientPage(1);
@@ -919,6 +952,14 @@ export function CRMTemplate({ initialTab = "procesos" }) {
 
       {activeTab === "procesos" && (
         <section className="workspace dashboard-workspace">
+          <section className="dashboard-filters" aria-label="Filtros del tablero">
+            <div>
+              <span className="eyebrow"><FiTrendingUp /> Análisis operativo</span>
+              <strong>Información accionable y actualizada en tiempo real</strong>
+            </div>
+            <label>Historial de ingresos<select value={dashboardMonths} onChange={(event) => setDashboardMonths(Number(event.target.value))}><option value={3}>Últimos 3 meses</option><option value={6}>Últimos 6 meses</option><option value={12}>Últimos 12 meses</option></select></label>
+            <button type="button" className="secondary" onClick={() => queryClient.invalidateQueries({ queryKey: ["crm-data"] })}><FiRefreshCw /> Actualizar ahora</button>
+          </section>
           <section className="metric-grid">
             <MetricCard label="Clientes" value={totals.clientes} detail={`${totals.activos} activos`} tone="ok" />
             <MetricCard label="Suscripciones" value={totals.suscripciones} detail={`${analytics.clientesConSuscripcion} clientes vinculados`} />
@@ -1064,18 +1105,16 @@ export function CRMTemplate({ initialTab = "procesos" }) {
 
           <section className="workspace two-cols inner-workspace">
             <div className="panel">
-              <h2>Cobros vencidos</h2>
-              <div className="list">
-                {operational.pagosVencidos.length ? (
-                  operational.pagosVencidos.slice(0, 10).map((pago) => (
-                    <article key={pago.id}>
-                      <strong>{fullName(pago.clientes_crm) || "Cliente"}</strong>
-                      <span>{money(pago.monto, pago.moneda, dataempresa?.iso)} · {pago.fecha_vencimiento || "sin fecha"}</span>
-                    </article>
-                  ))
-                ) : (
-                  <p className="empty">No hay cobros vencidos.</p>
-                )}
+              <div className="panel-title"><FiAlertCircle /><h2>Clientes morosos</h2><b>{analytics.clientesMorosos.length}</b></div>
+              <div className="debtor-filters"><input value={debtSearch} onChange={(event) => setDebtSearch(event.target.value)} placeholder="Buscar cliente, correo o teléfono" /><select value={debtFilter} onChange={(event) => setDebtFilter(event.target.value)}><option value="todos">Toda la cartera</option><option value="critica">Mora crítica</option><option value="moroso">Un documento vencido</option></select></div>
+              <div className="list debtor-list">
+                {filteredDebtors.length ? filteredDebtors.map((item) => (
+                  <article key={item.id}>
+                    <span><strong>{fullName(item.cliente) || "Cliente"}</strong><small>{item.cliente?.email || item.cliente?.telefono || "Sin contacto"} · vence {item.ultimoVencimiento || "—"}</small></span>
+                    <span className={`debt-tag ${item.gravedad}`}>{item.documentos} doc. · {money(item.total, dataempresa?.currency, dataempresa?.iso)}</span>
+                    <button type="button" className="secondary" onClick={() => { const client = crm.clientes.find((candidate) => String(candidate.id) === String(item.id)); setPaymentClient(client || null); setPaymentClientId(String(item.id)); setActiveTab("pagos"); }}>Cobrar</button>
+                  </article>
+                )) : <p className="empty">No hay clientes morosos para estos filtros.</p>}
               </div>
             </div>
 
@@ -1515,8 +1554,6 @@ export function CRMTemplate({ initialTab = "procesos" }) {
         <CrmAttendanceWorkspace
           crm={crm}
           dataempresa={dataempresa}
-          mutation={mutation}
-          submitForm={submitForm}
         />
       )}
 
@@ -2228,6 +2265,23 @@ const Container = styled.main`
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .dashboard-filters {
+    display: flex;
+    justify-content: space-between;
+    align-items: end;
+    gap: 12px;
+    border: 1px solid ${({ theme }) => theme.color2};
+    border-radius: 14px;
+    background: ${({ theme }) => theme.bgcards};
+    padding: 14px;
+
+    > div { display: grid; gap: 4px; }
+    > div strong { font-size: 15px; }
+    label { display: grid; gap: 5px; color: ${({ theme }) => theme.colorSubtitle}; font-size: 12px; font-weight: 800; }
+    select, input { border: 1px solid ${({ theme }) => theme.color2}; border-radius: 9px; background: ${({ theme }) => theme.bgtotal}; color: ${({ theme }) => theme.text}; padding: 9px 10px; }
+    button { display: inline-flex; align-items: center; gap: 6px; }
+  }
+
   .chart-card {
     border: 1px solid ${({ theme }) => theme.color2};
     border-radius: 8px;
@@ -2674,6 +2728,14 @@ const Container = styled.main`
       }
     }
   }
+
+  .debtor-filters { display: grid; grid-template-columns: minmax(0, 1fr) 170px; gap: 8px; margin: 12px 0; }
+  .debtor-filters input, .debtor-filters select { min-width: 0; border: 1px solid ${({ theme }) => theme.color2}; border-radius: 8px; background: ${({ theme }) => theme.bgtotal}; color: ${({ theme }) => theme.text}; padding: 9px 10px; }
+  .debtor-list article { grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 9px; }
+  .debtor-list small { display: block; margin-top: 3px; color: ${({ theme }) => theme.colorSubtitle}; font-size: 11px; }
+  .debt-tag { border-radius: 999px; padding: 5px 8px; font-size: 11px; font-weight: 900; white-space: nowrap; }
+  .debt-tag.moroso { background: #fee2e2; color: #b91c1c; }
+  .debt-tag.critica { background: #7f1d1d; color: #fff; }
 
   .compact article {
     font-size: 13px;

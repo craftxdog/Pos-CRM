@@ -40,6 +40,6 @@ jobs:
         uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
-          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_ACTIVE_SELF_CONTROL }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_AGOGE_ACADEMY }}
           channelId: live
-          projectId: active-self-control
+          projectId: agoge-academy

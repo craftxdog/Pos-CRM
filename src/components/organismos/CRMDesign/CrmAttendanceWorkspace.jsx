@@ -84,18 +84,16 @@ function ScheduleDirectory({ crm, dataempresa }) {
   };
   return <section className="schedule-directory">
     <header><div><h3>Directorio de horarios</h3><p>Administra los turnos disponibles. Se muestran cinco resultados por página.</p></div><span>{result.pagination.total}</span></header>
+    <form className="schedule-form" onSubmit={submit} key={editing?.id || "new"}><h4>{editing ? `Editar: ${editing.nombre}` : "Crear horario"}</h4><input name="nombre" placeholder="Nombre del horario" required defaultValue={editing?.nombre || ""} /><div><input name="hora_entrada" type="time" required defaultValue={editing?.hora_entrada?.slice(0, 5) || ""} /><input name="hora_salida" type="time" required defaultValue={editing?.hora_salida?.slice(0, 5) || ""} /></div><input name="tolerancia_minutos" type="number" min="0" defaultValue={editing?.tolerancia_minutos ?? 10} /><div className="form-actions">{editing ? <button type="button" className="secondary" onClick={() => setEditing(null)}>Cancelar</button> : null}<button disabled={saveMutation.isPending}>{saveMutation.isPending ? "Guardando…" : editing ? "Actualizar horario" : "Crear horario"}</button></div></form>
     <div className="schedule-filters"><label><FiSearch /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar horario" /></label><select value={status} onChange={(event) => setStatus(event.target.value)}><option value="todos">Todos los estados</option><option value="activo">Activos</option><option value="inactivo">Inactivos</option></select></div>
     <div className="schedule-table"><div className="schedule-directory-row head"><span>Horario</span><span>Jornada</span><span>Tolerancia</span><span>Estado</span><span>Acciones</span></div>{result.data.map((item) => <div className="schedule-directory-row" key={item.id}><strong>{item.nombre}</strong><span>{item.hora_entrada?.slice(0, 5)} – {item.hora_salida?.slice(0, 5)}</span><span>{item.tolerancia_minutos} min</span><span className={item.activo ? "tag active" : "tag inactive"}>{item.activo ? "Activo" : "Inactivo"}</span><div className="schedule-actions"><button type="button" className="mini" onClick={() => setEditing(item)}><FiEdit3 /> Editar</button><button type="button" className="mini" onClick={() => changeMutation.mutate({ action: "toggle", item })} disabled={changeMutation.isPending}>{item.activo ? <FiToggleRight /> : <FiToggleLeft />}{item.activo ? "Desactivar" : "Activar"}</button><button type="button" className="mini danger" onClick={() => { if (window.confirm(`¿Eliminar el horario ${item.nombre}?`)) changeMutation.mutate({ action: "delete", item }); }} disabled={changeMutation.isPending}><FiTrash2 /> Eliminar</button></div></div>)}{!result.data.length ? <p className="empty-schedules">No hay horarios para estos filtros.</p> : null}</div>
     <footer className="schedule-pagination"><span>Mostrando {result.pagination.from}–{result.pagination.to} de {result.pagination.total}</span><div><button type="button" disabled={!result.pagination.hasPreviousPage} onClick={() => setPage((value) => value - 1)}><FiChevronLeft /></button><b>{result.pagination.page} / {result.pagination.totalPages}</b><button type="button" disabled={!result.pagination.hasNextPage} onClick={() => setPage((value) => value + 1)}><FiChevronRight /></button></div></footer>
-    <form className="schedule-form" onSubmit={submit} key={editing?.id || "new"}><h4>{editing ? `Editar: ${editing.nombre}` : "Crear horario"}</h4><input name="nombre" placeholder="Nombre del horario" required defaultValue={editing?.nombre || ""} /><div><input name="hora_entrada" type="time" required defaultValue={editing?.hora_entrada?.slice(0, 5) || ""} /><input name="hora_salida" type="time" required defaultValue={editing?.hora_salida?.slice(0, 5) || ""} /></div><input name="tolerancia_minutos" type="number" min="0" defaultValue={editing?.tolerancia_minutos ?? 10} /><div className="form-actions">{editing ? <button type="button" className="secondary" onClick={() => setEditing(null)}>Cancelar</button> : null}<button disabled={saveMutation.isPending}>{saveMutation.isPending ? "Guardando…" : editing ? "Actualizar horario" : "Crear horario"}</button></div></form>
   </section>;
 }
 
 export function CrmAttendanceWorkspace({
   crm,
   dataempresa,
-  mutation,
-  submitForm,
 }) {
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -386,38 +384,6 @@ export function CrmAttendanceWorkspace({
           ) : null}
         </div>
 
-        <aside className="schedule-card">
-          <header>
-            <h3>Horarios disponibles</h3>
-            <span>{crm.horarios.length}</span>
-          </header>
-          <div className="schedule-list">
-            {crm.horarios.map((item) => (
-              <article key={item.id}>
-                <strong>{item.nombre}</strong>
-                <span>
-                  {item.hora_entrada.slice(0, 5)} – {item.hora_salida.slice(0, 5)}
-                </span>
-                <small>{item.tolerancia_minutos} min de tolerancia</small>
-              </article>
-            ))}
-          </div>
-          <form onSubmit={submitForm("horario")}>
-            <h4>Crear horario</h4>
-            <input name="nombre" placeholder="Nombre del horario" required />
-            <div>
-              <input name="hora_entrada" type="time" required />
-              <input name="hora_salida" type="time" required />
-            </div>
-            <input
-              name="tolerancia_minutos"
-              type="number"
-              min="0"
-              defaultValue="10"
-            />
-            <button disabled={mutation.isPending}>Crear horario</button>
-          </form>
-        </aside>
       </section>
       <ScheduleDirectory crm={crm} dataempresa={dataempresa} />
     </Container>
@@ -493,7 +459,7 @@ const Container = styled.section`
 
   .attendance-layout {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(260px, 340px);
+    grid-template-columns: minmax(0, 1fr);
     gap: 16px;
     align-items: start;
   }
