@@ -4,16 +4,10 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useUsuariosStore } from "../../store/UsuariosStore";
 import { Dark, Light } from "../../styles/themes";
 export function ToggleTema() {
-  const { editarThemeUser, datausuarios } = useUsuariosStore();
+  const { editarThemeUser, datausuarios, setTemaLocal } = useUsuariosStore();
   const { setTheme, theme } = useThemeStore();
   const queryClient = useQueryClient();
-  const editarTemaUser = async () => {
-    const themeUse = theme === "light" ? "dark" : "light";
-    const themeStyle = datausuarios?.tema === "light" ? Dark : Light;
-    setTheme({
-      tema: themeUse,
-      style: themeStyle,
-    });
+  const editarTemaUser = async (themeUse) => {
     const p = {
       id: datausuarios?.id,
       tema: themeUse,
@@ -24,8 +18,17 @@ export function ToggleTema() {
   const { mutate,isPending } = useMutation({
     mutationKey: ["editar tema"],
     mutationFn: editarTemaUser,
-    onError: (error) => {
-      console.log(`Error: ${error.message}`);
+    onMutate: (themeUse) => {
+      const previousTheme = useThemeStore.getState().theme;
+      setTheme({ tema: themeUse, style: themeUse === "light" ? Light : Dark });
+      setTemaLocal(themeUse);
+      return { previousTheme, previousUserTheme: datausuarios?.tema };
+    },
+    onError: (error, _themeUse, context) => {
+      const previousTheme = context?.previousTheme || "light";
+      setTheme({ tema: previousTheme, style: previousTheme === "light" ? Light : Dark });
+      if (context?.previousUserTheme) setTemaLocal(context.previousUserTheme);
+      console.error(`Error al editar tema: ${error.message}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries(["mostrar usuarios"]);
@@ -43,7 +46,9 @@ export function ToggleTema() {
             id="switch"
             className="input"
             type="checkbox"
-            onClick={mutate}
+            checked={theme === "dark"}
+            disabled={isPending}
+            onChange={() => mutate(theme === "light" ? "dark" : "light")}
           />
           <div className="icon icon--moon">
             <svg
