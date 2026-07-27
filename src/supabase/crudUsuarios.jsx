@@ -42,10 +42,17 @@ export async function InsertarUsuarios(p) {
 
 export async function InsertarCredencialesUser(p) {
   const { data, error } = await supabase.functions.invoke("admin-create-user", {
-    body: { email: p.email, password: p.pass },
+    body: p,
   });
   if (error) {
-    throw new Error(error.message);
+    let message = data?.error || error.message;
+    try {
+      const payload = await error.context?.clone?.().json?.();
+      message = payload?.error || message;
+    } catch {
+      // The platform error is still useful when the response has no JSON body.
+    }
+    throw new Error(message);
   }
   if (data?.error) throw new Error(data.error);
   return data?.id;

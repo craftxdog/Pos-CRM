@@ -52,7 +52,7 @@ export const PermisosUser = () => {
       const permisosPorRol =
         dataPermisosDefault
           ?.filter((permiso) => permiso.id_rol === rolesItemSelect?.id)
-          .map((permiso) => permiso.id_modulo) || [];
+          .map((permiso) => permiso.idmodulo) || [];
       setSelectedModules(permisosPorRol);
     }else{
        setRolesItemSelect({

@@ -4,11 +4,8 @@ import {
   EditarPerfilUsuario,
   EliminarUsuarioAsignado,
   InsertarCredencialesUser,
-  InsertarUsuarios,
 } from "../supabase/crudUsuarios";
-import { InsertarAsignacionCajaSucursal } from "../supabase/crudAsignacionCajaSucursal";
 import { usePermisosStore } from "./PermisosStore";
-import { InsertarPermisos } from "../supabase/crudPermisos";
 import { supabase } from "../supabase/supabase.config";
 const tabla = "usuarios";
 export const useUsuariosStore = create((set) => ({
@@ -40,38 +37,20 @@ export const useUsuariosStore = create((set) => ({
     await EliminarUsuarioAsignado(p);
   },
   insertarUsuario: async (p) => {
-    const selectModules = usePermisosStore.getState().selectedModules || [];
-    console.log("Módulos seleccionados:", selectModules);
-    const data = await InsertarCredencialesUser({
-      email: p.email,
-      pass: p.pass,
-    });
-    const dataUserNew = await InsertarUsuarios({
-      id_empresa: p.id_empresa,
-      nombres: p.nombres,
-      nro_doc: p.nro_doc,
-      telefono: p.telefono,
-      id_rol: p.id_rol,
-      correo: p.email,
-      id_auth: data,
-    });
-    await InsertarAsignacionCajaSucursal({
-      id_sucursal: p.id_sucursal,
-      id_usuario: dataUserNew?.id,
-      id_caja: p.id_caja,
-    });
+    const modules = [...new Set(usePermisosStore.getState().selectedModules || [])]
+      .map(Number)
+      .filter(Number.isInteger);
 
-    if (Array.isArray(selectModules) && selectModules.length > 0) {
-      selectModules.forEach(async (idModule) => {
-        let p = {
-          id_usuario: dataUserNew?.id,
-          idmodulo: idModule,
-        };
-        await InsertarPermisos(p);
-      });
-    } else {
-      throw new Error("No hay módulos seleccionados");
-    }
+    if (!p?.id_empresa) throw new Error("No se encontró la empresa activa.");
+    if (!p?.id_rol) throw new Error("Selecciona el rol del usuario.");
+    if (!p?.id_sucursal) throw new Error("Selecciona una sucursal.");
+    if (!p?.id_caja) throw new Error("Selecciona una caja para el usuario.");
+    if (!p?.email || !p?.pass) throw new Error("Correo y contraseña son obligatorios.");
+    if (modules.length === 0) throw new Error("Selecciona al menos un módulo.");
+
+    // The Edge Function validates the tenant and writes profile, assignment and
+    // permissions as one server-side provision. Auth is compensated on failure.
+    return InsertarCredencialesUser({ ...p, modules });
   },
   editarUsuarios: async (p) => {
     await EditarUsuarios(p);

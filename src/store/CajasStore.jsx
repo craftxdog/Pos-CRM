@@ -12,7 +12,7 @@ export const useCajasStore = create((set) => ({
   setStateCaja: (p) => set({ stateCaja: p }),
   accion: "",
   setAccion: (p) => set({ accion: p }),
-  cajaSelectItem: [],
+  cajaSelectItem: null,
   setCajaSelectItem: (p) => {
     set({ cajaSelectItem: p });
   },
@@ -20,7 +20,7 @@ export const useCajasStore = create((set) => ({
   dataCaja: null,
   mostrarCajaXSucursal: async (p) => {
     const response = await MostrarCajaXSucursal(p);
-    set({ cajaSelectItem: response[0] });
+    set({ cajaSelectItem: response?.[0] ?? null });
     set({ dataCaja: response });
     return response;
   },
