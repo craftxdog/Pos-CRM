@@ -17,13 +17,13 @@ import { SelectList } from "../../ui/lists/SelectList";
 import { BarLoader } from "../../ui/loaders/BarLoader";
 import { PermisosUser } from "../UsuariosDesign/PermisosUser";
 import { useRolesStore } from "../../../store/RolesStore";
+import { useEffect } from "react";
 export function RegistrarUsuarios({ accion, dataSelect, onClose }) {
   const queryClient = useQueryClient();
   const {
     cajaSelectItem,
- 
     mostrarCajaXSucursal,
-   
+    setCajaSelectItem,
   } = useCajasStore();
   const { insertarUsuario, itemSelect, editarUsuarios } = useUsuariosStore();
   const { dataempresa } = useEmpresaStore();
@@ -42,8 +42,20 @@ export function RegistrarUsuarios({ accion, dataSelect, onClose }) {
     ],
     queryFn: () =>
       mostrarCajaXSucursal({ id_sucursal: sucursalesItemSelect?.id }),
-    enabled: !!sucursalesItemSelect,
+    enabled: Boolean(sucursalesItemSelect?.id),
   });
+
+  useEffect(() => {
+    if (!sucursalesItemSelect?.id && dataSucursales?.[0]) {
+      selectSucursal(dataSucursales[0]);
+    }
+  }, [dataSucursales, selectSucursal, sucursalesItemSelect?.id]);
+
+  useEffect(() => {
+    if (!cajaSelectItem?.id && dataCaja?.[0]) {
+      setCajaSelectItem(dataCaja[0]);
+    }
+  }, [cajaSelectItem?.id, dataCaja, setCajaSelectItem]);
   const {
     register,
     formState: { errors },
@@ -246,6 +258,15 @@ export function RegistrarUsuarios({ accion, dataSelect, onClose }) {
                   itemSelect={sucursalesItemSelect}
                   displayField="nombre"
                   data={dataSucursales}
+                />
+              </article>
+              <article className="contentasignacion">
+                <span>Caja:</span>
+                <SelectList
+                  onSelect={setCajaSelectItem}
+                  itemSelect={cajaSelectItem}
+                  displayField="descripcion"
+                  data={dataCaja || []}
                 />
               </article>
 

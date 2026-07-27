@@ -116,8 +116,14 @@ export const ProtectedRoute = ({ children, accessBy }) => {
       const isAdmin = ["superadmin", "administrador", "admin"].includes(
         datausuarios?.roles?.nombre?.toLowerCase()
       );
+      // A staff member with an active tenant and a branch/cash-box assignment
+      // must always be able to enter their operational home and POS. Additional
+      // CRM and configuration routes still require an explicit module grant.
+      const isBaselineOperationalRoute = ["/", "/pos", "/miperfil"].includes(
+        location.pathname,
+      );
 
-      if (!hasPermission && !isAdmin) {
+      if (!hasPermission && !isAdmin && !isBaselineOperationalRoute) {
         return <Navigate to="/404" />;
       } 
  
