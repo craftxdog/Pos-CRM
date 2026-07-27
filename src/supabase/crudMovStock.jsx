@@ -1,12 +1,18 @@
 import { supabase } from "./supabase.config";
 const tabla = "movimientos_stock";
 export async function MostrarMovStock(p) {
-  if (!p?.id_empresa || !p?.id_producto) return [];
-  const { data, error } = await supabase
+  if (!p?.id_empresa) return [];
+  let query = supabase
     .from(tabla)
     .select("*, almacen!inner(nombre, sucursales!inner(nombre))")
     .eq("id_empresa", p.id_empresa)
-    .eq("id_producto", p.id_producto);
+    .order("fecha", { ascending: false });
+
+  if (p.id_producto) {
+    query = query.eq("id_producto", p.id_producto);
+  }
+
+  const { data, error } = await query;
   if (error) {
     throw new Error(error.message);
   }
