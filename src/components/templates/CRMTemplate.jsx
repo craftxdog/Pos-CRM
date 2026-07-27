@@ -291,6 +291,7 @@ export function CRMTemplate({ initialTab = "procesos" }) {
   const [clientStatusFilter, setClientStatusFilter] = useState("todos");
   const [clientPage, setClientPage] = useState(1);
   const [paymentClientId, setPaymentClientId] = useState("");
+  const [paymentClient, setPaymentClient] = useState(null);
   const queryClient = useQueryClient();
   const { dataempresa } = useEmpresaStore();
   const { datausuarios } = useUsuariosStore();
@@ -1135,6 +1136,7 @@ export function CRMTemplate({ initialTab = "procesos" }) {
           onNavigate={setActiveTab}
           onCharge={(client) => {
             setPaymentClientId(String(client.id));
+            setPaymentClient(client);
             setActiveTab("pagos");
           }}
         />
@@ -1339,8 +1341,8 @@ export function CRMTemplate({ initialTab = "procesos" }) {
         <CrmPaymentsWorkspace
           crm={crm}
           dataempresa={dataempresa}
-          initialClientId={paymentClientId}
-          onClientHandled={() => setPaymentClientId("")}
+          initialClient={paymentClient}
+          onClientHandled={() => { setPaymentClientId(""); setPaymentClient(null); }}
         />
       )}
 

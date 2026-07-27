@@ -8,6 +8,7 @@ import {
   FiEdit3,
   FiPauseCircle,
   FiPlayCircle,
+  FiPrinter,
   FiRefreshCw,
   FiRotateCw,
   FiSearch,
@@ -17,6 +18,7 @@ import {
 import styled from "styled-components";
 import { toast } from "sonner";
 import { v } from "../../../styles/variables";
+import FacturaCliente from "../../../reports/FacturaCliente";
 
 const pageSizes = [10, 20, 50];
 
@@ -92,6 +94,9 @@ export function CrmSubscriptionsWorkspace({
   const [effectiveDate, setEffectiveDate] = useState(
     new Date().toISOString().slice(0, 10)
   );
+  const [renewalSubscription, setRenewalSubscription] = useState(null);
+  const [renewalMethod, setRenewalMethod] = useState("efectivo");
+  const [renewalReceived, setRenewalReceived] = useState("");
   const queryClient = useQueryClient();
 
   useEffect(() => {
@@ -141,7 +146,6 @@ export function CrmSubscriptionsWorkspace({
     onSuccess: (_, variables) => {
       const messages = {
         cambiar_plan: "Plan actualizado y nueva vigencia aplicada",
-        renovar: "Suscripción renovada",
         pausar: "Suscripción pausada",
         reactivar: "Suscripción reactivada",
         cancelar: "Suscripción cancelada",
@@ -153,6 +157,22 @@ export function CrmSubscriptionsWorkspace({
       }
       queryClient.invalidateQueries({ queryKey: ["crm-subscriptions"] });
       queryClient.invalidateQueries({ queryKey: ["crm-data"] });
+    },
+    onError: (error) => toast.error(error.message),
+  });
+
+  const renewalMutation = useMutation({
+    mutationFn: (payload) => crm.renovarSuscripcionPos(payload),
+    onSuccess: (data) => {
+      toast.success("Pago registrado, vigencia renovada e impresión preparada");
+      setRenewalSubscription(null);
+      setRenewalReceived("");
+      queryClient.invalidateQueries({ queryKey: ["crm-subscriptions"] });
+      queryClient.invalidateQueries({ queryKey: ["crm-clients-directory"] });
+      queryClient.invalidateQueries({ queryKey: ["crm-data"] });
+      queryClient.invalidateQueries({ queryKey: ["crm-monthly-income"] });
+      void FacturaCliente("print", { dataempresa, pago: data.pago, cliente: data.cliente, suscripcion: data.suscripcion, plan: data.plan })
+        .catch((error) => toast.error(error?.message || "No se pudo imprimir el comprobante"));
     },
     onError: (error) => toast.error(error.message),
   });
@@ -489,6 +509,26 @@ export function CrmSubscriptionsWorkspace({
             </section>
           ) : null}
 
+          {renewalSubscription ? (
+            <section className="renewal-checkout">
+              <div>
+                <span>Renovar y cobrar</span>
+                <strong>{renewalSubscription.cliente_nombre}</strong>
+                <small>{renewalSubscription.plan_nombre} · la vigencia se extenderá desde {renewalSubscription.fecha_fin}</small>
+              </div>
+              <b>{currency(renewalSubscription.precio_pactado, dataempresa?.currency, dataempresa?.iso)}</b>
+              <select value={renewalMethod} onChange={(event) => setRenewalMethod(event.target.value)}>
+                <option value="efectivo">Efectivo</option><option value="transferencia">Transferencia</option><option value="tarjeta">Tarjeta</option><option value="deposito">Depósito</option><option value="otro">Otro</option>
+              </select>
+              {renewalMethod === "efectivo" ? <input type="number" min={renewalSubscription.precio_pactado} step="0.01" value={renewalReceived} onChange={(event) => setRenewalReceived(event.target.value)} placeholder="Recibido" /> : null}
+              {["transferencia", "deposito"].includes(renewalMethod) ? <input name="renewal-reference" form="renewal-form" placeholder="Referencia" required /> : null}
+              <form id="renewal-form" onSubmit={(event) => { event.preventDefault(); const reference = new FormData(event.currentTarget).get("renewal-reference"); renewalMutation.mutate({ id_suscripcion: renewalSubscription.id, metodo_pago: renewalMethod, monto_recibido: renewalMethod === "efectivo" ? renewalReceived : null, referencia_pago: reference, notas: "Renovación cobrada desde suscripciones" }); }}>
+                <button disabled={renewalMutation.isPending || (renewalMethod === "efectivo" && Number(renewalReceived || 0) < Number(renewalSubscription.precio_pactado || 0))}><FiPrinter /> {renewalMutation.isPending ? "Cobrando…" : "Cobrar, renovar e imprimir"}</button>
+              </form>
+              <button type="button" className="close-editor" onClick={() => setRenewalSubscription(null)}><FiXCircle /></button>
+            </section>
+          ) : null}
+
           {subscriptionsQuery.error ? (
             <p className="error">{subscriptionsQuery.error.message}</p>
           ) : null}
@@ -538,14 +578,9 @@ export function CrmSubscriptionsWorkspace({
                   </button>
                   <button
                     type="button"
-                    onClick={() =>
-                      lifecycleMutation.mutate({
-                        id: item.id,
-                        accion: "renovar",
-                      })
-                    }
-                    disabled={lifecycleMutation.isPending}
-                    title="Renovar suscripción"
+                    onClick={() => { setRenewalSubscription(item); setRenewalMethod("efectivo"); setRenewalReceived(String(Number(item.precio_pactado || 0))); }}
+                    disabled={lifecycleMutation.isPending || renewalMutation.isPending}
+                    title="Cobrar, renovar e imprimir"
                   >
                     <FiRotateCw /> Renovar
                   </button>
@@ -1167,6 +1202,13 @@ const Container = styled.section`
     }
   }
 
+  .renewal-checkout {
+    display:grid;grid-template-columns:minmax(190px,1fr) auto 130px 130px auto auto;align-items:center;gap:8px;margin:0 0 14px;border:1px solid rgba(22,163,74,.35);border-radius:12px;background:rgba(22,163,74,.07);padding:10px;
+    > div{display:grid;gap:2px} > div span{color:#15803d;font-size:10px;font-weight:900;letter-spacing:.05em;text-transform:uppercase} > div small{color:${({ theme }) => theme.colorSubtitle}}
+    input,select,button{min-width:0;min-height:38px;border:1px solid ${({ theme }) => theme.color2};border-radius:9px;background:${({ theme }) => theme.bgcards};color:${({ theme }) => theme.text};padding:0 9px}
+    form button{border-color:${v.colorPrincipal};background:${v.colorPrincipal};color:#111827;font-weight:900;cursor:pointer}.close-editor{cursor:pointer}
+  }
+
   .empty {
     min-height: 210px;
     display: grid;
@@ -1274,6 +1316,7 @@ const Container = styled.section`
         grid-column: 1 / -1;
       }
     }
+    .renewal-checkout { grid-template-columns:1fr 1fr; > div{grid-column:1/-1} }
   }
 
   @media (max-width: 560px) {
@@ -1299,5 +1342,6 @@ const Container = styled.section`
         grid-column: auto;
       }
     }
+    .renewal-checkout { grid-template-columns:1fr; > div{grid-column:auto} }
   }
 `;

@@ -35,8 +35,8 @@ function envValue(primary: string, legacy?: string) {
 
 function smtpConfiguration() {
   const port = Number(envValue("SMTP_PORT", "MAILERSEND_SMTP_PORT"));
-  if (!Number.isInteger(port) || port < 1 || port > 65535) {
-    throw new Error("SMTP_PORT debe ser un puerto válido");
+  if (![465, 587].includes(port)) {
+    throw new Error("SMTP_PORT debe ser 465 (SSL implícito) o 587 (STARTTLS)");
   }
   const host = envValue("SMTP_HOST", "MAILERSEND_SMTP_HOST");
   return {
