@@ -65,6 +65,8 @@ supabase functions deploy crm-send-invitation
 
 `supabase/.env.crm` debe permanecer fuera de Git. `APP_SITE_URL` debe apuntar al origen público de la aplicación para que el enlace regrese a `/onboarding-cliente`.
 
+Para Hostinger usa `smtp.hostinger.com`, puerto `465` y SSL implícito. Si el proyecto conserva los secretos con prefijo `MAILERSEND_*`, esos nombres siguen siendo compatibles, pero deben contener las credenciales de Hostinger y `MAILERSEND_ENABLED=true`; el prefijo no cambia el proveedor. Un error `MS42225` identifica una cuenta de prueba de MailerSend limitada, no un error de la interfaz del CRM.
+
 Estados visibles de invitación: preparando envío, enviada/esperando registro, aceptada, expirada, cancelada y error de envío. El estado de entrega SMTP se almacena por separado del estado de aceptación.
 
 Despues de aplicar, ejecutar advisors de seguridad y rendimiento:

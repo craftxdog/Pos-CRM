@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   FiAlertTriangle,
   FiChevronLeft,
@@ -10,6 +10,7 @@ import {
   FiEye,
   FiMail,
   FiPlus,
+  FiRefreshCw,
   FiSearch,
   FiUserCheck,
   FiUserX,
@@ -17,6 +18,7 @@ import {
 } from "react-icons/fi";
 import styled from "styled-components";
 import { v } from "../../../styles/variables";
+import { toast } from "sonner";
 
 const financialCopy = {
   al_dia: { label: "Al día", tone: "ok", icon: FiUserCheck },
@@ -55,13 +57,13 @@ function FinancialBadge({ value }) {
   return <span className={`financial-badge ${status.tone}`}><Icon />{status.label}</span>;
 }
 
-function Pagination({ pagination, onPage }) {
+function Pagination({ pagination, onPage, label = "clientes" }) {
   return (
     <footer className="pagination">
       <span>
         {pagination.total
-          ? `${pagination.from}–${pagination.to} de ${pagination.total} clientes`
-          : "Sin clientes con estos filtros"}
+          ? `${pagination.from}–${pagination.to} de ${pagination.total} ${label}`
+          : `Sin ${label} con estos filtros`}
       </span>
       <div>
         <button type="button" onClick={() => onPage(pagination.page - 1)} disabled={!pagination.hasPreviousPage}>
@@ -93,6 +95,12 @@ export function CrmClientsWorkspace({
   const [pageSize, setPageSize] = useState(10);
   const [selected, setSelected] = useState(null);
   const [editing, setEditing] = useState(false);
+  const [invitationSearch, setInvitationSearch] = useState("");
+  const [invitationStatus, setInvitationStatus] = useState("todos");
+  const [deliveryStatus, setDeliveryStatus] = useState("todos");
+  const [invitationPlanId, setInvitationPlanId] = useState("todos");
+  const [invitationPage, setInvitationPage] = useState(1);
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -120,6 +128,24 @@ export function CrmClientsWorkspace({
     refetchOnWindowFocus: false,
   });
 
+  useEffect(() => setInvitationPage(1), [invitationSearch, invitationStatus, deliveryStatus, invitationPlanId]);
+  const invitationsQuery = useQuery({
+    queryKey: ["crm-invitations-directory", dataempresa?.id, invitationPage, invitationSearch, invitationStatus, deliveryStatus, invitationPlanId],
+    queryFn: () => crm.mostrarInvitacionesPage({ id_empresa: dataempresa.id, page: invitationPage, pageSize: 5, search: invitationSearch, status: invitationStatus, deliveryStatus, planId: invitationPlanId }),
+    enabled: Boolean(dataempresa?.id), placeholderData: (previous) => previous, refetchOnWindowFocus: false,
+  });
+  const refreshInvitations = () => queryClient.invalidateQueries({ queryKey: ["crm-invitations-directory"] });
+  const sendInvitationMutation = useMutation({
+    mutationFn: (payload) => crm.enviarInvitacion(payload),
+    onSuccess: () => { toast.success("Invitación enviada por correo"); refreshInvitations(); queryClient.invalidateQueries({ queryKey: ["crm-data"] }); },
+    onError: (error) => toast.error(error.message),
+  });
+  const cancelInvitationMutation = useMutation({
+    mutationFn: (payload) => crm.cancelarInvitacion(payload),
+    onSuccess: () => { toast.success("Invitación cancelada"); refreshInvitations(); queryClient.invalidateQueries({ queryKey: ["crm-data"] }); },
+    onError: (error) => toast.error(error.message),
+  });
+
   const result = directoryQuery.data || {
     data: [],
     pagination: { page, totalPages: 1, total: 0, from: 0, to: 0, hasPreviousPage: false, hasNextPage: false },
@@ -130,7 +156,7 @@ export function CrmClientsWorkspace({
     [result.data, selected]
   );
 
-  const invitationSummary = crm.invitaciones.filter((item) => item.estado === "pendiente").slice(0, 3);
+  const invitationsResult = invitationsQuery.data || { data: [], pagination: { page: invitationPage, totalPages: 1, total: 0, from: 0, to: 0, hasPreviousPage: false, hasNextPage: false } };
 
   return (
     <Container>
@@ -160,16 +186,22 @@ export function CrmClientsWorkspace({
 
         <article className="quick-card invitation">
           <header><span><FiMail /></span><div><h3>Invitar con plan</h3><p>La cuenta se activa al aceptar el correo.</p></div></header>
-          <form onSubmit={submitForm("invitacion")}>
+          <form onSubmit={(event) => { event.preventDefault(); const form = event.currentTarget; const values = Object.fromEntries(new FormData(form).entries()); sendInvitationMutation.mutate({ id_empresa: dataempresa.id, email: values.email, id_plan: values.id_plan }, { onSuccess: () => form.reset() }); }}>
             <input name="email" type="email" placeholder="cliente@correo.com" required />
             <select name="id_plan" defaultValue="" required>
               <option value="">Selecciona el plan obligatorio</option>
               {crm.planes.filter((plan) => plan.activo).map((plan) => <option key={plan.id} value={plan.id}>{plan.nombre} · {currency(plan.precio, dataempresa?.currency, dataempresa?.iso)}</option>)}
             </select>
-            <button disabled={mutation.isPending || !crm.planes.some((plan) => plan.activo)}><FiMail /> Enviar invitación</button>
+            <button disabled={sendInvitationMutation.isPending || !crm.planes.some((plan) => plan.activo)}><FiMail /> {sendInvitationMutation.isPending ? "Enviando…" : "Enviar invitación"}</button>
           </form>
-          {invitationSummary.length ? <div className="pending-invitations">{invitationSummary.map((item) => <span key={item.id}>{item.email} · {item.estado_envio === "error" ? "Revisar envío" : "Pendiente"}</span>)}</div> : null}
         </article>
+      </section>
+
+      <section className="invitations-directory">
+        <header><div><h3>Invitaciones de acceso</h3><p>Historial operativo con filtros, reenvío seguro, cancelación y cinco resultados por página.</p></div><button type="button" className="ghost" onClick={() => invitationsQuery.refetch()} disabled={invitationsQuery.isFetching}><FiRefreshCw /> Actualizar</button></header>
+        <div className="invitation-filters"><label className="search"><FiSearch /><input value={invitationSearch} onChange={(event) => setInvitationSearch(event.target.value)} placeholder="Buscar correo" /></label><select value={invitationStatus} onChange={(event) => setInvitationStatus(event.target.value)}><option value="todos">Todos los estados</option><option value="pendiente">Pendientes</option><option value="aceptada">Aceptadas</option><option value="cancelada">Canceladas</option><option value="expirada">Expiradas</option></select><select value={deliveryStatus} onChange={(event) => setDeliveryStatus(event.target.value)}><option value="todos">Todos los envíos</option><option value="enviado">Enviadas</option><option value="error">Con error</option><option value="enviando">Enviando</option></select><select value={invitationPlanId} onChange={(event) => setInvitationPlanId(event.target.value)}><option value="todos">Todos los planes</option>{crm.planes.map((plan) => <option key={plan.id} value={plan.id}>{plan.nombre}</option>)}</select></div>
+        <div className="table-wrap invitation-table"><div className="invitation-row head"><span>Invitado y plan</span><span>Estado</span><span>Entrega</span><span>Vigencia</span><span>Acciones</span></div>{invitationsQuery.isLoading ? <p className="empty">Cargando invitaciones…</p> : null}{!invitationsQuery.isLoading && invitationsResult.data.map((item) => <div className="invitation-row" key={item.id}><span><b>{item.email}</b><small>{item.crm_planes?.nombre || "Plan no disponible"}</small></span><span><b className={`invite-badge ${item.estado}`}>{item.estado}</b></span><span><b className={`invite-badge delivery ${item.estado_envio}`}>{item.estado_envio}</b><small title={item.ultimo_error_email || ""}>{item.ultimo_error_email ? "Ver detalle del error" : item.email_enviado_at ? "Correo enviado" : "Sin envío"}</small></span><span><b>{formatDate(item.expires_at, dataempresa?.iso)}</b><small>{item.intentos_email || 0} intento(s)</small></span><span className="invite-actions"><button type="button" title="Reenviar invitación" disabled={sendInvitationMutation.isPending || item.estado === "aceptada" || item.estado === "cancelada"} onClick={() => sendInvitationMutation.mutate({ id_empresa: dataempresa.id, email: item.email, id_plan: item.id_plan })}><FiMail /> Reenviar</button>{item.estado === "pendiente" ? <button type="button" className="danger" disabled={cancelInvitationMutation.isPending} onClick={() => cancelInvitationMutation.mutate({ id: item.id, id_empresa: dataempresa.id })}>Cancelar</button> : null}</span></div>)}{!invitationsQuery.isLoading && !invitationsResult.data.length ? <p className="empty">No hay invitaciones con estos filtros.</p> : null}</div>
+        <Pagination pagination={invitationsResult.pagination} onPage={setInvitationPage} label="invitaciones" />
       </section>
 
       <section className="directory">
@@ -233,8 +265,9 @@ const Container = styled.section`
   button { border:0; border-radius:10px; background:${v.colorPrincipal}; color:#111827; font-weight:850; padding:11px 14px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; gap:7px; } button:disabled{opacity:.52;cursor:not-allowed}.primary{white-space:nowrap}.ghost{background:${({ theme }) => theme.bgtotal};color:${({ theme }) => theme.text};border:1px solid ${({ theme }) => theme.color2}!important}
   .onboarding-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.quick-card{padding:18px}.quick-card header{display:flex;gap:11px;margin-bottom:14px}.quick-card header>span{display:grid;place-items:center;width:36px;height:36px;border-radius:10px;background:#eff6ff;color:#0284c7}.quick-card form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.quick-card form input:first-child,.quick-card form input:nth-child(3),.quick-card form select,.quick-card form button{grid-column:span 2}.quick-card input,.quick-card select,.filters input,.filters select,.edit-form input,.edit-form select{min-width:0;border:1px solid ${({ theme }) => theme.color2};border-radius:10px;background:${({ theme }) => theme.bgtotal};color:${({ theme }) => theme.text};padding:11px}.pending-invitations{display:grid;gap:5px;margin-top:11px;font-size:12px;color:${({ theme }) => theme.colorSubtitle}}
   .directory{padding:20px}.directory-header{display:flex;justify-content:space-between;align-items:end;gap:16px;margin-bottom:16px}.page-size{display:flex;align-items:center;gap:7px;font-size:13px}.page-size select{border:1px solid ${({ theme }) => theme.color2};border-radius:8px;background:${({ theme }) => theme.bgtotal};color:${({ theme }) => theme.text};padding:6px}.filters{display:grid;grid-template-columns:minmax(220px,1.5fr) repeat(3,minmax(150px,1fr));gap:9px;margin-bottom:14px}.search{display:flex;align-items:center;gap:8px;border:1px solid ${({ theme }) => theme.color2};border-radius:10px;background:${({ theme }) => theme.bgtotal};padding-left:11px}.search input{border:0;background:transparent;width:100%;outline:0}
+  .invitations-directory{padding:20px;border:1px solid ${({ theme }) => theme.color2};background:${({ theme }) => theme.bgcards};border-radius:18px}.invitations-directory>header{display:flex;justify-content:space-between;gap:12px;align-items:start;margin-bottom:14px}.invitations-directory h3{margin-bottom:4px}.invitations-directory p{color:${({ theme }) => theme.colorSubtitle};font-size:13px}.invitation-filters{display:grid;grid-template-columns:minmax(210px,1.5fr) repeat(3,minmax(145px,1fr));gap:9px;margin-bottom:14px}.invitation-filters select{border:1px solid ${({ theme }) => theme.color2};border-radius:10px;background:${({ theme }) => theme.bgtotal};color:${({ theme }) => theme.text};padding:11px}.invitation-row{min-width:980px;display:grid;grid-template-columns:1.35fr .72fr .95fr .82fr 1.25fr;gap:13px;align-items:center;padding:13px 15px;border-bottom:1px solid ${({ theme }) => theme.color2};font-size:13px}.invitation-row:last-child{border-bottom:0}.invitation-row.head{font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.04em;background:${({ theme }) => theme.bgtotal}}.invitation-row b,.invitation-row small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.invitation-row small{color:${({ theme }) => theme.colorSubtitle};margin-top:4px}.invite-badge{width:max-content;padding:5px 8px;border-radius:999px;background:#e0f2fe;color:#0369a1;font-size:11px;text-transform:capitalize}.invite-badge.aceptada,.invite-badge.enviado{background:#dcfce7;color:#166534}.invite-badge.error,.invite-badge.cancelada{background:#fee2e2;color:#b91c1c}.invite-badge.expirada{background:#fef3c7;color:#92400e}.invite-actions{display:flex;gap:6px;flex-wrap:wrap}.invite-actions button{padding:8px 9px;background:${({ theme }) => theme.bgtotal};color:${({ theme }) => theme.text};border:1px solid ${({ theme }) => theme.color2}}.invite-actions .danger{color:#dc2626}
   .table-wrap{overflow-x:auto;border:1px solid ${({ theme }) => theme.color2};border-radius:13px}.row{min-width:930px;display:grid;grid-template-columns:1.2fr 1fr 1fr 1.25fr 122px;gap:13px;align-items:center;padding:13px 15px;border-bottom:1px solid ${({ theme }) => theme.color2};font-size:13px}.row:last-child{border-bottom:0}.row.head{font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.04em;background:${({ theme }) => theme.bgtotal}}.row span{min-width:0}.row b,.row small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.row small{margin-top:4px;color:${({ theme }) => theme.colorSubtitle}}.financial-badge{width:max-content;display:inline-flex;align-items:center;gap:5px;padding:5px 8px;border-radius:999px;font-size:11px;font-weight:900}.financial-badge.ok{background:#dcfce7;color:#166534}.financial-badge.warning{background:#fef3c7;color:#92400e}.financial-badge.danger{background:#fee2e2;color:#b91c1c}.financial-badge.muted{background:#e2e8f0;color:#475569}.financial-badge.neutral{background:#e0f2fe;color:#0369a1}.debt{color:#dc2626!important;font-weight:800}.actions{display:flex;gap:6px}.actions button{padding:8px;background:${({ theme }) => theme.bgtotal};color:${({ theme }) => theme.text};border:1px solid ${({ theme }) => theme.color2}}.empty{padding:24px;text-align:center;color:${({ theme }) => theme.colorSubtitle}}
   .pagination{display:flex;justify-content:space-between;align-items:center;gap:14px;padding-top:14px;font-size:13px;color:${({ theme }) => theme.colorSubtitle}}.pagination div{display:flex;align-items:center;gap:8px}.pagination button{padding:8px 10px;background:${({ theme }) => theme.bgtotal};color:${({ theme }) => theme.text};border:1px solid ${({ theme }) => theme.color2}}
   .drawer{position:fixed;z-index:30;right:22px;bottom:22px;width:min(470px,calc(100vw - 32px));padding:20px;box-shadow:0 18px 45px rgba(15,23,42,.22)}.drawer header{display:flex;justify-content:space-between;gap:10px}.drawer h3{margin:5px 0}.drawer p{color:${({ theme }) => theme.colorSubtitle};font-size:13px}.icon-close{padding:8px;background:${({ theme }) => theme.bgtotal};color:${({ theme }) => theme.text}}.facts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:18px 0}.facts span{border-radius:11px;background:${({ theme }) => theme.bgtotal};padding:11px}.facts small{display:block;margin-bottom:5px;color:${({ theme }) => theme.colorSubtitle};font-size:11px}.drawer-actions,.edit-form>div{display:flex;gap:9px}.drawer-actions button,.edit-form>div button{flex:1}.edit-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin-top:17px}.edit-form input:nth-child(5),.edit-form select,.edit-form>div{grid-column:span 2}
-  @media(max-width:860px){.hero,.directory-header{align-items:start;flex-direction:column}.onboarding-grid{grid-template-columns:1fr}.filters{grid-template-columns:1fr}.drawer{right:16px;bottom:16px}.quick-card form{grid-template-columns:1fr}.quick-card form>*{grid-column:span 1!important}}
+  @media(max-width:860px){.hero,.directory-header,.invitations-directory>header{align-items:start;flex-direction:column}.onboarding-grid{grid-template-columns:1fr}.filters,.invitation-filters{grid-template-columns:1fr}.drawer{right:16px;bottom:16px}.quick-card form{grid-template-columns:1fr}.quick-card form>*{grid-column:span 1!important}}
 `;

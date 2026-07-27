@@ -351,6 +351,36 @@ export async function RegistrarPagoPos(payload) {
   return data;
 }
 
+export async function RenovarSuscripcionPos(payload) {
+  const { data, error } = await supabase.rpc("crm_renovar_suscripcion_pos", {
+    p_id_suscripcion: Number(payload.id_suscripcion),
+    p_metodo_pago: payload.metodo_pago || "efectivo",
+    p_monto_recibido:
+      payload.monto_recibido === "" || payload.monto_recibido === undefined
+        ? null
+        : Number(payload.monto_recibido),
+    p_referencia_pago: payload.referencia_pago || null,
+    p_notas: payload.notas || null,
+  });
+  throwIfError(error);
+  return data;
+}
+
+export async function CobrarMoraPos(payload) {
+  const { data, error } = await supabase.rpc("crm_cobrar_mora_pos", {
+    p_id_cliente_crm: Number(payload.id_cliente_crm),
+    p_metodo_pago: payload.metodo_pago || "efectivo",
+    p_monto_recibido:
+      payload.monto_recibido === "" || payload.monto_recibido === undefined
+        ? null
+        : Number(payload.monto_recibido),
+    p_referencia_pago: payload.referencia_pago || null,
+    p_notas: payload.notas || null,
+  });
+  throwIfError(error);
+  return data;
+}
+
 export async function MostrarReporteIngresosMensual({ mes }) {
   const { data, error } = await supabase.rpc("crm_reporte_ingresos_mensuales", {
     p_mes: mes || new Date().toISOString().slice(0, 7) + "-01",
@@ -406,6 +436,44 @@ export async function MostrarCrmClientesPage({
       to: Math.min(from + safePageSize, total),
       hasPreviousPage: safePage > 1,
       hasNextPage: safePage < totalPages,
+    },
+  };
+}
+
+export async function MostrarCrmInvitacionesPage({
+  id_empresa,
+  page = 1,
+  pageSize = 5,
+  search = "",
+  status = "todos",
+  deliveryStatus = "todos",
+  planId = "todos",
+}) {
+  const safePage = Math.max(1, Number(page) || 1);
+  const safePageSize = Math.min(5, Math.max(5, Number(pageSize) || 5));
+  const from = (safePage - 1) * safePageSize;
+  const to = from + safePageSize - 1;
+  let query = supabase
+    .from("crm_invitaciones")
+    .select("id, email, estado, estado_envio, email_enviado_at, expires_at, ultimo_error_email, intentos_email, created_at, id_plan, crm_planes(nombre, precio, periodicidad)", { count: "exact" })
+    .eq("id_empresa", id_empresa)
+    .order("created_at", { ascending: false })
+    .range(from, to);
+  const normalizedSearch = String(search || "").trim().toLowerCase();
+  if (normalizedSearch) query = query.ilike("email", `%${normalizedSearch}%`);
+  if (status !== "todos") query = query.eq("estado", status);
+  if (deliveryStatus !== "todos") query = query.eq("estado_envio", deliveryStatus);
+  if (planId !== "todos") query = query.eq("id_plan", Number(planId));
+  const { data, error, count } = await query;
+  throwIfError(error);
+  const total = Number(count || 0);
+  const totalPages = Math.max(1, Math.ceil(total / safePageSize));
+  return {
+    data: data || [],
+    pagination: {
+      page: Math.min(safePage, totalPages), pageSize: safePageSize, total, totalPages,
+      from: total ? from + 1 : 0, to: Math.min(from + safePageSize, total),
+      hasPreviousPage: safePage > 1, hasNextPage: safePage < totalPages,
     },
   };
 }
