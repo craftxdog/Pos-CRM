@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { Dark, Light } from "../styles/themes";
 export const useEditarPerfilMutation = () => {
   const queryClient = useQueryClient();
-  const { editarUsuarios, datausuarios } = useUsuariosStore();
+  const { editarPerfilUsuario, datausuarios } = useUsuariosStore();
 
   return useMutation({
     mutationKey: ["editar perfil"],
@@ -16,7 +16,7 @@ export const useEditarPerfilMutation = () => {
         nro_doc: data.nro_doc,
         telefono: data.telefono,
       };
-      await editarUsuarios(p);
+      await editarPerfilUsuario(p);
     },
     onError: (error) => {
       toast.error("Error al editar mi perfil: " + error.message);
@@ -29,7 +29,7 @@ export const useEditarPerfilMutation = () => {
 };
 export const useEditarUserTheme = () => {
   const queryClient = useQueryClient();
-  const { editarUsuarios, datausuarios } = useUsuariosStore();
+  const { editarPerfilUsuario, datausuarios } = useUsuariosStore();
 
   return useMutation({
     mutationKey: ["editar theme"],
@@ -46,7 +46,7 @@ export const useEditarUserTheme = () => {
         tema: themeUse,
       };
 
-      await editarUsuarios(p);
+      await editarPerfilUsuario(p);
     },
     onError: (error) => {
       toast.error("Error al editar tema: " + error.message);

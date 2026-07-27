@@ -31,7 +31,7 @@ async function consultarUsuariosAsignados(p) {
   if (!p?._id_empresa) return [];
   let query = supabase
     .from("usuarios")
-    .select("id, nombres, correo, nro_doc, telefono, estado, id_rol, roles(nombre), asignacion_sucursal(id, sucursales(nombre), caja(nombre))")
+    .select("id, nombres, correo, nro_doc, telefono, estado, id_rol, roles(nombre), asignacion_sucursal(id, sucursales(nombre), caja(descripcion))")
     .eq("id_empresa", p._id_empresa);
   if (p.buscador?.trim()) query = query.ilike("nombres", `%${p.buscador.trim()}%`);
   const { data, error } = await query.order("nombres");
@@ -47,7 +47,7 @@ async function consultarUsuariosAsignados(p) {
       id_rol: usuario.id_rol,
       rol: usuario.roles?.nombre || "Sin rol",
       sucursal: asignacion?.sucursales?.nombre || "Sin sucursal",
-      caja: asignacion?.caja?.nombre || "Sin caja",
+      caja: asignacion?.caja?.descripcion || "Sin caja",
       estadouser: usuario.estado || "activo",
     };
   });

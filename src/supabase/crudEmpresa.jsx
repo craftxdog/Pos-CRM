@@ -39,21 +39,14 @@ export async function EditarLogoEmpresa(p){
   }
 }
 export async function EditarEmpresa(p,fileold,filenew){
-  const {error}= await supabase.from(tabla).update(p).eq("id",p.id)
+  const payload = { ...p };
+  if (filenew instanceof File) {
+    const dataImagen = await subirImagen(p.id, filenew);
+    payload.logo = dataImagen.publicUrl;
+  }
+  const {error}= await supabase.from(tabla).update(payload).eq("id",payload.id)
   if(error){
     throw new Error(error.message);
-  }
-  if( filenew!=="-" && filenew.size !==undefined){
-    if(fileold!="-"){
-      await EditarIconoStorage(p.id,filenew)
-    }else{
-      const dataImagen = await subirImagen(p.id,filenew)
-      const plogoeditar={
-        logo:dataImagen.publicUrl,
-        id:p.id
-      }
-      await EditarLogoEmpresa(plogoeditar)
-    }
   }
 }
 
@@ -68,7 +61,7 @@ export async function EditarIconoStorage(id,file){
 async function subirImagen (idempresa,file){
   const ruta = "empresa/"+idempresa
   const {data, error}= await supabase.storage.from("imagenes").upload(ruta,file,{
-    cacheControl:"0",
+    cacheControl:"3600",
     upsert:true
   })
   if(error){
