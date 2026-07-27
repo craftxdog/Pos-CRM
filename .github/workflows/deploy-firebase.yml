@@ -22,7 +22,20 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npm run build
+      - name: Verify production configuration
+        env:
+          VITE_APP_SUPABASE_URL: ${{ secrets.VITE_APP_SUPABASE_URL }}
+          VITE_APP_SUPABASE_ANON_KEY: ${{ secrets.VITE_APP_SUPABASE_ANON_KEY }}
+        run: |
+          test -n "$VITE_APP_SUPABASE_URL"
+          test -n "$VITE_APP_SUPABASE_ANON_KEY"
+      - name: Build production application
+        env:
+          VITE_APP_SUPABASE_URL: ${{ secrets.VITE_APP_SUPABASE_URL }}
+          VITE_APP_SUPABASE_ANON_KEY: ${{ secrets.VITE_APP_SUPABASE_ANON_KEY }}
+          VITE_APP_GOOGLE_AUTH_ENABLED: ${{ vars.VITE_APP_GOOGLE_AUTH_ENABLED }}
+          VITE_PRINT_SERVICE_URL: ${{ vars.VITE_PRINT_SERVICE_URL }}
+        run: npm run build
       - name: Deploy hosting
         uses: FirebaseExtended/action-hosting-deploy@v0
         with:
