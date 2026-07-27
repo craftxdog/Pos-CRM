@@ -152,19 +152,6 @@ export default {
       if (!siteUrl || !/^https?:\/\//i.test(siteUrl)) {
         throw new Error("Falta configurar APP_SITE_URL");
       }
-      const redirectTo = new URL("/onboarding-cliente", siteUrl).toString();
-
-      const { data: linkData, error: linkError } =
-        await ctx.supabaseAdmin.auth.admin.generateLink({
-          type: "magiclink",
-          email,
-          options: { redirectTo },
-        });
-
-      if (linkError || !linkData?.properties?.action_link) {
-        throw new Error(linkError?.message || "No se pudo crear el enlace de acceso");
-      }
-
       const { data: existing, error: existingError } = await ctx.supabaseAdmin
         .from("crm_invitaciones")
         .select("id, intentos_email")
@@ -210,6 +197,21 @@ export default {
 
       invitationId = invitation.id;
       attempts = Number(invitation.intentos_email || existing?.intentos_email || 0) + 1;
+
+      // The Magic Link returns through this exact invitation. Without this id,
+      // an invited customer cannot safely read the staff-only invitation table.
+      const onboardingUrl = new URL("/onboarding-cliente", siteUrl);
+      onboardingUrl.searchParams.set("invitation", invitation.id);
+      const { data: linkData, error: linkError } =
+        await ctx.supabaseAdmin.auth.admin.generateLink({
+          type: "magiclink",
+          email,
+          options: { redirectTo: onboardingUrl.toString() },
+        });
+
+      if (linkError || !linkData?.properties?.action_link) {
+        throw new Error(linkError?.message || "No se pudo crear el enlace de acceso");
+      }
 
       const transporter = nodemailer.createTransport(smtpConfiguration());
       const fromEmail = envValue("SMTP_FROM_EMAIL", "MAILERSEND_FROM_EMAIL", "FROM_EMAIL");

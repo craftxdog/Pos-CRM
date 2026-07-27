@@ -2,9 +2,15 @@ import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   FiCheck,
+  FiChevronLeft,
+  FiChevronRight,
   FiClock,
+  FiEdit3,
   FiLogOut,
   FiSearch,
+  FiToggleLeft,
+  FiToggleRight,
+  FiTrash2,
   FiUser,
   FiUserX,
 } from "react-icons/fi";
@@ -29,6 +35,61 @@ const attendanceCopy = {
   ausente: "Ausente",
   salida_registrada: "Salida registrada",
 };
+
+function ScheduleDirectory({ crm, dataempresa }) {
+  const queryClient = useQueryClient();
+  const [search, setSearch] = useState("");
+  const [status, setStatus] = useState("todos");
+  const [page, setPage] = useState(1);
+  const [editing, setEditing] = useState(null);
+  useEffect(() => setPage(1), [search, status]);
+  const schedulesQuery = useQuery({
+    queryKey: ["crm-schedules-directory", dataempresa?.id, page, search, status],
+    queryFn: () => crm.mostrarHorariosPage({ id_empresa: dataempresa.id, page, pageSize: 5, search, status }),
+    enabled: Boolean(dataempresa?.id),
+    placeholderData: (previous) => previous,
+    refetchOnWindowFocus: false,
+  });
+  const result = schedulesQuery.data || { data: [], pagination: { page: 1, totalPages: 1, total: 0, from: 0, to: 0, hasPreviousPage: false, hasNextPage: false } };
+  const refresh = async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["crm-schedules-directory"] }),
+      queryClient.invalidateQueries({ queryKey: ["crm-data"] }),
+      queryClient.invalidateQueries({ queryKey: ["crm-attendance-clients"] }),
+    ]);
+  };
+  const saveMutation = useMutation({
+    mutationFn: (values) => editing
+      ? crm.editarHorario({ id: editing.id, id_empresa: dataempresa.id, ...values })
+      : crm.insertarHorario({ id_empresa: dataempresa.id, ...values, activo: true }),
+    onSuccess: async () => { toast.success(editing ? "Horario actualizado" : "Horario creado"); setEditing(null); await refresh(); },
+    onError: (error) => toast.error(error.message),
+  });
+  const changeMutation = useMutation({
+    mutationFn: ({ action, item }) => action === "delete"
+      ? crm.eliminarHorario({ id: item.id, id_empresa: dataempresa.id })
+      : crm.editarHorario({ id: item.id, id_empresa: dataempresa.id, activo: !item.activo }),
+    onSuccess: async (_, variables) => { toast.success(variables.action === "delete" ? "Horario eliminado" : "Estado del horario actualizado"); await refresh(); },
+    onError: (error) => toast.error(error.message),
+  });
+  const submit = (event) => {
+    event.preventDefault();
+    const values = Object.fromEntries(new FormData(event.currentTarget).entries());
+    saveMutation.mutate({
+      nombre: values.nombre.trim(),
+      hora_entrada: values.hora_entrada,
+      hora_salida: values.hora_salida,
+      tolerancia_minutos: Number(values.tolerancia_minutos || 0),
+    });
+  };
+  return <section className="schedule-directory">
+    <header><div><h3>Directorio de horarios</h3><p>Administra los turnos disponibles. Se muestran cinco resultados por página.</p></div><span>{result.pagination.total}</span></header>
+    <div className="schedule-filters"><label><FiSearch /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar horario" /></label><select value={status} onChange={(event) => setStatus(event.target.value)}><option value="todos">Todos los estados</option><option value="activo">Activos</option><option value="inactivo">Inactivos</option></select></div>
+    <div className="schedule-table"><div className="schedule-directory-row head"><span>Horario</span><span>Jornada</span><span>Tolerancia</span><span>Estado</span><span>Acciones</span></div>{result.data.map((item) => <div className="schedule-directory-row" key={item.id}><strong>{item.nombre}</strong><span>{item.hora_entrada?.slice(0, 5)} – {item.hora_salida?.slice(0, 5)}</span><span>{item.tolerancia_minutos} min</span><span className={item.activo ? "tag active" : "tag inactive"}>{item.activo ? "Activo" : "Inactivo"}</span><div className="schedule-actions"><button type="button" className="mini" onClick={() => setEditing(item)}><FiEdit3 /> Editar</button><button type="button" className="mini" onClick={() => changeMutation.mutate({ action: "toggle", item })} disabled={changeMutation.isPending}>{item.activo ? <FiToggleRight /> : <FiToggleLeft />}{item.activo ? "Desactivar" : "Activar"}</button><button type="button" className="mini danger" onClick={() => { if (window.confirm(`¿Eliminar el horario ${item.nombre}?`)) changeMutation.mutate({ action: "delete", item }); }} disabled={changeMutation.isPending}><FiTrash2 /> Eliminar</button></div></div>)}{!result.data.length ? <p className="empty-schedules">No hay horarios para estos filtros.</p> : null}</div>
+    <footer className="schedule-pagination"><span>Mostrando {result.pagination.from}–{result.pagination.to} de {result.pagination.total}</span><div><button type="button" disabled={!result.pagination.hasPreviousPage} onClick={() => setPage((value) => value - 1)}><FiChevronLeft /></button><b>{result.pagination.page} / {result.pagination.totalPages}</b><button type="button" disabled={!result.pagination.hasNextPage} onClick={() => setPage((value) => value + 1)}><FiChevronRight /></button></div></footer>
+    <form className="schedule-form" onSubmit={submit} key={editing?.id || "new"}><h4>{editing ? `Editar: ${editing.nombre}` : "Crear horario"}</h4><input name="nombre" placeholder="Nombre del horario" required defaultValue={editing?.nombre || ""} /><div><input name="hora_entrada" type="time" required defaultValue={editing?.hora_entrada?.slice(0, 5) || ""} /><input name="hora_salida" type="time" required defaultValue={editing?.hora_salida?.slice(0, 5) || ""} /></div><input name="tolerancia_minutos" type="number" min="0" defaultValue={editing?.tolerancia_minutos ?? 10} /><div className="form-actions">{editing ? <button type="button" className="secondary" onClick={() => setEditing(null)}>Cancelar</button> : null}<button disabled={saveMutation.isPending}>{saveMutation.isPending ? "Guardando…" : editing ? "Actualizar horario" : "Crear horario"}</button></div></form>
+  </section>;
+}
 
 export function CrmAttendanceWorkspace({
   crm,
@@ -358,6 +419,7 @@ export function CrmAttendanceWorkspace({
           </form>
         </aside>
       </section>
+      <ScheduleDirectory crm={crm} dataempresa={dataempresa} />
     </Container>
   );
 }
@@ -778,6 +840,57 @@ const Container = styled.section`
     }
   }
 
+  .schedule-directory {
+    border: 1px solid ${({ theme }) => theme.color2};
+    border-radius: 18px;
+    background: ${({ theme }) => theme.bgcards};
+    padding: 18px;
+
+    > header {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: start;
+      margin-bottom: 13px;
+
+      h3, p { margin: 0; }
+      p { margin-top: 3px; color: ${({ theme }) => theme.colorSubtitle}; font-size: 13px; }
+      > span { border-radius: 999px; background: #e0f2fe; color: #0369a1; padding: 5px 9px; font-weight: 900; }
+    }
+  }
+
+  .schedule-filters {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 220px;
+    gap: 10px;
+    margin-bottom: 12px;
+
+    label { display: flex; align-items: center; gap: 8px; padding: 0 11px; border: 1px solid ${({ theme }) => theme.color2}; border-radius: 10px; background: ${({ theme }) => theme.bgtotal}; }
+    input, select { min-width: 0; border: 1px solid ${({ theme }) => theme.color2}; border-radius: 10px; background: ${({ theme }) => theme.bgtotal}; color: inherit; padding: 10px; }
+    label input { width: 100%; border: 0; background: transparent; }
+  }
+
+  .schedule-table { overflow-x: auto; border: 1px solid ${({ theme }) => theme.color2}; border-radius: 12px; }
+  .schedule-directory-row { min-width: 930px; display: grid; grid-template-columns: 1.1fr .9fr .7fr .75fr 2.15fr; gap: 10px; align-items: center; padding: 11px 13px; border-bottom: 1px solid ${({ theme }) => theme.color2}; font-size: 13px; }
+  .schedule-directory-row:last-child { border-bottom: 0; }
+  .schedule-directory-row.head { background: ${({ theme }) => theme.bgtotal}; font-size: 11px; font-weight: 900; text-transform: uppercase; }
+  .schedule-directory-row > span { color: ${({ theme }) => theme.colorSubtitle}; }
+  .tag { display: inline-flex; justify-content: center; width: fit-content; border-radius: 999px; padding: 5px 8px; font-size: 11px; font-weight: 900; }
+  .tag.active { background: #dcfce7; color: #166534; }
+  .tag.inactive { background: #fee2e2; color: #b91c1c; }
+  .schedule-actions, .form-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+  .mini, .schedule-pagination button, .schedule-form button { display: inline-flex; align-items: center; justify-content: center; gap: 5px; border: 1px solid ${({ theme }) => theme.color2}; border-radius: 8px; background: ${({ theme }) => theme.bgtotal}; color: inherit; padding: 7px 9px; font-size: 12px; font-weight: 800; cursor: pointer; }
+  .mini.danger { color: #dc2626; }
+  .empty-schedules { margin: 0; padding: 20px; text-align: center; color: ${({ theme }) => theme.colorSubtitle}; }
+  .schedule-pagination { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 12px 0; color: ${({ theme }) => theme.colorSubtitle}; font-size: 12px; }
+  .schedule-pagination > div { display: flex; align-items: center; gap: 8px; }
+  .schedule-form { display: grid; grid-template-columns: 1.2fr .9fr .9fr .65fr auto; align-items: end; gap: 8px; border-top: 1px solid ${({ theme }) => theme.color2}; padding-top: 14px; }
+  .schedule-form h4 { grid-column: 1 / -1; margin: 0; }
+  .schedule-form > div:not(.form-actions) { display: contents; }
+  .schedule-form input { min-width: 0; border: 1px solid ${({ theme }) => theme.color2}; border-radius: 10px; background: ${({ theme }) => theme.bgtotal}; color: inherit; padding: 10px; }
+  .schedule-form .form-actions { grid-column: span 2; }
+  .schedule-form .form-actions button:last-child { border: 0; background: #f3d20c; color: #111827; }
+
   button:disabled {
     opacity: 0.55;
     cursor: not-allowed;
@@ -791,6 +904,9 @@ const Container = styled.section`
     .schedule-card {
       position: static;
     }
+
+    .schedule-form { grid-template-columns: 1fr 1fr; }
+    .schedule-form h4, .schedule-form input[name="nombre"], .schedule-form .form-actions { grid-column: 1 / -1; }
   }
 
   @media (max-width: 650px) {
@@ -819,5 +935,8 @@ const Container = styled.section`
     .schedule-row {
       grid-template-columns: 1fr;
     }
+
+    .schedule-filters { grid-template-columns: 1fr; }
+    .schedule-pagination { align-items: start; flex-direction: column; }
   }
 `;

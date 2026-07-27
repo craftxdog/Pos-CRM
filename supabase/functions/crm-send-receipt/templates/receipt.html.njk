@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="es">
+  <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Comprobante {{ receiptReference }}</title></head>
+  <body style="margin:0;padding:0;background:#eef3f8;font-family:Arial,Helvetica,sans-serif;color:#0f172a">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#eef3f8"><tr><td align="center" style="padding:32px 14px">
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:620px;background:#fff;border:1px solid #dbe4ee;border-radius:18px;overflow:hidden">
+        <tr><td style="height:8px;background:#f3d20c;font-size:0;line-height:0">&nbsp;</td></tr>
+        <tr><td style="padding:32px 36px 20px"><span style="display:inline-block;padding:7px 10px;border-radius:999px;background:#dcfce7;color:#166534;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase">Pago confirmado</span><h1 style="margin:20px 0 8px;font-size:28px">Comprobante de pago</h1><p style="margin:0;color:#64748b;font-size:15px;line-height:1.55">Hola {{ customerName }}, registramos tu pago correctamente.</p></td></tr>
+        <tr><td style="padding:0 36px 22px"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="border:1px solid #e2e8f0;border-radius:14px;background:#f8fafc"><tr><td style="padding:18px"><p style="margin:0 0 5px;color:#64748b;font-size:11px;font-weight:800;text-transform:uppercase">Documento</p><strong style="font-size:19px">{{ receiptReference }}</strong><p style="margin:8px 0 0;color:#64748b;font-size:13px">{{ receiptDate }}</p></td><td align="right" style="padding:18px"><span style="color:#64748b;font-size:12px">Total pagado</span><strong style="display:block;margin-top:4px;font-size:21px">{{ total }}</strong></td></tr></table></td></tr>
+        <tr><td style="padding:0 36px 26px"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"><tr><td style="padding:10px 0;border-bottom:1px solid #e2e8f0"><strong>{{ planName }}</strong><br><span style="color:#64748b;font-size:13px">{{ description }}</span>{% if period %}<br><span style="color:#64748b;font-size:12px">Periodo: {{ period }}</span>{% endif %}</td></tr><tr><td style="padding:10px 0;color:#475569;font-size:13px">Método: <strong>{{ paymentMethod }}</strong>{% if paymentReference != '—' %} · Referencia: {{ paymentReference }}{% endif %}</td></tr>{% if showCashBreakdown %}<tr><td style="padding:10px 0;color:#475569;font-size:13px">Recibido: {{ received }} · Vuelto: {{ change }}</td></tr>{% endif %}</table></td></tr>
+        <tr><td style="padding:20px 36px;background:#f8fafc;border-top:1px solid #e2e8f0;color:#64748b;font-size:12px;line-height:1.6">Conserva este correo como comprobante de tu pago.{% if replyTo %} Para soporte, escríbenos a {{ replyTo }}.{% endif %}<br><span style="color:#94a3b8">© {{ currentYear }} {{ companyName }}</span></td></tr>
+      </table>
+    </td></tr></table>
+  </body>
+</html>

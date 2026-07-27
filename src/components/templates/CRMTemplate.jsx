@@ -41,6 +41,7 @@ import {
 import { MdOutlineBadge, MdOutlinePointOfSale } from "react-icons/md";
 import { toast, Toaster } from "sonner";
 import { useCrmStore } from "../../store/CrmStore";
+import { useCrmRealtime } from "../../hooks/useCrmRealtime";
 import { useEmpresaStore } from "../../store/EmpresaStore";
 import { useUsuariosStore } from "../../store/UsuariosStore";
 import { CrmAttendanceWorkspace } from "../organismos/CRMDesign/CrmAttendanceWorkspace";
@@ -296,6 +297,8 @@ export function CRMTemplate({ initialTab = "procesos" }) {
   const { dataempresa } = useEmpresaStore();
   const { datausuarios } = useUsuariosStore();
   const crm = useCrmStore();
+
+  useCrmRealtime(dataempresa?.id, queryClient);
 
   useEffect(() => {
     setActiveTab(initialTab);
