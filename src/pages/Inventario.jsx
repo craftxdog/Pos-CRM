@@ -48,7 +48,10 @@ export const Inventario = () => {
         id_empresa: dataempresa?.id,
         id_producto: productosItemSelect?.id,
       }),
-    enabled: Boolean(dataempresa?.id && productosItemSelect?.id),
+    // The inventory ledger must be useful before a product is selected.  A
+    // product selection narrows the same query; an empty selection shows all
+    // movements for the active company.
+    enabled: Boolean(dataempresa?.id),
     staleTime: 30_000,
   });
 
