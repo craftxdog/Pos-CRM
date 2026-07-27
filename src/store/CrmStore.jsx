@@ -3,6 +3,7 @@ import {
   ActualizarEstadoCrmSuscripcion,
   AsignarCrmHorarioCliente,
   CancelarInvitacionCliente,
+  CobrarSuscripcionPos,
   CompletarInvitacionCliente,
   ActualizarWhatsappMensaje,
   CrearWhatsappMensaje,
@@ -23,9 +24,12 @@ import {
   InsertarTrabajador,
   MostrarCrmData,
   MostrarCrmClientesAsistencia,
+  MostrarCrmClientesPage,
+  MostrarReporteIngresosMensual,
   MostrarCrmSuscripcionesPage,
   MostrarInvitacionClienteActual,
   RegistrarCrmAsistencia,
+  RegistrarPagoPos,
   UpsertCrmAutomatizacion,
   UpsertEmpresaModulo,
   UpsertRolModulo,
@@ -70,6 +74,11 @@ export const useCrmStore = create((set) => ({
   insertarPago: (payload) => InsertarCrmPago(payload),
   facturarPlan: (payload) => FacturarPlanCliente(payload),
   facturarSuscripcion: (payload) => FacturarSuscripcionCliente(payload),
+  cobrarSuscripcionPos: (payload) => CobrarSuscripcionPos(payload),
+  registrarPagoPos: (payload) => RegistrarPagoPos(payload),
+  mostrarReporteIngresosMensual: (payload) =>
+    MostrarReporteIngresosMensual(payload),
+  mostrarClientesPage: (payload) => MostrarCrmClientesPage(payload),
   mostrarSuscripcionesPage: (payload) =>
     MostrarCrmSuscripcionesPage(payload),
   actualizarEstadoSuscripcion: (payload) =>

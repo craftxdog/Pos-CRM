@@ -14,6 +14,13 @@ function normalizeCrmError(message) {
   ) {
     return "MailerSend alcanzó el límite de destinatarios únicos de la cuenta de prueba. Verifica el dominio o actualiza el plan de MailerSend antes de invitar nuevos correos.";
   }
+  if (
+    detail.includes("ERR_CONNECTION_CLOSED") ||
+    detail.toLowerCase().includes("failed to fetch") ||
+    detail.toLowerCase().includes("network request failed")
+  ) {
+    return "No se pudo conectar con el servicio de correo. Verifica el SMTP de Hostinger (host, puerto, cifrado y credenciales) e inténtalo de nuevo.";
+  }
   return detail || "No se pudo completar la operación";
 }
 
@@ -309,6 +316,98 @@ export async function FacturarSuscripcionCliente(payload) {
   });
   throwIfError(error);
   return data;
+}
+
+export async function CobrarSuscripcionPos(payload) {
+  const { data, error } = await supabase.rpc("crm_cobrar_suscripcion_pos", {
+    p_id_suscripcion: Number(payload.id_suscripcion),
+    p_metodo_pago: payload.metodo_pago || "efectivo",
+    p_monto_recibido:
+      payload.monto_recibido === "" || payload.monto_recibido === undefined
+        ? null
+        : Number(payload.monto_recibido),
+    p_referencia_pago: payload.referencia_pago || null,
+    p_notas: payload.notas || null,
+  });
+  throwIfError(error);
+  return data;
+}
+
+export async function RegistrarPagoPos(payload) {
+  const { data, error } = await supabase.rpc("crm_registrar_pago_pos", {
+    p_id_cliente_crm: Number(payload.id_cliente_crm),
+    p_id_suscripcion: payload.id_suscripcion ? Number(payload.id_suscripcion) : null,
+    p_monto: Number(payload.monto),
+    p_metodo_pago: payload.metodo_pago || "efectivo",
+    p_monto_recibido:
+      payload.monto_recibido === "" || payload.monto_recibido === undefined
+        ? null
+        : Number(payload.monto_recibido),
+    p_referencia_pago: payload.referencia_pago || null,
+    p_fecha_vencimiento: payload.fecha_vencimiento || null,
+    p_notas: payload.notas || null,
+  });
+  throwIfError(error);
+  return data;
+}
+
+export async function MostrarReporteIngresosMensual({ mes }) {
+  const { data, error } = await supabase.rpc("crm_reporte_ingresos_mensuales", {
+    p_mes: mes || new Date().toISOString().slice(0, 7) + "-01",
+  });
+  throwIfError(error);
+  return data || [];
+}
+
+export async function MostrarCrmClientesPage({
+  id_empresa,
+  page = 1,
+  pageSize = 10,
+  search = "",
+  clientStatus = "todos",
+  financialStatus = "todos",
+  planId = "todos",
+}) {
+  const safePage = Math.max(1, Number(page) || 1);
+  const safePageSize = Math.min(50, Math.max(5, Number(pageSize) || 10));
+  const from = (safePage - 1) * safePageSize;
+  const to = from + safePageSize - 1;
+
+  let query = supabase
+    .from("crm_clientes_directorio")
+    .select("*", { count: "exact" })
+    .eq("id_empresa", id_empresa)
+    .order("updated_at", { ascending: false })
+    .order("id", { ascending: false })
+    .range(from, to);
+
+  const normalizedSearch = String(search || "").trim().toLowerCase();
+  if (normalizedSearch) query = query.ilike("busqueda", `%${normalizedSearch}%`);
+  if (clientStatus && clientStatus !== "todos") {
+    query = query.eq("estado_cliente", clientStatus);
+  }
+  if (financialStatus && financialStatus !== "todos") {
+    query = query.eq("estado_financiero", financialStatus);
+  }
+  if (planId && planId !== "todos") query = query.eq("id_plan", Number(planId));
+
+  const { data, error, count } = await query;
+  throwIfError(error);
+  const total = Number(count || 0);
+  const totalPages = Math.max(1, Math.ceil(total / safePageSize));
+  return {
+    data: data || [],
+    pagination: {
+      page: Math.min(safePage, totalPages),
+      pageSize: safePageSize,
+      total,
+      totalPages,
+      from: total ? from + 1 : 0,
+      to: Math.min(from + safePageSize, total),
+      hasPreviousPage: safePage > 1,
+      hasNextPage: safePage < totalPages,
+    },
+  };
 }
 
 export async function MostrarCrmSuscripcionesPage({

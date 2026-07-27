@@ -79,6 +79,9 @@ export function buildCrmInvoiceModel({
     payment: {
       currency: payment?.moneda || company?.currency || "USD",
       method: payment?.metodo_pago || "-",
+      received: Number(payment?.monto_recibido ?? amount),
+      change: Number(payment?.cambio || 0),
+      paymentReference: payment?.referencia_pago || "",
       notes: payment?.notas || "",
       subtotal: amount,
       total: amount,

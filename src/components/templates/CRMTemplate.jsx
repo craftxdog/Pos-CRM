@@ -44,6 +44,8 @@ import { useCrmStore } from "../../store/CrmStore";
 import { useEmpresaStore } from "../../store/EmpresaStore";
 import { useUsuariosStore } from "../../store/UsuariosStore";
 import { CrmAttendanceWorkspace } from "../organismos/CRMDesign/CrmAttendanceWorkspace";
+import { CrmClientsWorkspace } from "../organismos/CRMDesign/CrmClientsWorkspace";
+import { CrmPaymentsWorkspace } from "../organismos/CRMDesign/CrmPaymentsWorkspace";
 import { CrmSubscriptionsWorkspace } from "../organismos/CRMDesign/CrmSubscriptionsWorkspace";
 import FacturaCliente from "../../reports/FacturaCliente";
 import { v } from "../../styles/variables";
@@ -99,6 +101,7 @@ const statusLabels = {
 
 const actionMessages = {
   cliente: "Cliente guardado",
+  editar_cliente: "Cliente actualizado",
   invitacion: "Invitación enviada por correo",
   cancelar_invitacion: "Invitación cancelada",
   plan: "Plan creado",
@@ -323,6 +326,18 @@ export function CRMTemplate({ initialTab = "procesos" }) {
           origen: "manual",
           creado_por: registrado_por,
           notas: values.notas || null,
+        });
+      }
+
+      if (action === "editar_cliente") {
+        return crm.editarCliente({
+          id: Number(values.id),
+          nombres: values.nombres,
+          apellidos: values.apellidos || null,
+          email: values.email || null,
+          telefono: values.telefono || null,
+          direccion: values.direccion || null,
+          estado: values.estado || "activo",
         });
       }
 
@@ -1112,6 +1127,20 @@ export function CRMTemplate({ initialTab = "procesos" }) {
       )}
 
       {activeTab === "clientes" && (
+        <CrmClientsWorkspace
+          crm={crm}
+          dataempresa={dataempresa}
+          mutation={mutation}
+          submitForm={submitForm}
+          onNavigate={setActiveTab}
+          onCharge={(client) => {
+            setPaymentClientId(String(client.id));
+            setActiveTab("pagos");
+          }}
+        />
+      )}
+
+      {false && (
         <>
         <section className="workspace module-overview">
           <section className="metric-grid">
@@ -1307,6 +1336,15 @@ export function CRMTemplate({ initialTab = "procesos" }) {
       )}
 
       {activeTab === "pagos" && (
+        <CrmPaymentsWorkspace
+          crm={crm}
+          dataempresa={dataempresa}
+          initialClientId={paymentClientId}
+          onClientHandled={() => setPaymentClientId("")}
+        />
+      )}
+
+      {false && (
         <>
         <section className="workspace module-overview">
           <section className="metric-grid">

@@ -44,3 +44,20 @@ test("builds a printable invoice from a payment and its subscription", () => {
   assert.equal(invoice.payment.total, 35);
   assert.equal(invoice.status, "PAGADA");
 });
+
+test("includes the POS cash received, change and transfer reference", () => {
+  const invoice = buildCrmInvoiceModel({
+    company: { currency: "NIO", iso: "es-NI" },
+    payment: {
+      monto: 150,
+      monto_recibido: 200,
+      cambio: 50,
+      referencia_pago: "TRX-001",
+      metodo_pago: "Efectivo",
+    },
+  });
+
+  assert.equal(invoice.payment.received, 200);
+  assert.equal(invoice.payment.change, 50);
+  assert.equal(invoice.payment.paymentReference, "TRX-001");
+});

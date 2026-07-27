@@ -25,12 +25,34 @@ const invitationTextTemplate = await Deno.readTextFile(
   new URL("./templates/invitation.txt.njk", import.meta.url)
 );
 
-function requiredEnv(name: string) {
-  const value = Deno.env.get(name)?.trim();
+function envValue(primary: string, legacy?: string) {
+  const value = Deno.env.get(primary)?.trim() || (legacy ? Deno.env.get(legacy)?.trim() : "");
   if (!value) {
-    throw new Error(`Falta configurar el secreto ${name}`);
+    throw new Error(`Falta configurar el secreto ${primary}`);
   }
   return value;
+}
+
+function smtpConfiguration() {
+  const port = Number(envValue("SMTP_PORT", "MAILERSEND_SMTP_PORT"));
+  if (!Number.isInteger(port) || port < 1 || port > 65535) {
+    throw new Error("SMTP_PORT debe ser un puerto válido");
+  }
+  const host = envValue("SMTP_HOST", "MAILERSEND_SMTP_HOST");
+  return {
+    host,
+    port,
+    secure: port === 465,
+    auth: {
+      user: envValue("SMTP_USER", "MAILERSEND_SMTP_USER"),
+      pass: envValue("SMTP_PASSWORD", "MAILERSEND_SMTP_PASSWORD"),
+    },
+    connectionTimeout: 15_000,
+    greetingTimeout: 15_000,
+    socketTimeout: 20_000,
+    requireTLS: port === 587,
+    tls: { minVersion: "TLSv1.2", servername: host },
+  };
 }
 
 function publicErrorMessage(message: string) {
@@ -38,7 +60,12 @@ function publicErrorMessage(message: string) {
     message.includes("MS42225") ||
     message.toLowerCase().includes("trial account unique recipients limit")
   ) {
-    return "MailerSend alcanzó el límite de destinatarios únicos de la cuenta de prueba. Verifica el dominio o actualiza el plan de MailerSend antes de invitar nuevos correos.";
+    return "El proveedor de correo alcanzó el límite de destinatarios únicos de la cuenta de prueba. Verifica el dominio o actualiza el plan antes de invitar nuevos correos.";
+  }
+  if (
+    /connection closed|socket closed|econnreset|etimedout|econnrefused|network request failed/i.test(message)
+  ) {
+    return "No se pudo conectar al SMTP configurado. Revisa el host, puerto, cifrado (465 SSL o 587 STARTTLS) y las credenciales de Hostinger.";
   }
   return message;
 }
@@ -53,7 +80,9 @@ export default {
     let attempts = 0;
 
     try {
-      if (Deno.env.get("MAILERSEND_ENABLED")?.toLowerCase() !== "true") {
+      const emailEnabled = Deno.env.get("SMTP_ENABLED")?.toLowerCase()
+        || Deno.env.get("MAILERSEND_ENABLED")?.toLowerCase();
+      if (emailEnabled !== "true") {
         throw new Error("El envío de correo está deshabilitado");
       }
 
@@ -180,24 +209,14 @@ export default {
       invitationId = invitation.id;
       attempts = Number(invitation.intentos_email || existing?.intentos_email || 0) + 1;
 
-      const smtpPort = Number(requiredEnv("MAILERSEND_SMTP_PORT"));
-      const transporter = nodemailer.createTransport({
-        host: requiredEnv("MAILERSEND_SMTP_HOST"),
-        port: smtpPort,
-        secure: smtpPort === 465,
-        auth: {
-          user: requiredEnv("MAILERSEND_SMTP_USER"),
-          pass: requiredEnv("MAILERSEND_SMTP_PASSWORD"),
-        },
-        connectionTimeout: 15_000,
-        greetingTimeout: 15_000,
-        socketTimeout: 20_000,
-        tls: { minVersion: "TLSv1.2" },
-      });
-
-      const fromEmail = requiredEnv("MAILERSEND_FROM_EMAIL");
-      const fromName = Deno.env.get("MAILERSEND_FROM_NAME")?.trim() || company.nombre;
-      const replyTo = Deno.env.get("MAILERSEND_REPLY_TO_EMAIL")?.trim() || null;
+      const transporter = nodemailer.createTransport(smtpConfiguration());
+      const fromEmail = envValue("SMTP_FROM_EMAIL", "MAILERSEND_FROM_EMAIL");
+      const fromName = Deno.env.get("SMTP_FROM_NAME")?.trim()
+        || Deno.env.get("MAILERSEND_FROM_NAME")?.trim()
+        || company.nombre;
+      const replyTo = Deno.env.get("SMTP_REPLY_TO_EMAIL")?.trim()
+        || Deno.env.get("MAILERSEND_REPLY_TO_EMAIL")?.trim()
+        || null;
       const templateContext = {
         companyName: company.nombre,
         planName: plan.nombre,
@@ -214,20 +233,25 @@ export default {
         currentYear: new Date().getUTCFullYear(),
       };
 
-      await transporter.sendMail({
-        from: { name: fromName, address: fromEmail },
-        to: email,
-        replyTo: replyTo || undefined,
-        subject: `${company.nombre} te invita a completar tu registro`,
-        text: textEnvironment.renderString(
-          invitationTextTemplate,
-          templateContext
-        ),
-        html: htmlEnvironment.renderString(
-          invitationHtmlTemplate,
-          templateContext
-        ),
-      });
+      try {
+        await transporter.verify();
+        await transporter.sendMail({
+          from: { name: fromName, address: fromEmail },
+          to: email,
+          replyTo: replyTo || undefined,
+          subject: `${company.nombre} te invita a completar tu registro`,
+          text: textEnvironment.renderString(
+            invitationTextTemplate,
+            templateContext
+          ),
+          html: htmlEnvironment.renderString(
+            invitationHtmlTemplate,
+            templateContext
+          ),
+        });
+      } finally {
+        transporter.close();
+      }
 
       const { error: trackingError } = await ctx.supabaseAdmin
         .from("crm_invitaciones")
@@ -254,14 +278,18 @@ export default {
       console.error("crm-send-invitation:", message);
 
       if (invitationId) {
-        await ctx.supabaseAdmin
-          .from("crm_invitaciones")
-          .update({
-            ultimo_error_email: message.slice(0, 500),
-            estado_envio: "error",
-            intentos_email: attempts || 1,
-          })
-          .eq("id", invitationId);
+        try {
+          await ctx.supabaseAdmin
+            .from("crm_invitaciones")
+            .update({
+              ultimo_error_email: message.slice(0, 500),
+              estado_envio: "error",
+              intentos_email: attempts || 1,
+            })
+            .eq("id", invitationId);
+        } catch (trackingError) {
+          console.error("crm-send-invitation tracking:", trackingError);
+        }
       }
 
       return Response.json({ error: clientMessage }, { status: 400 });

@@ -25,6 +25,28 @@ export default async function FacturaCliente(
   });
   const amount = (value) =>
     currency(value, invoice.payment.currency, dataempresa?.iso);
+  const totalsRows = [
+    [
+      { text: "Subtotal", style: "totalLabel", border: [false, false, false, true], margin: [5, 8] },
+      { text: amount(invoice.payment.subtotal), alignment: "right", border: [false, false, false, true], margin: [5, 8] },
+    ],
+    [
+      { text: "TOTAL", style: "total", border: [false, false, false, false], margin: [5, 10] },
+      { text: amount(invoice.payment.total), style: "total", alignment: "right", border: [false, false, false, false], margin: [5, 10] },
+    ],
+  ];
+  if (invoice.payment.change > 0) {
+    totalsRows.push(
+      [
+        { text: "Recibido", style: "totalLabel", border: [false, true, false, false], margin: [5, 8] },
+        { text: amount(invoice.payment.received), alignment: "right", border: [false, true, false, false], margin: [5, 8] },
+      ],
+      [
+        { text: "Vuelto", style: "totalLabel", border: [false, false, false, false], margin: [5, 8] },
+        { text: amount(invoice.payment.change), alignment: "right", border: [false, false, false, false], margin: [5, 8] },
+      ]
+    );
+  }
 
   return createPdf(
     {
@@ -182,6 +204,9 @@ export default async function FacturaCliente(
               stack: [
                 { text: "MÉTODO DE PAGO", style: "section" },
                 { text: invoice.payment.method, fontSize: 10, margin: [0, 5, 0, 0] },
+                invoice.payment.paymentReference
+                  ? { text: `Referencia: ${invoice.payment.paymentReference}`, style: "muted", margin: [0, 4, 0, 0] }
+                  : { text: "" },
                 invoice.payment.notes
                   ? { text: invoice.payment.notes, style: "muted", margin: [0, 5, 0, 0] }
                   : { text: "" },
@@ -191,16 +216,7 @@ export default async function FacturaCliente(
               width: 210,
               table: {
                 widths: ["*", 105],
-                body: [
-                  [
-                    { text: "Subtotal", style: "totalLabel", border: [false, false, false, true], margin: [5, 8] },
-                    { text: amount(invoice.payment.subtotal), alignment: "right", border: [false, false, false, true], margin: [5, 8] },
-                  ],
-                  [
-                    { text: "TOTAL", style: "total", border: [false, false, false, false], margin: [5, 10] },
-                    { text: amount(invoice.payment.total), style: "total", alignment: "right", border: [false, false, false, false], margin: [5, 10] },
-                  ],
-                ],
+                body: totalsRows,
               },
               layout: { hLineColor: () => "#e2e8f0" },
             },
