@@ -82,64 +82,67 @@ export function LoginTemplate() {
             />
           </ContentModos>
         )}
-        {stateModo === "empleado"
-          ? stateModos === false && (
-              <PanelModo>
-                <VolverBtn funcion={() => setStateModos(!stateModos)} />
-                <span>Modo empleado</span>
-                <form onSubmit={handleSubmit(manejadorEmailSesion)}>
-                  <InputText2>
-                    <input
-                      className="form__field"
-                      placeholder="email"
-                      type="text"
-                      {...register("email", { required: true })}
-                    />
-                  </InputText2>
-                  <InputText2>
-                    <input
-                      className="form__field"
-                      placeholder="contraseña"
-                      type="password"
-                      {...register("password", { required: true })}
-                    />
-                  </InputText2>
-                  <Btn1
-                    border="2px"
-                    titulo="INGRESAR"
-                    bgcolor="#1CB0F6"
-                    color="255,255,255"
-                    width="100%"
-                  />
-                </form>
-              </PanelModo>
-            )
-          : stateModos === false && (
-              <PanelModo>
-                <VolverBtn funcion={() => setStateModos(!stateModos)} />
-                <span>Modo super admin</span>
+        {stateModos === false && (
+          <PanelModo>
+            <VolverBtn funcion={() => setStateModos(!stateModos)} />
+            <span>
+              {stateModo === "superadmin" ? "Modo super admin" : "Modo empleado"}
+            </span>
+            <form onSubmit={handleSubmit(manejadorEmailSesion)}>
+              <InputText2>
+                <input
+                  className="form__field"
+                  placeholder="email"
+                  type="email"
+                  autoComplete="email"
+                  {...register("email", { required: true })}
+                />
+              </InputText2>
+              <InputText2>
+                <input
+                  className="form__field"
+                  placeholder="contraseña"
+                  type="password"
+                  autoComplete="current-password"
+                  {...register("password", { required: true })}
+                />
+              </InputText2>
+              <Btn1
+                border="2px"
+                titulo="INGRESAR"
+                bgcolor={stateModo === "superadmin" ? "#ed7323" : "#1CB0F6"}
+                color="255,255,255"
+                width="100%"
+              />
+            </form>
+            {stateModo === "superadmin" && import.meta.env.DEV && (
+              <>
                 <Btn1
                   disabled={isPendingInvitado}
                   funcion={manejarCrearUSerTester}
                   border="2px"
-                  titulo="MODO INVITADO"
+                  titulo="MODO INVITADO QA"
                   bgcolor="#f6ce1c"
                   color="255,255,255"
                   width="100%"
                 />
                 <Linea>
-                  <span>0</span>
+                  <span>o</span>
                 </Linea>
-                <Btn1
-                  disabled={isPendingGoogle}
-                  border="2px"
-                  funcion={() => mutateGoogle()}
-                  titulo="Google"
-                  bgcolor="#fff"
-                  icono={<v.iconogoogle />}
-                />
-              </PanelModo>
+              </>
             )}
+            {stateModo === "superadmin" && (
+              <Btn1
+                disabled={isPendingGoogle}
+                border="2px"
+                funcion={() => mutateGoogle()}
+                titulo="Google"
+                bgcolor="#fff"
+                icono={<v.iconogoogle />}
+              />
+            )}
+          </PanelModo>
+        )}
       </div>
       <Footer />
     </Container>
