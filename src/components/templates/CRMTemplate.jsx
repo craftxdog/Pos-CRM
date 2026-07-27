@@ -263,9 +263,9 @@ function hasChartData(data, key = "value") {
   return Array.isArray(data) && data.some((item) => Number(item?.[key] || 0) > 0);
 }
 
-function MetricCard({ label, value, detail, tone = "neutral" }) {
+function MetricCard({ label, value, detail, tone = "neutral", className = "" }) {
   return (
-    <article className={`metric-card ${tone}`}>
+    <article className={`metric-card ${tone} ${className}`}>
       <span>{label}</span>
       <strong>{value}</strong>
       {detail && <small>{detail}</small>}
@@ -273,15 +273,15 @@ function MetricCard({ label, value, detail, tone = "neutral" }) {
   );
 }
 
-function ChartCard({ title, subtitle, children, empty = false }) {
+function ChartCard({ title, subtitle, children, empty = false, emptyMessage = "Sin datos suficientes.", className = "" }) {
   return (
-    <article className="chart-card">
+    <article className={`chart-card ${className}`}>
       <header>
         <h3>{title}</h3>
         {subtitle && <span>{subtitle}</span>}
       </header>
       <div className="chart-body">
-        {empty ? <p className="empty chart-empty">Sin datos suficientes.</p> : children}
+        {empty ? <p className="empty chart-empty">{emptyMessage}</p> : children}
       </div>
     </article>
   );
@@ -960,14 +960,13 @@ export function CRMTemplate({ initialTab = "procesos" }) {
             <label>Historial de ingresos<select value={dashboardMonths} onChange={(event) => setDashboardMonths(Number(event.target.value))}><option value={3}>Últimos 3 meses</option><option value={6}>Últimos 6 meses</option><option value={12}>Últimos 12 meses</option></select></label>
             <button type="button" className="secondary" onClick={() => queryClient.invalidateQueries({ queryKey: ["crm-data"] })}><FiRefreshCw /> Actualizar ahora</button>
           </section>
-          <section className="metric-grid">
-            <MetricCard label="Clientes" value={totals.clientes} detail={`${totals.activos} activos`} tone="ok" />
-            <MetricCard label="Suscripciones" value={totals.suscripciones} detail={`${analytics.clientesConSuscripcion} clientes vinculados`} />
+          <section className="dashboard-primary-metrics" aria-label="Resumen ejecutivo">
             <MetricCard
               label="Ingresos del mes"
               value={money(operational.ingresosMes, dataempresa?.currency, dataempresa?.iso)}
               detail={`Ticket prom. ${money(analytics.ticketPromedio, dataempresa?.currency, dataempresa?.iso)}`}
               tone="ok"
+              className="featured"
             />
             <MetricCard
               label="Cartera pendiente"
@@ -975,15 +974,26 @@ export function CRMTemplate({ initialTab = "procesos" }) {
               detail={`${totals.pagosPendientes} pago(s)`}
               tone={totals.pagosPendientes ? "warning" : "ok"}
             />
-            <MetricCard label="Asistencias hoy" value={operational.asistenciasHoy.length} detail={`${crm.horarios.length} horarios activos`} />
-            <MetricCard label="WhatsApp pendientes" value={operational.whatsappPendientes.length} detail={`${analytics.totalPlantillas} plantillas`} />
-            <MetricCard label="Trabajadores" value={analytics.totalTrabajadores} detail={`${analytics.totalCargos} cargos`} />
-            <MetricCard label="Permisos" value={analytics.permisosActivos} detail={`${analytics.modulosHabilitados} modulos habilitados`} />
+            <MetricCard label="Clientes activos" value={totals.activos} detail={`${totals.clientes} clientes registrados`} tone="ok" />
+            <MetricCard label="Suscripciones activas" value={totals.suscripciones} detail={`${analytics.clientesConSuscripcion} clientes vinculados`} />
           </section>
 
-          <section className="chart-grid">
-            <ChartCard title="Ingresos ultimos 6 meses" subtitle="Pagos marcados como pagados" empty={!hasChartData(analytics.ingresosPorMes, "ingresos")}>
-              <ResponsiveContainer width="100%" height={240}>
+          <section className="dashboard-signal-metrics" aria-label="Alertas operativas">
+            <MetricCard label="Cobros vencidos" value={operational.pagosVencidos.length} detail={operational.pagosVencidos.length ? "Requieren seguimiento" : "Sin vencidos hoy"} tone={operational.pagosVencidos.length ? "danger" : "ok"} />
+            <MetricCard label="Asistencias hoy" value={operational.asistenciasHoy.length} detail={`${crm.horarios.length} horarios configurados`} />
+            <MetricCard label="Renovaciones cercanas" value={operational.suscripcionesPorVencer.length} detail="Vencen en los próximos 7 días" tone={operational.suscripcionesPorVencer.length ? "warning" : "neutral"} />
+            <MetricCard label="Onboarding pendiente" value={operational.invitacionesPendientes.length} detail={`${operational.whatsappPendientes.length} mensajes por atender`} tone={operational.invitacionesPendientes.length ? "warning" : "neutral"} />
+          </section>
+
+          <section className="dashboard-analytics" aria-label="Análisis visual">
+            <ChartCard
+              className="revenue-chart"
+              title="Tendencia de ingresos"
+              subtitle={`Cobros pagados durante los últimos ${dashboardMonths} meses`}
+              empty={!hasChartData(analytics.ingresosPorMes, "ingresos")}
+              emptyMessage="Aún no hay cobros pagados en este periodo. Los ingresos aparecerán aquí al registrar el primer pago."
+            >
+              <ResponsiveContainer width="100%" height={330}>
                 <AreaChart data={analytics.ingresosPorMes}>
                   <defs>
                     <linearGradient id="crmIncomeGradient" x1="0" y1="0" x2="0" y2="1">
@@ -991,37 +1001,62 @@ export function CRMTemplate({ initialTab = "procesos" }) {
                       <stop offset="95%" stopColor="#16a34a" stopOpacity={0.02} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="name" />
-                  <YAxis width={48} />
-                  <Tooltip formatter={(value) => money(value, dataempresa?.currency, dataempresa?.iso)} />
+                  <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="currentColor" opacity={0.16} />
+                  <XAxis dataKey="name" tickLine={false} axisLine={false} />
+                  <YAxis width={64} tickLine={false} axisLine={false} tickFormatter={(value) => money(value, dataempresa?.currency, dataempresa?.iso)} />
+                  <Tooltip
+                    cursor={{ stroke: "#16a34a", strokeWidth: 1, strokeDasharray: "4 4" }}
+                    contentStyle={{ borderRadius: 12, border: "1px solid rgba(148, 163, 184, 0.28)", background: "var(--chart-tooltip-bg, #111827)", color: "#fff" }}
+                    labelStyle={{ color: "#cbd5e1", fontWeight: 700 }}
+                    formatter={(value) => [money(value, dataempresa?.currency, dataempresa?.iso), "Ingresos"]}
+                  />
                   <Area type="monotone" dataKey="ingresos" stroke="#16a34a" fill="url(#crmIncomeGradient)" strokeWidth={3} />
                 </AreaChart>
               </ResponsiveContainer>
             </ChartCard>
 
-            <ChartCard title="Clientes por estado" subtitle="Flujo comercial" empty={!hasChartData(analytics.clientesEstado)}>
-              <ResponsiveContainer width="100%" height={240}>
+            <ChartCard
+              className="collection-chart"
+              title="Salud de cobranza"
+              subtitle="Distribución de pagos por estado"
+              empty={!hasChartData(analytics.pagosEstado)}
+              emptyMessage="Todavía no hay pagos por clasificar. La salud de cobranza se actualizará en tiempo real."
+            >
+              <div className="donut-chart-wrap">
+              <ResponsiveContainer width="100%" height={274}>
                 <PieChart>
-                  <Pie data={analytics.clientesEstado} dataKey="value" nameKey="name" innerRadius={58} outerRadius={92} paddingAngle={3}>
-                    {analytics.clientesEstado.map((item, index) => (
+                  <Pie data={analytics.pagosEstado} dataKey="value" nameKey="name" innerRadius={70} outerRadius={102} paddingAngle={4} stroke="none">
+                    {analytics.pagosEstado.map((item, index) => (
                       <Cell key={item.raw} fill={chartColors[index % chartColors.length]} />
                     ))}
                   </Pie>
-                  <Tooltip />
+                  <Tooltip contentStyle={{ borderRadius: 12, border: "1px solid rgba(148, 163, 184, 0.28)", background: "var(--chart-tooltip-bg, #111827)", color: "#fff" }} />
                 </PieChart>
               </ResponsiveContainer>
+              <div className="donut-center"><strong>{crm.pagos.length}</strong><span>pagos</span></div>
+              </div>
+              <div className="chart-legend" aria-label="Estados de pago">
+                {analytics.pagosEstado.map((item, index) => (
+                  <span key={item.raw}><i style={{ background: chartColors[index % chartColors.length] }} />{item.name}<b>{item.value}</b></span>
+                ))}
+              </div>
             </ChartCard>
 
-            <ChartCard title="Pagos por estado" subtitle="Cobranza y morosidad" empty={!hasChartData(analytics.pagosEstado)}>
-              <ResponsiveContainer width="100%" height={240}>
-                <BarChart data={analytics.pagosEstado}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="name" />
-                  <YAxis allowDecimals={false} width={32} />
-                  <Tooltip />
+            <ChartCard
+              className="commercial-chart"
+              title="Ciclo comercial"
+              subtitle="Clientes según su estado actual"
+              empty={!hasChartData(analytics.clientesEstado)}
+              emptyMessage="Cuando registres o invites clientes, aquí verás cómo avanza el ciclo comercial."
+            >
+              <ResponsiveContainer width="100%" height={280}>
+                <BarChart data={analytics.clientesEstado} barCategoryGap="28%">
+                  <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="currentColor" opacity={0.16} />
+                  <XAxis dataKey="name" tickLine={false} axisLine={false} />
+                  <YAxis allowDecimals={false} width={32} tickLine={false} axisLine={false} />
+                  <Tooltip contentStyle={{ borderRadius: 12, border: "1px solid rgba(148, 163, 184, 0.28)", background: "var(--chart-tooltip-bg, #111827)", color: "#fff" }} formatter={(value) => [value, "Clientes"]} />
                   <Bar dataKey="value" radius={[8, 8, 0, 0]}>
-                    {analytics.pagosEstado.map((item, index) => (
+                    {analytics.clientesEstado.map((item, index) => (
                       <Cell key={item.raw} fill={chartColors[index % chartColors.length]} />
                     ))}
                   </Bar>
@@ -1029,40 +1064,24 @@ export function CRMTemplate({ initialTab = "procesos" }) {
               </ResponsiveContainer>
             </ChartCard>
 
-            <ChartCard title="Asistencia" subtitle="Entradas, atrasos y ausencias">
-              <ResponsiveContainer width="100%" height={240}>
-                <BarChart data={analytics.asistenciasEstado}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="name" />
-                  <YAxis allowDecimals={false} width={32} />
-                  <Tooltip />
+            <ChartCard className="attendance-chart" title="Asistencia registrada" subtitle="Entradas, atrasos y ausencias">
+              <ResponsiveContainer width="100%" height={280}>
+                <BarChart data={analytics.asistenciasEstado} barCategoryGap="28%">
+                  <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="currentColor" opacity={0.16} />
+                  <XAxis dataKey="name" tickLine={false} axisLine={false} />
+                  <YAxis allowDecimals={false} width={32} tickLine={false} axisLine={false} />
+                  <Tooltip contentStyle={{ borderRadius: 12, border: "1px solid rgba(148, 163, 184, 0.28)", background: "var(--chart-tooltip-bg, #111827)", color: "#fff" }} formatter={(value) => [value, "Registros"]} />
                   <Bar dataKey="value" fill="#38bdf8" radius={[8, 8, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </ChartCard>
           </section>
 
-          <section className="operations-grid">
-            <article className="panel process-panel">
-              <div className="panel-title">
-                <FiTrendingUp />
-                <h2>Flujo operativo</h2>
-              </div>
-              <div className="process-steps">
-                {operational.clientesPorEstado.map((item) => (
-                  <div className="process-step" key={item.estado}>
-                    <span className={`dot ${item.estado}`} />
-                    <span>{labelFor(item.estado)}</span>
-                    <strong>{item.total}</strong>
-                  </div>
-                ))}
-              </div>
-            </article>
-
+          <section className="dashboard-actions-grid">
             <article className="panel action-panel">
               <div className="panel-title">
                 <FiCheckCircle />
-                <h2>Próximas acciones</h2>
+                <h2>Prioridades operativas</h2>
               </div>
               <div className="action-list">
                 {operational.acciones.map((item) => {
@@ -1103,8 +1122,8 @@ export function CRMTemplate({ initialTab = "procesos" }) {
             </article>
           </section>
 
-          <section className="workspace two-cols inner-workspace">
-            <div className="panel">
+          <section className="dashboard-lists">
+            <div className="panel debtors-panel">
               <div className="panel-title"><FiAlertCircle /><h2>Clientes morosos</h2><b>{analytics.clientesMorosos.length}</b></div>
               <div className="debtor-filters"><input value={debtSearch} onChange={(event) => setDebtSearch(event.target.value)} placeholder="Buscar cliente, correo o teléfono" /><select value={debtFilter} onChange={(event) => setDebtFilter(event.target.value)}><option value="todos">Toda la cartera</option><option value="critica">Mora crítica</option><option value="moroso">Un documento vencido</option></select></div>
               <div className="list debtor-list">
@@ -1118,51 +1137,53 @@ export function CRMTemplate({ initialTab = "procesos" }) {
               </div>
             </div>
 
-            <div className="panel">
-              <h2>Renovaciones cercanas</h2>
-              <div className="list">
-                {operational.suscripcionesPorVencer.length ? (
-                  operational.suscripcionesPorVencer.slice(0, 10).map((item) => (
-                    <article key={item.id}>
-                      <strong>{fullName(item.clientes_crm) || "Cliente"}</strong>
-                      <span>{item.crm_planes?.nombre || "Plan"} · {item.fecha_fin}</span>
-                    </article>
-                  ))
-                ) : (
-                  <p className="empty">No hay renovaciones en los proximos 7 dias.</p>
-                )}
+            <div className="dashboard-followups">
+              <div className="panel">
+                <h2>Renovaciones cercanas</h2>
+                <div className="list">
+                  {operational.suscripcionesPorVencer.length ? (
+                    operational.suscripcionesPorVencer.slice(0, 5).map((item) => (
+                      <article key={item.id}>
+                        <strong>{fullName(item.clientes_crm) || "Cliente"}</strong>
+                        <span>{item.crm_planes?.nombre || "Plan"} · {item.fecha_fin}</span>
+                      </article>
+                    ))
+                  ) : (
+                    <p className="empty">No hay renovaciones en los próximos 7 días.</p>
+                  )}
+                </div>
               </div>
-            </div>
 
-            <div className="panel">
-              <h2>Asistencia de hoy</h2>
-              <div className="list">
-                {operational.asistenciasHoy.length ? (
-                  operational.asistenciasHoy.slice(0, 10).map((item) => (
-                    <article key={item.id}>
-                      <strong>{fullName(item.clientes_crm) || "Cliente"}</strong>
-                      <span>{item.estado}</span>
-                    </article>
-                  ))
-                ) : (
-                  <p className="empty">Todavia no hay asistencias registradas hoy.</p>
-                )}
+              <div className="panel">
+                <h2>Asistencia de hoy</h2>
+                <div className="list">
+                  {operational.asistenciasHoy.length ? (
+                    operational.asistenciasHoy.slice(0, 5).map((item) => (
+                      <article key={item.id}>
+                        <strong>{fullName(item.clientes_crm) || "Cliente"}</strong>
+                        <span>{labelFor(item.estado)}</span>
+                      </article>
+                    ))
+                  ) : (
+                    <p className="empty">Todavía no hay asistencias registradas hoy.</p>
+                  )}
+                </div>
               </div>
-            </div>
 
-            <div className="panel">
-              <h2>Invitaciones pendientes</h2>
-              <div className="list">
-                {operational.invitacionesPendientes.length ? (
-                  operational.invitacionesPendientes.slice(0, 10).map((item) => (
-                    <article key={item.id}>
-                      <strong>{item.email}</strong>
-                      <span>{item.crm_planes?.nombre || "Sin plan"}</span>
-                    </article>
-                  ))
-                ) : (
-                  <p className="empty">No hay invitaciones pendientes.</p>
-                )}
+              <div className="panel">
+                <h2>Invitaciones pendientes</h2>
+                <div className="list">
+                  {operational.invitacionesPendientes.length ? (
+                    operational.invitacionesPendientes.slice(0, 5).map((item) => (
+                      <article key={item.id}>
+                        <strong>{item.email}</strong>
+                        <span>{item.crm_planes?.nombre || "Sin plan"}</span>
+                      </article>
+                    ))
+                  ) : (
+                    <p className="empty">No hay invitaciones pendientes.</p>
+                  )}
+                </div>
               </div>
             </div>
           </section>
@@ -2254,6 +2275,152 @@ const Container = styled.main`
     border-color: rgba(239, 68, 68, 0.45);
   }
 
+  .dashboard-primary-metrics,
+  .dashboard-signal-metrics {
+    width: 100%;
+    display: grid;
+    gap: 12px;
+  }
+
+  .dashboard-primary-metrics {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .dashboard-signal-metrics {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .dashboard-primary-metrics .metric-card {
+    min-height: 132px;
+    padding: 18px;
+  }
+
+  .dashboard-primary-metrics .metric-card.featured {
+    border-color: rgba(22, 163, 74, 0.54);
+    background:
+      radial-gradient(circle at 88% 10%, rgba(34, 197, 94, 0.18), transparent 38%),
+      ${({ theme }) => theme.bgcards};
+  }
+
+  .dashboard-primary-metrics .metric-card strong {
+    font-size: clamp(28px, 2.3vw, 38px);
+  }
+
+  .dashboard-signal-metrics .metric-card {
+    padding: 13px 15px;
+    min-height: 92px;
+  }
+
+  .dashboard-signal-metrics .metric-card strong {
+    font-size: 23px;
+  }
+
+  .dashboard-analytics {
+    width: 100%;
+    display: grid;
+    grid-template-columns: minmax(0, 1.65fr) minmax(300px, 0.85fr);
+    gap: 14px;
+    align-items: stretch;
+  }
+
+  .dashboard-analytics .chart-card {
+    border-radius: 16px;
+    padding: 18px;
+    gap: 14px;
+  }
+
+  .dashboard-analytics .chart-card h3 {
+    font-size: 18px;
+    letter-spacing: -0.02em;
+  }
+
+  .dashboard-analytics .chart-card header span {
+    font-size: 13px;
+    line-height: 1.4;
+  }
+
+  .dashboard-analytics .revenue-chart {
+    min-height: 424px;
+  }
+
+  .dashboard-analytics .collection-chart {
+    min-height: 424px;
+  }
+
+  .dashboard-analytics .commercial-chart {
+    grid-column: span 1;
+    min-height: 362px;
+  }
+
+  .dashboard-analytics .attendance-chart {
+    min-height: 362px;
+  }
+
+  .dashboard-analytics .chart-body {
+    min-height: 0;
+    display: grid;
+    align-items: center;
+  }
+
+  .dashboard-analytics .chart-empty {
+    min-height: 280px;
+    padding: 28px;
+    line-height: 1.55;
+    text-align: center;
+  }
+
+  .donut-chart-wrap {
+    position: relative;
+    min-height: 274px;
+  }
+
+  .donut-center {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    display: grid;
+    place-content: center;
+    gap: 2px;
+    text-align: center;
+  }
+
+  .donut-center strong {
+    font-size: 32px;
+    line-height: 1;
+  }
+
+  .donut-center span {
+    color: ${({ theme }) => theme.colorSubtitle};
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  .chart-legend {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px 12px;
+  }
+
+  .chart-legend span {
+    min-width: 0;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 7px;
+    color: ${({ theme }) => theme.colorSubtitle};
+    font-size: 12px;
+  }
+
+  .chart-legend i {
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+  }
+
+  .chart-legend b {
+    color: ${({ theme }) => theme.text};
+  }
+
   .chart-grid {
     width: 100%;
     display: grid;
@@ -2348,6 +2515,45 @@ const Container = styled.main`
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 14px;
     margin: 0 auto 16px;
+  }
+
+  .dashboard-actions-grid {
+    width: 100%;
+    display: grid;
+    grid-template-columns: minmax(0, 1.55fr) minmax(280px, 0.75fr);
+    gap: 14px;
+  }
+
+  .dashboard-actions-grid .panel {
+    min-height: 290px;
+  }
+
+  .dashboard-actions-grid .panel-title h2 {
+    font-size: 20px;
+  }
+
+  .dashboard-lists {
+    width: 100%;
+    display: grid;
+    grid-template-columns: minmax(0, 1.4fr) minmax(320px, 0.9fr);
+    gap: 14px;
+  }
+
+  .dashboard-lists .debtors-panel {
+    min-height: 100%;
+  }
+
+  .dashboard-followups {
+    display: grid;
+    gap: 14px;
+  }
+
+  .dashboard-followups .panel {
+    padding: 16px 18px;
+  }
+
+  .dashboard-followups .panel h2 {
+    font-size: 16px;
   }
 
   .panel-title {
@@ -3430,6 +3636,11 @@ const Container = styled.main`
     .summary-grid,
     .quick-actions,
     .metric-grid,
+    .dashboard-primary-metrics,
+    .dashboard-signal-metrics,
+    .dashboard-analytics,
+    .dashboard-actions-grid,
+    .dashboard-lists,
     .operations-grid,
     .chart-grid,
     .chart-grid.two,
@@ -3449,6 +3660,10 @@ const Container = styled.main`
     }
 
     .wide {
+      grid-column: auto;
+    }
+
+    .dashboard-analytics .commercial-chart {
       grid-column: auto;
     }
 
