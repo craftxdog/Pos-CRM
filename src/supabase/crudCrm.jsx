@@ -273,6 +273,66 @@ export async function InsertarCrmHorario(payload) {
   return data;
 }
 
+export async function EditarCrmHorario(payload) {
+  const { id, id_empresa, ...values } = payload;
+  const { data, error } = await supabase
+    .from("crm_horarios")
+    .update(values)
+    .eq("id", Number(id))
+    .eq("id_empresa", Number(id_empresa))
+    .select()
+    .maybeSingle();
+  throwIfError(error);
+  if (!data) throw new Error("El horario no existe o ya no tienes acceso a él");
+  return data;
+}
+
+export async function EliminarCrmHorario({ id, id_empresa }) {
+  const { error } = await supabase
+    .from("crm_horarios")
+    .delete()
+    .eq("id", Number(id))
+    .eq("id_empresa", Number(id_empresa));
+  throwIfError(error);
+}
+
+export async function MostrarCrmHorariosPage({
+  id_empresa,
+  page = 1,
+  pageSize = 5,
+  search = "",
+  status = "todos",
+}) {
+  const safePage = Math.max(1, Number(page) || 1);
+  const safePageSize = Math.min(25, Math.max(5, Number(pageSize) || 5));
+  const from = (safePage - 1) * safePageSize;
+  const to = from + safePageSize - 1;
+  let query = supabase
+    .from("crm_horarios")
+    .select("*", { count: "exact" })
+    .eq("id_empresa", Number(id_empresa))
+    .order("activo", { ascending: false })
+    .order("hora_entrada", { ascending: true })
+    .order("id", { ascending: false })
+    .range(from, to);
+  const normalizedSearch = String(search || "").trim();
+  if (normalizedSearch) query = query.ilike("nombre", `%${normalizedSearch}%`);
+  if (status === "activo") query = query.eq("activo", true);
+  if (status === "inactivo") query = query.eq("activo", false);
+  const { data, error, count } = await query;
+  throwIfError(error);
+  const total = Number(count || 0);
+  const totalPages = Math.max(1, Math.ceil(total / safePageSize));
+  return {
+    data: data || [],
+    pagination: {
+      page: Math.min(safePage, totalPages), pageSize: safePageSize, total, totalPages,
+      from: total ? from + 1 : 0, to: Math.min(from + safePageSize, total),
+      hasPreviousPage: safePage > 1, hasNextPage: safePage < totalPages,
+    },
+  };
+}
+
 export async function InsertarCrmSuscripcion(payload) {
   const { data, error } = await supabase
     .from("crm_suscripciones")
@@ -428,6 +488,17 @@ export async function MostrarCrmHistorialCobrosPage({
       hasPreviousPage: safePage > 1, hasNextPage: safePage < totalPages,
     },
   };
+}
+
+export async function EnviarComprobanteCobro({ id_empresa, comprobante_id }) {
+  const { data, error } = await supabase.functions.invoke("crm-send-receipt", {
+    body: {
+      id_empresa: Number(id_empresa),
+      comprobante_id: String(comprobante_id || "").trim(),
+    },
+  });
+  await throwFunctionError(error);
+  return data;
 }
 
 export async function MostrarCrmClientesPage({
@@ -774,25 +845,11 @@ export async function DespacharWhatsappMensaje({ id, mode = "template" }) {
   return data;
 }
 
-export async function MostrarInvitacionClienteActual() {
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser();
-  throwIfError(userError);
-
-  if (!user?.email) {
-    return null;
-  }
-
+export async function MostrarInvitacionClienteActual({ invitationId = null } = {}) {
   const { data, error } = await supabase
-    .from("crm_invitaciones")
-    .select("*, crm_planes(*)")
-    .ilike("email", user.email)
-    .eq("estado", "pendiente")
-    .gt("expires_at", new Date().toISOString())
-    .order("created_at", { ascending: false })
-    .limit(1)
+    .rpc("crm_obtener_invitacion_actual", {
+      p_invitacion_id: invitationId || null,
+    })
     .maybeSingle();
   throwIfError(error);
   return data;

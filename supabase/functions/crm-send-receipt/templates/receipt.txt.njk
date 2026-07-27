@@ -1,0 +1,20 @@
+{{ companyName }}
+Comprobante {{ receiptReference }}
+
+Hola {{ customerName }},
+
+Registramos tu pago el {{ receiptDate }}.
+
+Detalle: {{ planName }}
+{{ description }}
+Método: {{ paymentMethod }}
+Referencia: {{ paymentReference }}
+Total: {{ total }}
+{% if period %}Periodo: {{ period }}
+{% endif %}{% if showCashBreakdown %}Recibido: {{ received }}
+Vuelto: {{ change }}
+{% endif %}
+Conserva este correo como comprobante de tu pago.
+{% if replyTo %}Soporte: {{ replyTo }}
+{% endif %}
+© {{ currentYear }} {{ companyName }}

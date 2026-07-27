@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import styled from "styled-components";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useCrmStore } from "../store/CrmStore";
@@ -12,9 +12,13 @@ function readForm(event) {
 export function OnboardingCliente() {
   const [done, setDone] = useState(false);
   const { mostrarInvitacionActual, completarInvitacion } = useCrmStore();
+  const invitationId = useMemo(
+    () => new URLSearchParams(window.location.search).get("invitation"),
+    []
+  );
   const invitationQuery = useQuery({
-    queryKey: ["crm-invitacion-actual"],
-    queryFn: mostrarInvitacionActual,
+    queryKey: ["crm-invitacion-actual", invitationId],
+    queryFn: () => mostrarInvitacionActual({ invitationId }),
     refetchOnWindowFocus: false,
   });
 
@@ -48,7 +52,7 @@ export function OnboardingCliente() {
           <h1>Cuenta y suscripción activas</h1>
           <p>
             Tu perfil quedó registrado y el plan{" "}
-            <strong>{invitationQuery.data?.crm_planes?.nombre}</strong> ya está activo.
+            <strong>{invitationQuery.data?.plan_nombre}</strong> ya está activo.
           </p>
         </section>
       </Container>
@@ -78,10 +82,10 @@ export function OnboardingCliente() {
         </p>
         <article className="plan-card">
           <small>Plan asignado</small>
-          <strong>{invitationQuery.data.crm_planes?.nombre}</strong>
+          <strong>{invitationQuery.data.plan_nombre}</strong>
           <span>
-            {invitationQuery.data.crm_planes?.duracion_dias} días ·{" "}
-            {invitationQuery.data.crm_planes?.periodicidad}
+            {invitationQuery.data.plan_duracion_dias} días ·{" "}
+            {invitationQuery.data.plan_periodicidad}
           </span>
         </article>
         {mutation.error && <p className="error">{mutation.error.message}</p>}
