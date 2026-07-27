@@ -25,8 +25,10 @@ const invitationTextTemplate = await Deno.readTextFile(
   new URL("./templates/invitation.txt.njk", import.meta.url)
 );
 
-function envValue(primary: string, legacy?: string) {
-  const value = Deno.env.get(primary)?.trim() || (legacy ? Deno.env.get(legacy)?.trim() : "");
+function envValue(primary: string, legacy?: string, alias?: string) {
+  const value = Deno.env.get(primary)?.trim()
+    || (alias ? Deno.env.get(alias)?.trim() : "")
+    || (legacy ? Deno.env.get(legacy)?.trim() : "");
   if (!value) {
     throw new Error(`Falta configurar el secreto ${primary}`);
   }
@@ -210,11 +212,13 @@ export default {
       attempts = Number(invitation.intentos_email || existing?.intentos_email || 0) + 1;
 
       const transporter = nodemailer.createTransport(smtpConfiguration());
-      const fromEmail = envValue("SMTP_FROM_EMAIL", "MAILERSEND_FROM_EMAIL");
+      const fromEmail = envValue("SMTP_FROM_EMAIL", "MAILERSEND_FROM_EMAIL", "FROM_EMAIL");
       const fromName = Deno.env.get("SMTP_FROM_NAME")?.trim()
+        || Deno.env.get("FROM_NAME")?.trim()
         || Deno.env.get("MAILERSEND_FROM_NAME")?.trim()
         || company.nombre;
       const replyTo = Deno.env.get("SMTP_REPLY_TO_EMAIL")?.trim()
+        || Deno.env.get("REPLY_TO_EMAIL")?.trim()
         || Deno.env.get("MAILERSEND_REPLY_TO_EMAIL")?.trim()
         || null;
       const templateContext = {

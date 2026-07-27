@@ -389,6 +389,47 @@ export async function MostrarReporteIngresosMensual({ mes }) {
   return data || [];
 }
 
+export async function MostrarCrmHistorialCobrosPage({
+  id_empresa,
+  page = 1,
+  pageSize = 10,
+  search = "",
+  method = "todos",
+  month = "",
+}) {
+  const safePage = Math.max(1, Number(page) || 1);
+  const safePageSize = Math.min(50, Math.max(5, Number(pageSize) || 10));
+  const from = (safePage - 1) * safePageSize;
+  const to = from + safePageSize - 1;
+  let query = supabase
+    .from("crm_historial_cobros")
+    .select("*", { count: "exact" })
+    .eq("id_empresa", id_empresa)
+    .order("fecha_pago", { ascending: false })
+    .order("id_origen", { ascending: false })
+    .range(from, to);
+  const normalizedSearch = String(search || "").trim().toLowerCase();
+  if (normalizedSearch) query = query.ilike("busqueda", `%${normalizedSearch}%`);
+  if (method !== "todos") query = query.ilike("metodo_pago", method);
+  if (/^\d{4}-\d{2}$/.test(month)) {
+    const [year, monthNumber] = month.split("-").map(Number);
+    const nextMonth = new Date(Date.UTC(year, monthNumber, 1)).toISOString();
+    query = query.gte("fecha_pago", `${month}-01T00:00:00.000Z`).lt("fecha_pago", nextMonth);
+  }
+  const { data, error, count } = await query;
+  throwIfError(error);
+  const total = Number(count || 0);
+  const totalPages = Math.max(1, Math.ceil(total / safePageSize));
+  return {
+    data: data || [],
+    pagination: {
+      page: Math.min(safePage, totalPages), pageSize: safePageSize, total, totalPages,
+      from: total ? from + 1 : 0, to: Math.min(from + safePageSize, total),
+      hasPreviousPage: safePage > 1, hasNextPage: safePage < totalPages,
+    },
+  };
+}
+
 export async function MostrarCrmClientesPage({
   id_empresa,
   page = 1,

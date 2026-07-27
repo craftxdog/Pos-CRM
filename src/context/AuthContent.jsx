@@ -65,9 +65,17 @@ export const AuthContextProvider = ({ children }) => {
       }, 0);
     };
 
-    supabase.auth.getSession().then(({ data }) => {
-      scheduleSessionSync(data.session);
-    });
+    supabase.auth.getSession()
+      .then(({ data }) => {
+        scheduleSessionSync(data.session);
+      })
+      .catch((error) => {
+        // Un refresh token vencido en un navegador compartido no debe dejar la
+        // aplicación cargando ni contaminar la consola con un fallo no tratado.
+        console.warn("La sesión anterior ya no es válida; vuelve a iniciar sesión.", error?.message);
+        void supabase.auth.signOut({ scope: "local" });
+        scheduleSessionSync(null);
+      });
 
     const { data } = supabase.auth.onAuthStateChange((_event, session) => {
       scheduleSessionSync(session);

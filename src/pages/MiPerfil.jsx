@@ -27,7 +27,7 @@ export const MiPerfil = () => {
     <Container>
        <Toaster position="top-right" />
       {isPending ? (
-        <span>guardando...🐖</span>
+        <span>Guardando cambios…</span>
       ) : (
         <>
           <Title>Mi Perfil</Title> 
@@ -77,7 +77,7 @@ export const MiPerfil = () => {
             <Label>Email</Label>
             <InputText2>
               <input
-                disabled="true"
+                disabled
                 step="0.01"
                 defaultValue={datausuarios?.correo}
                 className="form__field"
