@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import {
   EliminarAlmacen,
-  
+
   MostrarAlmacenXSucursal,
   MostrarAlmacenesXEmpresa,
   InsertarAlmacen,
@@ -21,7 +21,7 @@ export const useAlmacenesStore = create((set, get) => ({
 
   dataalmacen: [],
   dataalmacenxsucursalxproducto: [],
-  
+
   mostrarAlmacenXsucursal: async (p) => {
     const response = await MostrarAlmacenXSucursal(p);
     set({ dataalmacenxsucursalxproducto: response });
@@ -41,7 +41,7 @@ export const useAlmacenesStore = create((set, get) => ({
     set({ dataAlmacenesXsucursal: response });
     return response;
   },
- 
+
   insertarAlmacen: async (p) => {
     await InsertarAlmacen(p);
   },
