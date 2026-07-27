@@ -17,10 +17,10 @@ const ReactQueryDevtools = import.meta.env.DEV
   : null;
 
 function App() {
-  const { setTheme } = useThemeStore();
+  const { setTheme, themeStyle } = useThemeStore();
   const { datausuarios } = useUsuariosStore();
   const location = useLocation();
-  const themeStyle = datausuarios?.tema === "light" ? Light : Dark;
+
   useEffect(() => {
     if (location.pathname === "/login") {
       setTheme({
