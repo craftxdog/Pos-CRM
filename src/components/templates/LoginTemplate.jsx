@@ -13,6 +13,7 @@ import { useForm } from "react-hook-form";
 import { useMutation } from "@tanstack/react-query";
 import { toast, Toaster } from "sonner";
 import { useState } from "react";
+import { FiShoppingBag, FiShield } from "react-icons/fi";
 import { CardModos } from "../organismos/LoginDesign/CardModos";
 import { VolverBtn } from "../moleculas/VolverBtn";
 export function LoginTemplate() {
@@ -63,7 +64,7 @@ export function LoginTemplate() {
               title={"Super admin"}
               subtitle={"crea y gestiona tu empresa"}
               bgcolor={"#ed7323"}
-              img={"https://i.ibb.co/TDXYj7r9/rey.png"}
+              icon={FiShield}
               funcion={() => {
                 setStateModo("superadmin");
                 setStateModos(!stateModos);
@@ -73,7 +74,7 @@ export function LoginTemplate() {
               title={"Empleado"}
               subtitle={"vende y crece"}
               bgcolor={"#542a1b"}
-              img={"https://i.ibb.co/ksfCmJyy/casco.png"}
+              icon={FiShoppingBag}
               funcion={() => {
                 setStateModo("empleado");
                 setStateModos(!stateModos);

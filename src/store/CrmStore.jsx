@@ -26,6 +26,7 @@ import {
   MostrarCrmData,
   MostrarCrmClientesAsistencia,
   MostrarCrmClientesPage,
+  MostrarCrmHistorialCobrosPage,
   MostrarCrmInvitacionesPage,
   MostrarReporteIngresosMensual,
   MostrarCrmSuscripcionesPage,
@@ -84,6 +85,7 @@ export const useCrmStore = create((set) => ({
   mostrarReporteIngresosMensual: (payload) =>
     MostrarReporteIngresosMensual(payload),
   mostrarClientesPage: (payload) => MostrarCrmClientesPage(payload),
+  mostrarHistorialCobrosPage: (payload) => MostrarCrmHistorialCobrosPage(payload),
   mostrarInvitacionesPage: (payload) => MostrarCrmInvitacionesPage(payload),
   mostrarSuscripcionesPage: (payload) =>
     MostrarCrmSuscripcionesPage(payload),

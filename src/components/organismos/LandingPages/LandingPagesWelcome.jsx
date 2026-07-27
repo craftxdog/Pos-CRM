@@ -1,382 +1,76 @@
 import { useEffect } from "react";
+import { FiArchive, FiBookOpen, FiBriefcase, FiDatabase, FiMapPin, FiPrinter, FiShield, FiTool, FiTrendingUp } from "react-icons/fi";
 import styled from "styled-components";
+import ScrollReveal from "scrollreveal";
 import { CardFuncion } from "./CardFuncion";
 import { Device } from "../../../styles/breakpoints";
-import ScrollReveal from "scrollreveal";
 import { BtnLink } from "../../moleculas/BtnLink";
 import { useUsuariosStore } from "../../../store/UsuariosStore";
 
-const supabaseUrl = import.meta.env.VITE_APP_SUPABASE_URL;
+const steps = [
+  { icon: FiBookOpen, title: "Aprende desde cero", text: "Gestiona clientes, ventas, pagos y asistencia desde un mismo sistema." },
+  { icon: FiTool, title: "Domina herramientas esenciales", text: "Administra productos, trabajadores, roles y permisos." },
+  { icon: FiTrendingUp, title: "Aplica lo aprendido", text: "Usa el POS existente junto al control completo de clientes." },
+];
 
 export const LandingPagesWelcome = () => {
-  const {datausuarios} = useUsuariosStore()
+  const { datausuarios } = useUsuariosStore();
   useEffect(() => {
-    ScrollReveal().reveal(".left-section", {
-      origin: "left",
-      distance: "100px",
-      duration: 1000,
-      easing: "ease-in-out",
-    });
-
-    ScrollReveal().reveal(".right-section", {
-      origin: "right",
-      distance: "100px",
-      duration: 1000,
-      easing: "ease-in-out",
-    });
-    ScrollReveal().reveal(".footer-section", {
-      origin: "bottom",
-      distance: "100px",
-      duration: 1000,
-      easing: "ease-in-out",
-      delay: 200,
-    });
+    const reveal = ScrollReveal();
+    reveal.reveal(".left-section", { origin: "left", distance: "40px", duration: 700, easing: "ease-in-out" });
+    reveal.reveal(".right-section", { origin: "right", distance: "40px", duration: 700, easing: "ease-in-out" });
+    reveal.reveal(".footer-section", { origin: "bottom", distance: "28px", duration: 700, easing: "ease-in-out", delay: 120 });
+    return () => reveal.destroy();
   }, []);
 
-  return (
-    <Container>
-      <ContentSection>
-        <SubContentSection>
-          <LeftSection className="left-section">
-            <h1>ActiveSelfControl {datausuarios?.id} </h1>
-            <Step>
-              <IconPlaceholder>
-                <img src="https://i.ibb.co/h19LCXP/aprendiendo.png" />
-              </IconPlaceholder>
-              <Text>
-                <Title>Aprende desde cero</Title>
-                <Description>
-                  Gestiona clientes, ventas, pagos y asistencia desde un mismo
-                  sistema.
-                </Description>
-              </Text>
-            </Step>
-            <Step>
-              <IconPlaceholder>
-                <img src="https://i.ibb.co/RBXt8Fs/taladro-de-mano.png" />
-              </IconPlaceholder>
-              <Text>
-                <Title>Domina herramientas esenciales</Title>
-                <Description>
-                  Administra productos, trabajadores, roles y permisos.
-                </Description>
-              </Text>
-            </Step>
-            <Step>
-              <IconPlaceholder>
-                <img src="https://i.ibb.co/QPFxqC3/ejecutante.png" />
-              </IconPlaceholder>
-              <Text>
-                <Title>Aplica lo aprendido</Title>
-                <Description>
-                  Usa el POS existente junto al control completo de clientes.
-                </Description>
-              </Text>
-            </Step>
-            
-            <div style={{ display: "flex", gap: "10px" }}>
-            <BtnLink url={"/crm"} color={"#fff"} bgcolor={"#ff6a00"} titulo={"abrir CRM"} />
-              <BtnLink url={"/pos"} color={"#2f2f2f"} bgcolor={"#ffffff"} titulo={"abrir POS"} />
-            </div>
-          </LeftSection>
-          <RightSection className="right-section">
-            <MockupImage>
-              <CardFuncion
-                top="10px"
-                bgcontentimagen={"#fccdb8"}
-                left={"-50px"}
-                title={"Multi-empresa"}
-                imagen={"https://i.ibb.co/HCF7jnx/escaparate.png"}
-              />
-              <CardFuncion
-                top="110px"
-                bgcontentimagen={"#e3d4cc"}
-                left={"-20px"}
-                title={"Multi-sucursal"}
-                imagen={"https://i.ibb.co/MV6xZz4/franquicia.png"}
-              />
-              <CardFuncion
-                top="210px"
-                bgcontentimagen={"#aee0fd"}
-                left={"-50px"}
-                title={"Multi-caja"}
-                imagen={
-                  "https://i.ibb.co/3dZfQzF/caja-registradora.png"
-                }
-              />
-              <CardFuncion
-                top="310px"
-                bgcontentimagen={"#fdc2b7"}
-                left={"-20px"}
-                title={"Multi-almacen"}
-                imagen={
-                  `${supabaseUrl}/storage/v1/object/public/imagenes/modulos/almacen.png`
-                }
-              />
-               <CardFuncion
-                top="410px"
-                bgcontentimagen={"#52e0f9"}
-                left={"-50px"}
-                title={"Imprime directo"}
-                subtitle={"sin cuadro de diálogo"}
-                imagen={
-                  `${supabaseUrl}/storage/v1/object/public/imagenes/modulos/impresora.png`
-                }
-              />
-            </MockupImage>
-          </RightSection>
-        </SubContentSection>
-      </ContentSection>
-
-      <Footer className="footer-section">
-        <FooterTitle>Tecnologias utilizadas:</FooterTitle>
-        <FooterContent>
-          <FooterItem>
-            <FooterIcon>
-              <img src="https://i.ibb.co/3vfgvTB/mujer-de-negocios.png" />
-            </FooterIcon>
-            <FooterText>
-              <FooterTextTitle>FRONTEND</FooterTextTitle>
-              <FooterDescription>
-                React.js | TansTask | Zustand | Styled Components
-              </FooterDescription>
-            </FooterText>
-          </FooterItem>
-          <FooterItem>
-            <FooterIcon>
-              <img src="https://i.ibb.co/4fDChm8/nalga-1.png" />
-            </FooterIcon>
-            <FooterText>
-              <FooterTextTitle>BACKEND</FooterTextTitle>
-              <FooterDescription>PostgreSQL | SUPABASE</FooterDescription>
-            </FooterText>
-          </FooterItem>
-        </FooterContent>
-      </Footer>
-    </Container>
-  );
+  return <Container>
+    <ContentSection>
+      <SubContentSection>
+        <LeftSection className="left-section">
+          <span className="eyebrow"><FiShield /> Espacio operativo</span>
+          <h1>ActiveSelfControl{datausuarios?.id ? ` · ${datausuarios.id}` : ""}</h1>
+          <p className="intro">Todo lo necesario para vender, cobrar y cuidar la relación con cada cliente.</p>
+          {steps.map(({ icon: Icon, title, text }) => <Step key={title}><IconPlaceholder><Icon /></IconPlaceholder><Text><Title>{title}</Title><Description>{text}</Description></Text></Step>)}
+          <Actions><BtnLink url="/crm" color="#fff" bgcolor="#f97316" titulo="Abrir CRM" /><BtnLink url="/pos" color="#0f172a" bgcolor="#fff" titulo="Abrir POS" /></Actions>
+        </LeftSection>
+        <RightSection className="right-section"><MockupImage>
+          <CardFuncion top="12px" left="-50px" title="Multi-empresa" icon={FiBriefcase} bgcontentimagen="#fccdb8" />
+          <CardFuncion top="112px" left="-20px" title="Multi-sucursal" icon={FiMapPin} bgcontentimagen="#e3d4cc" />
+          <CardFuncion top="212px" left="-50px" title="Multi-caja" icon={FiDatabase} bgcontentimagen="#aee0fd" />
+          <CardFuncion top="312px" left="-20px" title="Multi-almacén" icon={FiArchive} bgcontentimagen="#fdc2b7" />
+          <CardFuncion top="412px" left="-50px" title="Imprime directo" subtitle="Comprobantes y reportes listos" icon={FiPrinter} bgcontentimagen="#b8f1fa" />
+        </MockupImage></RightSection>
+      </SubContentSection>
+    </ContentSection>
+    <Footer className="footer-section"><div><span><FiShield /></span><section><b>Operación protegida</b><p>Roles, permisos y trazabilidad para que cada equipo trabaje con claridad.</p></section></div><div><span><FiDatabase /></span><section><b>Datos siempre conectados</b><p>POS, CRM y reportes comparten una sola fuente operativa.</p></section></div><small>ActiveSelfControl · Plataforma de gestión</small></Footer>
+  </Container>;
 };
 
 const Container = styled.div`
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  height: 100%;
-  padding: 20px;
-  @media ${Device.desktop} {
-    height: calc(100vh - 40px);
-  }
+  display:flex;flex-direction:column;align-items:center;min-height:100%;padding:clamp(16px,3vw,32px);gap:22px;background:linear-gradient(145deg,#f8fbff,#edf5ff);
 `;
+const ContentSection = styled.div`display:flex;justify-content:center;align-items:center;flex:1;width:100%;`;
 const SubContentSection = styled.div`
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  width: 100%;
-  @media ${Device.desktop} {
-    flex-direction: row;
-    justify-content: space-between;
-    width: 60%;
-  }
+  display:flex;flex-direction:column;align-items:center;width:min(1040px,100%);gap:44px;
+  @media ${Device.desktop}{flex-direction:row;justify-content:space-between;gap:80px;}
 `;
-
-const ContentSection = styled.div`
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 100%;
-  width: 100%;
+const LeftSection = styled.section`
+  display:flex;flex-direction:column;gap:16px;width:100%;max-width:490px;.eyebrow{display:flex;align-items:center;gap:7px;text-transform:uppercase;letter-spacing:.08em;font-size:11px;font-weight:900;color:#0284c7}h1{margin:0;font-size:clamp(31px,4vw,48px);letter-spacing:-.04em;color:#0f172a}.intro{margin:-5px 0 6px;color:#475569;line-height:1.55}.eyebrow svg{width:15px;height:15px}
 `;
-
-const LeftSection = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  width: 100%;
-  h1 {
-    text-align: center;
-    font-size:35px;
-  }
-  @media ${Device.desktop} {
-    align-items: flex-start;
-  }
-`;
-
 const Step = styled.div`
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-  text-align: center;
-  @media ${Device.desktop} {
-    flex-direction: row;
-    align-items: flex-start;
-    text-align: left;
-  }
+  display:flex;align-items:flex-start;gap:12px;
 `;
-
 const IconPlaceholder = styled.div`
-  width: 40px;
-  height: 40px;
-  background-color: #e0e0e0;
-  border-radius: 50%;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.06);
-  border: 4px solid #f0f0f0;
-  img {
-    width: 40px;
-    height: 40px;
-    object-fit: contain;
-  }
-  @media ${Device.tablet} {
-  }
+  width:42px;height:42px;flex:none;display:grid;place-items:center;border-radius:13px;background:#fff;border:1px solid #dce8f5;box-shadow:0 7px 15px rgba(15,23,42,.07);color:#0ea5e9;svg{width:21px;height:21px}
 `;
-
-const Text = styled.div`
-  display: flex;
-  flex-direction: column;
-`;
-
-const Title = styled.h3`
-  font-size: 16px;
-  font-weight: bold;
-  margin: 0;
-
-  @media ${Device.desktop} {
-    font-size: 18px;
-  }
-`;
-
-const Description = styled.p`
-  font-size: 13px;
-  margin: 5px 0 0;
-
-  @media ${Device.desktop} {
-    font-size: 14px;
-  }
-`;
-
-const RightSection = styled.div`
-  width: 100%;
-  display: flex;
-  justify-content: center;
-  position: relative;
-  border-left: none;
-  margin-top: 20px;
-
-  @media ${Device.desktop} {
-    margin-top: 0;
-  }
-`;
-
+const Text = styled.div`display:flex;flex-direction:column;gap:3px;`;
+const Title = styled.h3`font-size:17px;font-weight:850;margin:0;color:#0f172a;`;
+const Description = styled.p`font-size:14px;margin:0;color:#64748b;line-height:1.45;`;
+const Actions = styled.div`display:flex;gap:10px;flex-wrap:wrap;margin-top:5px;`;
+const RightSection = styled.section`width:100%;display:flex;justify-content:center;position:relative;`;
 const MockupImage = styled.div`
-  width: 250px;
-  height: 500px;
-  background-color: #e0e0e0;
-  border-radius: 20px;
-  border: 6px solid #fff;
-  position: relative;
-  &::before {
-    content: "";
-    height: 360px;
-    width: 360px;
-    background-color: rgba(0, 51, 160, 0.1);
-    position: absolute;
-    z-index: -1;
-    margin: auto;
-    bottom: 20%;
-    left: -60px;
-    border-radius: 50%;
-    animation: palpitar 3s infinite;
-  }
-  @keyframes palpitar {
-      0% {
-        transform: scale(1);
-      }
-      50% {
-        transform: scale(1.1);
-      }
-      100% {
-        transform: scale(1);
-      }
-    }
-  @media ${Device.desktop} {
-    width: 250px;
-    height: 500px;
-  }
+  width:250px;height:500px;background:linear-gradient(180deg,#f8fafc,#e2e8f0);border-radius:24px;border:6px solid #fff;box-shadow:0 22px 46px rgba(15,23,42,.15);position:relative;&::before{content:"";height:330px;width:330px;background:rgba(14,165,233,.13);position:absolute;z-index:-1;bottom:76px;left:-49px;border-radius:50%;animation:palpitar 3s infinite}@keyframes palpitar{50%{transform:scale(1.08)}}
 `;
-
-const Footer = styled.div`
-  background-color: #0033a0;
-  color: white;
-  width: 100%;
-  text-align: center;
-  border-radius: 8px;
-  padding: 10px 0 10px 0;
-`;
-
-const FooterTitle = styled.h4`
-  font-size: 18px;
-
-  @media ${Device.desktop} {
-    font-size: 20px;
-  }
-`;
-
-const FooterContent = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  @media ${Device.desktop} {
-    flex-direction: row;
-    justify-content: center;
-    gap: 40px;
-  }
-`;
-
-const FooterItem = styled.div`
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-  text-align: center;
-  @media ${Device.desktop} {
-    flex-direction: row;
-    align-items: center;
-    text-align: left;
-  }
-`;
-
-const FooterIcon = styled.div`
-  width: 60px;
-  height: 60px;
-  background-color: #fcece4;
-  border-radius: 50%;
-  img {
-    width: 100%;
-  }
-  @media ${Device.desktop} {
-    width: 60px;
-    height: 60px;
-  }
-`;
-
-const FooterText = styled.div`
-  display: flex;
-  flex-direction: column;
-`;
-
-const FooterTextTitle = styled.h5`
-  font-size: 15px;
-  margin: 0;
-
-  @media ${Device.desktop} {
-    font-size: 16px;
-  }
-`;
-
-const FooterDescription = styled.p`
-  font-size: 13px;
-
-  @media ${Device.desktop} {
-    font-size: 14px;
-  }
+const Footer = styled.footer`
+  width:min(1200px,100%);display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;padding:18px 22px;border-radius:16px;background:#0f2c5c;color:#fff;box-shadow:0 15px 30px rgba(15,23,42,.16);>div{display:flex;align-items:flex-start;gap:10px}>div>span{display:grid;place-items:center;width:34px;height:34px;border-radius:10px;background:rgba(255,255,255,.14);color:#7dd3fc;flex:none}svg{width:18px;height:18px}b{font-size:14px}p{margin:3px 0 0;font-size:12px;color:#dbeafe;line-height:1.45}small{grid-column:1/-1;padding-top:10px;border-top:1px solid rgba(219,234,254,.18);font-size:11px;color:#bfdbfe;text-align:center}@media(max-width:620px){grid-template-columns:1fr;}
 `;

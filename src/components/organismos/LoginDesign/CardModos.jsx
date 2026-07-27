@@ -1,5 +1,5 @@
 import styled from "styled-components";
-export function CardModos({ title, subtitle, img, bgcolor, funcion }) {
+export function CardModos({ title, subtitle, icon: Icon, bgcolor, funcion }) {
   return (
     <Container $bgcolor={bgcolor} onClick={funcion}>
       <section className="card-container">
@@ -13,11 +13,7 @@ export function CardModos({ title, subtitle, img, bgcolor, funcion }) {
           </section>
         </article>
         <article className="image-container">
-          <img
-            className="character-image"
-            src={img}
-            alt="My Hero Academia character"
-          />
+          {Icon ? <Icon className="character-icon" aria-hidden="true" /> : null}
         </article>
       </section>
     </Container>
@@ -80,8 +76,5 @@ const Container = styled.section`
     height: 60px;
   }
 
-  .character-image {
-    height: 100%;
-    position: relative;
-  }
+  .character-icon {height:100%;width:48px;position:relative;color:rgba(255,255,255,.9);}
 `;
