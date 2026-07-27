@@ -3722,6 +3722,20 @@ const Container = styled.main`
       grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
+    .dashboard-filters {
+      align-items: stretch;
+      flex-direction: column;
+    }
+
+    .dashboard-filters label,
+    .dashboard-filters button {
+      width: 100%;
+    }
+
+    .dashboard-filters button {
+      justify-content: center;
+    }
+
     .permissions-heading {
       grid-template-columns: 1fr;
 

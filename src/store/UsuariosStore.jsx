@@ -11,6 +11,13 @@ const tabla = "usuarios";
 export const useUsuariosStore = create((set) => ({
   refetchs: null,
   datausuarios: [],
+  setTemaLocal: (tema) =>
+    set((state) => ({
+      datausuarios:
+        state.datausuarios && !Array.isArray(state.datausuarios)
+          ? { ...state.datausuarios, tema }
+          : state.datausuarios,
+    })),
   itemSelect: null,
   setItemSelect: (p) => set({ itemSelect: p }),
   mostrarusuarios: async (p) => {
