@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import {
   EditarUsuarios,
+  EditarPerfilUsuario,
   EliminarUsuarioAsignado,
   InsertarCredencialesUser,
   InsertarUsuarios,
@@ -74,6 +75,9 @@ export const useUsuariosStore = create((set) => ({
   },
   editarUsuarios: async (p) => {
     await EditarUsuarios(p);
+  },
+  editarPerfilUsuario: async (p) => {
+    await EditarPerfilUsuario(p);
   },
   editarThemeUser: async (p) => {
     const { error } = await supabase.from(tabla).update(p).eq("id", p.id);

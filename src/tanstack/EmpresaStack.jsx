@@ -6,7 +6,7 @@ import { useGlobalStore } from "../store/GlobalStore";
 export const useUpdateEmpresaMutation = ( ) => {
   const queyClient = useQueryClient();
   const { dataempresa, editarEmpresa } = useEmpresaStore();
-  const {file} = useGlobalStore()
+  const {file, setFile, setFileUrl} = useGlobalStore()
   return useMutation({
     mutationKey: ["editar empresa"],
     mutationFn: async (data) => {
@@ -23,6 +23,8 @@ export const useUpdateEmpresaMutation = ( ) => {
     },
     onError: (error) => toast.error(error.message),
     onSuccess: () => {
+      setFile([]);
+      setFileUrl("");
       toast.success("Datos guardados");
       queyClient.invalidateQueries({ queryKey: ["mostrar empresa"] });
     },

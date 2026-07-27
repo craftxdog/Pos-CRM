@@ -5,16 +5,17 @@ import { useGlobalStore } from "../store/GlobalStore";
 import { toast } from "sonner";
 import { useCierreCajaStore } from "../store/CierreCajaStore";
 
-export const useMostrarSerializacionesQuery = () => {
+export const useMostrarSerializacionesQuery = (idSucursal) => {
   const { mostrarSerializaciones } = useSerializacionStore();
   const { sucursalesItemSelectAsignadas } = useAsignacionCajaSucursalStore();
+  const sucursalId = idSucursal || sucursalesItemSelectAsignadas?.id_sucursal;
   return useQuery({
-    queryKey: ["mostrar serializaciones"],
+    queryKey: ["mostrar serializaciones", sucursalId],
     queryFn: () =>
       mostrarSerializaciones({
-        id_sucursal: sucursalesItemSelectAsignadas?.id_sucursal,
+        id_sucursal: sucursalId,
       }),
-    enabled: !!sucursalesItemSelectAsignadas,
+    enabled: !!sucursalId,
   });
 };
 export const useMostrarSerializacionesVentasQuery = () => {
