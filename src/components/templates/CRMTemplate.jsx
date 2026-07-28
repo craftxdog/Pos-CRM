@@ -40,7 +40,7 @@ import {
   FiXCircle,
 } from "react-icons/fi";
 import { MdOutlineBadge, MdOutlinePointOfSale } from "react-icons/md";
-import { toast, Toaster } from "sonner";
+import { toast } from "sonner";
 import { useCrmStore } from "../../store/CrmStore";
 import { useCrmRealtime } from "../../hooks/useCrmRealtime";
 import { useEmpresaStore } from "../../store/EmpresaStore";
@@ -51,6 +51,7 @@ import { CrmPaymentsWorkspace } from "../organismos/CRMDesign/CrmPaymentsWorkspa
 import { CrmSubscriptionsWorkspace } from "../organismos/CRMDesign/CrmSubscriptionsWorkspace";
 import FacturaCliente from "../../reports/FacturaCliente";
 import { v } from "../../styles/variables";
+import { AppToaster } from "../ui/feedback/AppToaster";
 
 const tabs = [
   { id: "procesos", label: "Procesos", icon: FiActivity },
@@ -106,7 +107,6 @@ const actionMessages = {
   editar_cliente: "Cliente actualizado",
   invitacion: "Invitación enviada por correo",
   cancelar_invitacion: "Invitación cancelada",
-  plan: "Plan creado",
   facturar_suscripcion: "Factura creada",
   suscripcion: "Suscripcion asignada",
   pago: "Pago registrado",
@@ -361,18 +361,6 @@ export function CRMTemplate({ initialTab = "procesos" }) {
         return crm.cancelarInvitacion({
           id: values.id,
           id_empresa,
-        });
-      }
-
-      if (action === "plan") {
-        return crm.insertarPlan({
-          id_empresa,
-          nombre: values.nombre,
-          descripcion: values.descripcion || null,
-          precio: Number(values.precio || 0),
-          periodicidad: values.periodicidad,
-          duracion_dias: Number(values.duracion_dias || 30),
-          activo: true,
         });
       }
 
@@ -898,7 +886,7 @@ export function CRMTemplate({ initialTab = "procesos" }) {
 
   return (
     <Container>
-      <Toaster position="top-right" richColors />
+      <AppToaster />
       <header className="header">
         <section>
           <span className="eyebrow"><FiActivity /> CRM OPERATIVO</span>

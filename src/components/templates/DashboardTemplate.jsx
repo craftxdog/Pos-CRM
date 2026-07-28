@@ -61,7 +61,11 @@ const Container = styled.div`
   max-width: 1400px;
   margin: auto;
   gap: 20px;
-  padding: 20px;
+  padding: 58px clamp(12px, 3vw, 20px) 20px;
+
+  @media ${Device.tablet} {
+    padding-top: 20px;
+  }
 `;
 const MainContent = styled.div`
   display: grid;
@@ -85,8 +89,11 @@ const Area1 = styled.section`
   grid-area: area1;
   /* background-color: rgba(242, 8, 242, 0.2); */
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: 20px;
+  @media ${Device.mobile} {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
   @media ${Device.desktop} {
     grid-template-columns: repeat(3, 1fr);
   }

@@ -63,7 +63,20 @@ supabase secrets set --env-file supabase/.env.crm
 supabase functions deploy crm-send-invitation
 ```
 
-`supabase/.env.crm` debe permanecer fuera de Git. `APP_SITE_URL` debe apuntar al origen público de la aplicación para que el enlace regrese a `/onboarding-cliente`.
+`supabase/.env.crm` debe permanecer fuera de Git. En producción usa
+`APP_SITE_URL=https://agogesistem.alphaby.cloud`; la función rechaza
+`localhost` salvo que se configure explícitamente `APP_ENV=development`.
+
+En Supabase Auth > URL Configuration configura:
+
+- **Site URL:** `https://agogesistem.alphaby.cloud`
+- **Redirect URLs:** `https://agogesistem.alphaby.cloud/onboarding-cliente`,
+  `https://agoge-academy.web.app/onboarding-cliente` y
+  `https://agoge-academy.firebaseapp.com/onboarding-cliente`
+
+Los destinos locales deben quedar únicamente como redirects adicionales para
+desarrollo. Si el destino enviado no está en esta lista, Supabase usa `Site URL`
+como fallback.
 
 Para Hostinger usa `smtp.hostinger.com`, puerto `465` y SSL implícito. Si el proyecto conserva los secretos con prefijo `MAILERSEND_*`, esos nombres siguen siendo compatibles, pero deben contener las credenciales de Hostinger y `MAILERSEND_ENABLED=true`; el prefijo no cambia el proveedor. Un error `MS42225` identifica una cuenta de prueba de MailerSend limitada, no un error de la interfaz del CRM.
 

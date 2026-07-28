@@ -19,6 +19,8 @@ import styled from "styled-components";
 import { toast } from "sonner";
 import { v } from "../../../styles/variables";
 import FacturaCliente from "../../../reports/FacturaCliente";
+import { ConfirmDialog } from "../../ui/feedback/ConfirmDialog";
+import { CrmPlansTable } from "./CrmPlansTable";
 
 const pageSizes = [10, 20, 50];
 
@@ -88,7 +90,6 @@ export function CrmSubscriptionsWorkspace({
   const [planId, setPlanId] = useState("todos");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const [leftMode, setLeftMode] = useState("asignar");
   const [selectedSubscription, setSelectedSubscription] = useState(null);
   const [newPlanId, setNewPlanId] = useState("");
   const [effectiveDate, setEffectiveDate] = useState(
@@ -97,6 +98,7 @@ export function CrmSubscriptionsWorkspace({
   const [renewalSubscription, setRenewalSubscription] = useState(null);
   const [renewalMethod, setRenewalMethod] = useState("efectivo");
   const [renewalReceived, setRenewalReceived] = useState("");
+  const [subscriptionToCancel, setSubscriptionToCancel] = useState(null);
   const queryClient = useQueryClient();
 
   useEffect(() => {
@@ -142,29 +144,53 @@ export function CrmSubscriptionsWorkspace({
         accion,
         id_plan,
         fecha,
-      }),
+    }),
     onSuccess: (_, variables) => {
       const messages = {
-        cambiar_plan: "Plan actualizado y nueva vigencia aplicada",
-        pausar: "Suscripción pausada",
-        reactivar: "Suscripción reactivada",
-        cancelar: "Suscripción cancelada",
+        cambiar_plan: {
+          title: "Plan actualizado",
+          description: "La nueva vigencia ya fue aplicada a la suscripción.",
+        },
+        pausar: {
+          title: "Suscripción pausada",
+          description: "El acceso quedó suspendido hasta que decidas reactivarlo.",
+        },
+        reactivar: {
+          title: "Suscripción reactivada",
+          description: "El cliente recuperó el acceso a su membresía.",
+        },
+        cancelar: {
+          title: "Suscripción cancelada",
+          description: "El historial se conserva y el acceso quedó deshabilitado.",
+        },
       };
-      toast.success(messages[variables.accion] || "Suscripción actualizada");
+      const message = messages[variables.accion] || {
+        title: "Suscripción actualizada",
+        description: "Los cambios ya están disponibles.",
+      };
+      toast.success(message.title, { description: message.description });
       if (variables.accion === "cambiar_plan") {
         setSelectedSubscription(null);
         setNewPlanId("");
       }
+      if (variables.accion === "cancelar") {
+        setSubscriptionToCancel(null);
+      }
       queryClient.invalidateQueries({ queryKey: ["crm-subscriptions"] });
       queryClient.invalidateQueries({ queryKey: ["crm-data"] });
     },
-    onError: (error) => toast.error(error.message),
+    onError: (error) =>
+      toast.error("No se pudo actualizar la suscripción", {
+        description: error.message,
+      }),
   });
 
   const renewalMutation = useMutation({
     mutationFn: (payload) => crm.renovarSuscripcionPos(payload),
     onSuccess: (data) => {
-      toast.success("Pago registrado, vigencia renovada e impresión preparada");
+      toast.success("Renovación completada", {
+        description: "El pago y la nueva vigencia quedaron registrados. La impresión está preparada.",
+      });
       setRenewalSubscription(null);
       setRenewalReceived("");
       queryClient.invalidateQueries({ queryKey: ["crm-subscriptions"] });
@@ -174,7 +200,10 @@ export function CrmSubscriptionsWorkspace({
       void FacturaCliente("print", { dataempresa, pago: data.pago, cliente: data.cliente, suscripcion: data.suscripcion, plan: data.plan })
         .catch((error) => toast.error(error?.message || "No se pudo imprimir el comprobante"));
     },
-    onError: (error) => toast.error(error.message),
+    onError: (error) =>
+      toast.error("No se pudo completar la renovación", {
+        description: error.message,
+      }),
   });
 
   const result = subscriptionsQuery.data || {
@@ -196,6 +225,7 @@ export function CrmSubscriptionsWorkspace({
   );
 
   return (
+    <>
     <Container>
       <section className="subscription-intro">
         <div>
@@ -214,33 +244,14 @@ export function CrmSubscriptionsWorkspace({
 
       <section className="subscription-grid">
         <aside className="assignment-card">
-          <div className="workspace-switcher" role="tablist">
-            <button
-              type="button"
-              className={leftMode === "asignar" ? "active" : ""}
-              onClick={() => setLeftMode("asignar")}
-            >
-              Asignar
-            </button>
-            <button
-              type="button"
-              className={leftMode === "plan" ? "active" : ""}
-              onClick={() => setLeftMode("plan")}
-            >
-              Crear plan
-            </button>
-          </div>
-
-          {leftMode === "asignar" ? (
-            <>
-            <header>
-              <span><FiCreditCard /></span>
-              <div>
-                <h3>Asignar suscripción</h3>
-                <p>Cliente + plan + vigencia.</p>
-              </div>
-            </header>
-            <form onSubmit={submitForm("suscripcion")}>
+          <header>
+            <span><FiCreditCard /></span>
+            <div>
+              <h3>Asignar suscripción</h3>
+              <p>Cliente, plan y vigencia en un solo paso.</p>
+            </div>
+          </header>
+          <form onSubmit={submitForm("suscripcion")}>
             <label>
               Cliente
               <select name="id_cliente_crm" required defaultValue="">
@@ -310,99 +321,7 @@ export function CrmSubscriptionsWorkspace({
             >
               {mutation.isPending ? "Asignando..." : "Asignar suscripción"}
             </button>
-            </form>
-            </>
-          ) : (
-            <>
-              <header>
-                <span><FiEdit3 /></span>
-                <div>
-                  <h3>Crear tipo de plan</h3>
-                  <p>Precio, duración y descripción.</p>
-                </div>
-              </header>
-              <form onSubmit={submitForm("plan")}>
-                <label>
-                  Nombre del plan
-                  <input name="nombre" placeholder="Ej. Plan Premium" required />
-                </label>
-                <label>
-                  Precio
-                  <input
-                    name="precio"
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    placeholder="0.00"
-                    required
-                  />
-                </label>
-                <label>
-                  Periodicidad
-                  <select
-                    name="periodicidad"
-                    defaultValue="mensual"
-                    onChange={(event) => {
-                      const days = {
-                        diario: 1,
-                        semanal: 7,
-                        quincenal: 15,
-                        mensual: 30,
-                        trimestral: 90,
-                        anual: 365,
-                      };
-                      event.currentTarget.form.elements.namedItem(
-                        "duracion_dias"
-                      ).value = days[event.target.value];
-                    }}
-                  >
-                    <option value="diario">Diario</option>
-                    <option value="semanal">Semanal</option>
-                    <option value="quincenal">Quincenal</option>
-                    <option value="mensual">Mensual</option>
-                    <option value="trimestral">Trimestral</option>
-                    <option value="anual">Anual</option>
-                  </select>
-                </label>
-                <label>
-                  Duración en días
-                  <input
-                    name="duracion_dias"
-                    type="number"
-                    min="1"
-                    defaultValue="30"
-                    required
-                  />
-                </label>
-                <label>
-                  Descripción
-                  <textarea
-                    name="descripcion"
-                    placeholder="Qué incluye este plan"
-                    required
-                  />
-                </label>
-                <button disabled={mutation.isPending}>
-                  {mutation.isPending ? "Creando..." : "Crear plan"}
-                </button>
-              </form>
-              <div className="plans-mini-list">
-                {crm.planes.slice(0, 5).map((plan) => (
-                  <span key={plan.id}>
-                    <strong>{plan.nombre}</strong>
-                    <small>
-                      {currency(
-                        plan.precio,
-                        dataempresa?.currency,
-                        dataempresa?.iso
-                      )}{" "}
-                      · {plan.duracion_dias} días
-                    </small>
-                  </span>
-                ))}
-              </div>
-            </>
-          )}
+          </form>
         </aside>
 
         <section className="directory-card">
@@ -618,18 +537,7 @@ export function CrmSubscriptionsWorkspace({
                     <button
                       type="button"
                       className="danger"
-                      onClick={() => {
-                        if (
-                          window.confirm(
-                            `¿Cancelar la suscripción de ${item.cliente_nombre}?`
-                          )
-                        ) {
-                          lifecycleMutation.mutate({
-                            id: item.id,
-                            accion: "cancelar",
-                          });
-                        }
-                      }}
+                      onClick={() => setSubscriptionToCancel(item)}
                       disabled={lifecycleMutation.isPending}
                       title="Cancelar suscripción"
                     >
@@ -689,7 +597,23 @@ export function CrmSubscriptionsWorkspace({
           </footer>
         </section>
       </section>
+      <CrmPlansTable crm={crm} dataempresa={dataempresa} />
     </Container>
+    <ConfirmDialog
+      open={Boolean(subscriptionToCancel)}
+      title={`¿Cancelar la suscripción de ${subscriptionToCancel?.cliente_nombre || "este cliente"}?`}
+      description="El cliente perderá el acceso vigente y la suscripción quedará registrada como cancelada. El historial de pagos y renovaciones se conservará."
+      confirmLabel="Cancelar suscripción"
+      pending={lifecycleMutation.isPending}
+      onCancel={() => setSubscriptionToCancel(null)}
+      onConfirm={() =>
+        lifecycleMutation.mutate({
+          id: subscriptionToCancel.id,
+          accion: "cancelar",
+        })
+      }
+    />
+    </>
   );
 }
 
@@ -778,32 +702,6 @@ const Container = styled.section`
   .assignment-card {
     position: sticky;
     top: 92px;
-
-    .workspace-switcher {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 4px;
-      margin-bottom: 16px;
-      border-radius: 11px;
-      background: ${({ theme }) => theme.bgtotal};
-      padding: 4px;
-
-      button {
-        border: 0;
-        border-radius: 8px;
-        background: transparent;
-        color: ${({ theme }) => theme.colorSubtitle};
-        padding: 9px 6px;
-        font-weight: 900;
-        cursor: pointer;
-
-        &.active {
-          background: ${({ theme }) => theme.bgcards};
-          color: ${({ theme }) => theme.text};
-          box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
-        }
-      }
-    }
 
     > header {
       display: flex;
@@ -904,24 +802,6 @@ const Container = styled.section`
       }
     }
 
-    .plans-mini-list {
-      display: grid;
-      gap: 6px;
-      margin-top: 14px;
-
-      > span {
-        display: grid;
-        gap: 2px;
-        border-radius: 10px;
-        background: ${({ theme }) => theme.bgtotal};
-        padding: 9px 10px;
-      }
-
-      small {
-        color: ${({ theme }) => theme.colorSubtitle};
-        font-size: 11px;
-      }
-    }
   }
 
   .directory-header {

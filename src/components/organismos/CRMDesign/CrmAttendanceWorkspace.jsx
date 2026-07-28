@@ -16,6 +16,7 @@ import {
 } from "react-icons/fi";
 import styled from "styled-components";
 import { toast } from "sonner";
+import { ConfirmDialog } from "../../ui/feedback/ConfirmDialog";
 
 function fullName(item) {
   return [item?.nombres, item?.apellidos].filter(Boolean).join(" ");
@@ -42,6 +43,7 @@ function ScheduleDirectory({ crm, dataempresa }) {
   const [status, setStatus] = useState("todos");
   const [page, setPage] = useState(1);
   const [editing, setEditing] = useState(null);
+  const [scheduleToDelete, setScheduleToDelete] = useState(null);
   useEffect(() => setPage(1), [search, status]);
   const schedulesQuery = useQuery({
     queryKey: ["crm-schedules-directory", dataempresa?.id, page, search, status],
@@ -69,7 +71,11 @@ function ScheduleDirectory({ crm, dataempresa }) {
     mutationFn: ({ action, item }) => action === "delete"
       ? crm.eliminarHorario({ id: item.id, id_empresa: dataempresa.id })
       : crm.editarHorario({ id: item.id, id_empresa: dataempresa.id, activo: !item.activo }),
-    onSuccess: async (_, variables) => { toast.success(variables.action === "delete" ? "Horario eliminado" : "Estado del horario actualizado"); await refresh(); },
+    onSuccess: async (_, variables) => {
+      toast.success(variables.action === "delete" ? "Horario eliminado" : "Estado del horario actualizado");
+      if (variables.action === "delete") setScheduleToDelete(null);
+      await refresh();
+    },
     onError: (error) => toast.error(error.message),
   });
   const submit = (event) => {
@@ -82,13 +88,23 @@ function ScheduleDirectory({ crm, dataempresa }) {
       tolerancia_minutos: Number(values.tolerancia_minutos || 0),
     });
   };
-  return <section className="schedule-directory">
+  return <><section className="schedule-directory">
     <header><div><h3>Directorio de horarios</h3><p>Administra los turnos disponibles. Se muestran cinco resultados por página.</p></div><span>{result.pagination.total}</span></header>
     <form className="schedule-form" onSubmit={submit} key={editing?.id || "new"}><h4>{editing ? `Editar: ${editing.nombre}` : "Crear horario"}</h4><input name="nombre" placeholder="Nombre del horario" required defaultValue={editing?.nombre || ""} /><div><input name="hora_entrada" type="time" required defaultValue={editing?.hora_entrada?.slice(0, 5) || ""} /><input name="hora_salida" type="time" required defaultValue={editing?.hora_salida?.slice(0, 5) || ""} /></div><input name="tolerancia_minutos" type="number" min="0" defaultValue={editing?.tolerancia_minutos ?? 10} /><div className="form-actions">{editing ? <button type="button" className="secondary" onClick={() => setEditing(null)}>Cancelar</button> : null}<button disabled={saveMutation.isPending}>{saveMutation.isPending ? "Guardando…" : editing ? "Actualizar horario" : "Crear horario"}</button></div></form>
     <div className="schedule-filters"><label><FiSearch /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar horario" /></label><select value={status} onChange={(event) => setStatus(event.target.value)}><option value="todos">Todos los estados</option><option value="activo">Activos</option><option value="inactivo">Inactivos</option></select></div>
-    <div className="schedule-table"><div className="schedule-directory-row head"><span>Horario</span><span>Jornada</span><span>Tolerancia</span><span>Estado</span><span>Acciones</span></div>{result.data.map((item) => <div className="schedule-directory-row" key={item.id}><strong>{item.nombre}</strong><span>{item.hora_entrada?.slice(0, 5)} – {item.hora_salida?.slice(0, 5)}</span><span>{item.tolerancia_minutos} min</span><span className={item.activo ? "tag active" : "tag inactive"}>{item.activo ? "Activo" : "Inactivo"}</span><div className="schedule-actions"><button type="button" className="mini" onClick={() => setEditing(item)}><FiEdit3 /> Editar</button><button type="button" className="mini" onClick={() => changeMutation.mutate({ action: "toggle", item })} disabled={changeMutation.isPending}>{item.activo ? <FiToggleRight /> : <FiToggleLeft />}{item.activo ? "Desactivar" : "Activar"}</button><button type="button" className="mini danger" onClick={() => { if (window.confirm(`¿Eliminar el horario ${item.nombre}?`)) changeMutation.mutate({ action: "delete", item }); }} disabled={changeMutation.isPending}><FiTrash2 /> Eliminar</button></div></div>)}{!result.data.length ? <p className="empty-schedules">No hay horarios para estos filtros.</p> : null}</div>
+    <div className="schedule-table"><div className="schedule-directory-row head"><span>Horario</span><span>Jornada</span><span>Tolerancia</span><span>Estado</span><span>Acciones</span></div>{result.data.map((item) => <div className="schedule-directory-row" key={item.id}><strong>{item.nombre}</strong><span>{item.hora_entrada?.slice(0, 5)} – {item.hora_salida?.slice(0, 5)}</span><span>{item.tolerancia_minutos} min</span><span className={item.activo ? "tag active" : "tag inactive"}>{item.activo ? "Activo" : "Inactivo"}</span><div className="schedule-actions"><button type="button" className="mini" onClick={() => setEditing(item)}><FiEdit3 /> Editar</button><button type="button" className="mini" onClick={() => changeMutation.mutate({ action: "toggle", item })} disabled={changeMutation.isPending}>{item.activo ? <FiToggleRight /> : <FiToggleLeft />}{item.activo ? "Desactivar" : "Activar"}</button><button type="button" className="mini danger" onClick={() => setScheduleToDelete(item)} disabled={changeMutation.isPending}><FiTrash2 /> Eliminar</button></div></div>)}{!result.data.length ? <p className="empty-schedules">No hay horarios para estos filtros.</p> : null}</div>
     <footer className="schedule-pagination"><span>Mostrando {result.pagination.from}–{result.pagination.to} de {result.pagination.total}</span><div><button type="button" disabled={!result.pagination.hasPreviousPage} onClick={() => setPage((value) => value - 1)}><FiChevronLeft /></button><b>{result.pagination.page} / {result.pagination.totalPages}</b><button type="button" disabled={!result.pagination.hasNextPage} onClick={() => setPage((value) => value + 1)}><FiChevronRight /></button></div></footer>
-  </section>;
+  </section>
+  <ConfirmDialog
+    open={Boolean(scheduleToDelete)}
+    title={`¿Eliminar el horario ${scheduleToDelete?.nombre || ""}?`}
+    description="Esta acción elimina el turno del directorio. Los clientes asociados deberán recibir un nuevo horario para continuar registrando su asistencia correctamente."
+    confirmLabel="Eliminar horario"
+    pending={changeMutation.isPending}
+    onCancel={() => setScheduleToDelete(null)}
+    onConfirm={() => changeMutation.mutate({ action: "delete", item: scheduleToDelete })}
+  />
+  </>;
 }
 
 export function CrmAttendanceWorkspace({

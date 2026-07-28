@@ -1,22 +1,34 @@
 import styled from "styled-components";
 export function SwitchHamburguesa({ state, setstate }) {
   return (
-    <Container onClick={setstate}>
-      <label className={state ? "toggle active" : "toggle"} onClick={setstate}>
-        <div className="bars" id="bar1" onClick={setstate}></div>
-        <div className="bars" id="bar2" onClick={setstate}></div>
-        <div className="bars" id="bar3" onClick={setstate}></div>
-      </label>
+    <Container
+      type="button"
+      aria-label={state ? "Cerrar menú" : "Abrir menú"}
+      aria-expanded={state}
+      onClick={setstate}
+    >
+      <span className={state ? "toggle active" : "toggle"}>
+        <span className="bars" id="bar1"></span>
+        <span className="bars" id="bar2"></span>
+        <span className="bars" id="bar3"></span>
+      </span>
     </Container>
   );
 }
-const Container = styled.div`
-position:fixed;
+const Container = styled.button`
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid ${({ theme }) => theme.color2};
+  border-radius: 12px;
+  background: ${({ theme }) => theme.bgtotal};
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.16);
   display: flex;
-  articule {
-    display: flex;
-  }
-z-index:101;
+  align-items: center;
+  justify-content: center;
+  color: ${({ theme }) => theme.text};
+  cursor: pointer;
+  z-index: 1101;
   .toggle {
     position: relative;
     width: 40px;
@@ -28,7 +40,7 @@ z-index:101;
     justify-content: center;
     gap: 10px;
     transition-duration: 0.3s;
-    transform: scale(0.55);
+    transform: scale(0.48);
     &.active {
       .bars {
         margin-left: 13px;

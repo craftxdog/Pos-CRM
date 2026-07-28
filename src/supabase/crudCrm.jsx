@@ -263,6 +263,35 @@ export async function InsertarCrmPlan(payload) {
   return data;
 }
 
+export async function EditarCrmPlan({
+  id,
+  id_empresa,
+  nombre,
+  descripcion,
+  precio,
+  periodicidad,
+  duracion_dias,
+  activo,
+}) {
+  const { data, error } = await supabase
+    .from("crm_planes")
+    .update({
+      ...(nombre !== undefined ? { nombre } : {}),
+      ...(descripcion !== undefined ? { descripcion } : {}),
+      ...(precio !== undefined ? { precio } : {}),
+      ...(periodicidad !== undefined ? { periodicidad } : {}),
+      ...(duracion_dias !== undefined ? { duracion_dias } : {}),
+      ...(activo !== undefined ? { activo } : {}),
+    })
+    .eq("id", Number(id))
+    .eq("id_empresa", Number(id_empresa))
+    .select()
+    .maybeSingle();
+  throwIfError(error);
+  if (!data) throw new Error("El plan no existe o ya no tienes acceso a él");
+  return data;
+}
+
 export async function InsertarCrmHorario(payload) {
   const { data, error } = await supabase
     .from("crm_horarios")

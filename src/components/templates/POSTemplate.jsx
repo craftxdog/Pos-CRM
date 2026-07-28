@@ -58,17 +58,20 @@ export function POSTemplate() {
   );
 }
 const Container = styled.div`
-  height: calc(100vh - 60px);
+  min-height: 100vh;
+  min-height: 100dvh;
   padding: 10px;
   padding-top: 50px;
   display: grid;
   gap: 10px;
   grid-template:
-    "header" 220px
+    "header" auto
     "main" auto;
 
   animation: ${blur_in} 0.5s linear both;
   @media ${Device.desktop} {
+    height: calc(100vh - 60px);
+    min-height: 0;
     grid-template:
       "header header" 140px
       "main main"
@@ -83,10 +86,11 @@ const Main = styled.div`
   flex-direction: column;
   width: 100%;
   position: relative;
-  overflow: hidden;
+  overflow: visible;
   gap: 10px;
 
   @media ${Device.desktop} {
     flex-direction: row;
+    overflow: hidden;
   }
 `;

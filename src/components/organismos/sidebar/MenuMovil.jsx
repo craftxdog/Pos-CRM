@@ -14,10 +14,12 @@ export const MenuMovil = ({ setState }) => {
   ];
 
   return (
-    <Container>
-        
-      <Main $isopen={state.toString()}>
-        <Container $isopen={state.toString()} className={state ? "active" : ""}>
+    <Overlay onClick={setState}>
+      <Container
+        $isopen={state.toString()}
+        className={state ? "active" : ""}
+        onClick={(event) => event.stopPropagation()}
+      >
           <div className="Logocontent">
             <div className="imgcontent">
               <img src={v.logo} />
@@ -73,19 +75,26 @@ export const MenuMovil = ({ setState }) => {
             </div>
           ))}
           <ToggleTema />
-        </Container>
-      </Main>
-    </Container>
+      </Container>
+    </Overlay>
   );
 };
+const Overlay = styled.div`
+  position: fixed;
+  inset: 0;
+  z-index: 1050;
+  display: flex;
+  background: rgba(15, 23, 42, 0.42);
+  backdrop-filter: blur(3px);
+`;
 const Container = styled.div`
   background: ${({ theme }) => theme.bgtotal};
   color: ${(props) => props.theme.text};
-  position: fixed;
-
-  z-index: 100;
-  height: 100%;
-  width: 100%;
+  width: min(340px, calc(100vw - 28px));
+  height: 100vh;
+  height: 100dvh;
+  padding: calc(64px + env(safe-area-inset-top)) 10px
+    max(20px, env(safe-area-inset-bottom));
   transition: 0.1s ease-in-out;
   overflow-y: auto;
   overflow-x: hidden;
@@ -192,29 +201,6 @@ const Container = styled.div`
       color: ${(props) => props.theme.color1};
       font-weight: 600;
     }
-  }
-`;
-const Main = styled.div`
-
-  .Sidebarbutton {
-    position: fixed;
-    top: 70px;
-    left: 68px;
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    background: ${(props) => props.theme.bgtgderecha};
-    box-shadow: 0 0 4px ${(props) => props.theme.bg3},
-      0 0 7px ${(props) => props.theme.bg};
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: all 0.2s;
-    z-index: 3;
-    transform: ${({ $isopen }) =>
-      $isopen === "true" ? `translateX(173px) rotate(3.142rad)` : `initial`};
-    color: ${(props) => props.theme.text};
   }
 `;
 const Divider = styled.div`

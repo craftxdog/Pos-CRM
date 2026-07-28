@@ -149,21 +149,25 @@ export function LoginTemplate() {
   );
 }
 const Container = styled.div`
-  height: 100vh;
+  min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   justify-content: center;
   align-items: center;
   text-align: center;
   flex-direction: column;
-  padding: 0 10px;
+  padding: max(18px, env(safe-area-inset-top)) 12px
+    max(12px, env(safe-area-inset-bottom));
   color: ${({ theme }) => theme.text};
   .card {
     display: flex;
     flex-direction: column;
     justify-content: center;
-    height: 100%;
+    flex: 1;
+    min-height: 0;
     width: 100%;
-    margin: 20px;
+    max-width: 430px;
+    margin: 0 auto;
     @media ${Device.tablet} {
       width: 400px;
     }
@@ -178,12 +182,14 @@ const ContentLogo = styled.section`
   display: flex;
   align-items: center;
   justify-content: center;
-  margin: 20px;
+  margin: 12px;
+  gap: 8px;
   span {
     font-weight: 700;
   }
   img {
-    width: 10%;
+    width: 40px;
+    flex: none;
   }
 `;
 const ContentModos = styled.div`

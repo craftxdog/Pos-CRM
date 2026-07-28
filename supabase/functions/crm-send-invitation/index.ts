@@ -3,6 +3,7 @@ import { withSupabase } from "@supabase/server";
 import nodemailer from "nodemailer";
 // @ts-types="npm:@types/nunjucks@3.2.6"
 import nunjucks from "nunjucks";
+import { resolveAppSiteUrl } from "../_shared/app-site-url.js";
 
 const ADMIN_ROLES = new Set(["superadmin", "administrador", "admin"]);
 const EMAIL_PATTERN = /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i;
@@ -146,12 +147,9 @@ export default {
         throw new Error("El plan seleccionado no existe o está inactivo");
       }
 
-      const configuredSiteUrl = Deno.env.get("APP_SITE_URL")?.trim();
-      const requestOrigin = request.headers.get("origin")?.trim();
-      const siteUrl = configuredSiteUrl || requestOrigin;
-      if (!siteUrl || !/^https?:\/\//i.test(siteUrl)) {
-        throw new Error("Falta configurar APP_SITE_URL");
-      }
+      const siteUrl = resolveAppSiteUrl(Deno.env.get("APP_SITE_URL"), {
+        allowLocal: Deno.env.get("APP_ENV") === "development",
+      });
       const { data: existing, error: existingError } = await ctx.supabaseAdmin
         .from("crm_invitaciones")
         .select("id, intentos_email")

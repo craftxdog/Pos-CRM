@@ -73,6 +73,10 @@ export function Layout({ children }) {
 const Container = styled.main`
   display: grid;
   grid-template-columns: minmax(0, 1fr);
+  width: 100%;
+  min-height: 100vh;
+  min-height: 100dvh;
+  overflow-x: clip;
   transition: 0.1s ease-in-out;
   color: ${({ theme }) => theme.text};
   .contentSidebar {
@@ -80,8 +84,10 @@ const Container = styled.main`
     /* background-color: rgba(78, 45, 78, 0.5); */
   }
   .contentMenuhambur {
-    position: absolute;
-    /* background-color: rgba(53, 219, 11, 0.5); */
+    position: fixed;
+    top: max(8px, env(safe-area-inset-top));
+    left: max(8px, env(safe-area-inset-left));
+    z-index: 1100;
   }
   @media ${Device.tablet} {
     grid-template-columns: 88px minmax(0, 1fr);
@@ -100,7 +106,11 @@ const Containerbody = styled.section`
   /* background-color: rgba(231, 13, 136, 0.5); */
   grid-column: 1;
   min-width: 0;
+  min-height: 100vh;
+  min-height: 100dvh;
   width: 100%;
+  max-width: 100%;
+  overflow-x: clip;
 
   @media ${Device.tablet} {
     margin-top: 0;

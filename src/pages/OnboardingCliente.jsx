@@ -111,9 +111,10 @@ export function OnboardingCliente() {
 
 const Container = styled.main`
   min-height: 100vh;
+  min-height: 100dvh;
   display: grid;
   place-items: center;
-  padding: 20px;
+  padding: clamp(12px, 4vw, 28px);
   background: ${({ theme }) => theme.bgtotal};
   color: ${({ theme }) => theme.text};
 
@@ -122,7 +123,7 @@ const Container = styled.main`
     border: 1px solid ${({ theme }) => theme.color2};
     border-radius: 8px;
     background: ${({ theme }) => theme.bgcards};
-    padding: 24px;
+    padding: clamp(18px, 5vw, 28px);
   }
 
   span {
@@ -137,6 +138,7 @@ const Container = styled.main`
 
   p {
     color: ${({ theme }) => theme.colorSubtitle};
+    overflow-wrap: anywhere;
   }
 
   form {

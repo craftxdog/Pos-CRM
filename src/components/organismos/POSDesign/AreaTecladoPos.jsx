@@ -62,9 +62,9 @@ const Container = styled.div`
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  position: absolute;
-  bottom: 10px;
-  width: calc(100% - 5px);
+  position: relative;
+  bottom: initial;
+  width: 100%;
   border-radius: 15px;
   @media ${Device.desktop} {
     position: relative;

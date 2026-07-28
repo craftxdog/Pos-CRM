@@ -393,8 +393,10 @@ IngresoCobro.displayName = "IngresoCobro";
 const Container = styled.div`
   position: relative;
   box-sizing: border-box;
-  width: 400px;
-  padding: 20px;
+  width: min(400px, calc(100vw - 28px));
+  max-height: calc(100dvh - 120px);
+  overflow-y: auto;
+  padding: clamp(14px, 4vw, 20px);
   border-radius: 10px;
   box-shadow: 2px 2px 15px 0px #e2e2e2;
   gap: 12px;
@@ -405,7 +407,7 @@ const Container = styled.div`
   min-height: 100%;
   align-items: center;
   justify-content: center;
-  font-size: 22px;
+  font-size: clamp(17px, 5vw, 22px);
 
   input {
     color: #000 !important;
@@ -417,7 +419,7 @@ const Container = styled.div`
     position: absolute;
     left: 5px;
     height: 6px;
-    width: 380px;
+    width: calc(100% - 10px);
   }
   &:before {
     top: -5px;

@@ -36,11 +36,14 @@ export const SucursalesCajasTemplate = () => {
   );
 };
 const Container = styled.div`
-  height: 100vh;
+  min-height: 100vh;
+  min-height: 100dvh;
+  width: 100%;
+  min-width: 0;
   display: grid;
   position: relative;
   grid-template:
-    "area1" 300px
+    "area1" minmax(210px, auto)
     "area2" auto;
   .area1 {
     grid-area: area1;
@@ -52,6 +55,7 @@ const Container = styled.div`
     grid-area: area2;
     /* background-color: rgba(237, 7, 221, 0.14); */
     padding-bottom: 20px;
+    min-width: 0;
   }
 `;
 const Header = styled.div`
@@ -59,9 +63,14 @@ const Header = styled.div`
   text-align: center;
   justify-content: center;
   margin: auto;
+  padding: 62px 16px 24px;
   display: flex;
   flex-direction: column;
   gap: 20px;
+
+  @media (min-width: 768px) {
+    padding-top: 24px;
+  }
 `;
 const Title = styled.h3`
   font-size: 25px;

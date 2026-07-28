@@ -278,9 +278,10 @@ const Header = styled.div`
     .area1 {
       grid-area: area1;
       display: flex;
-      gap: 30px;
+      gap: 8px;
       .contentCantidad {
-        width: 150px;
+        width: clamp(88px, 28vw, 150px);
+        flex: none;
       }
       /* background-color: #ff00ae; */
     }
@@ -312,6 +313,15 @@ const ContentSucursal = styled.section`
   height: 45px;
   border-bottom: 1px solid ${({ theme }) => theme.color2};
   gap:8px;
+  padding: 0 56px;
+  white-space: nowrap;
+  overflow: hidden;
+
+  > div {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
 `;
 const Contentuser = styled.div`
   display: flex;

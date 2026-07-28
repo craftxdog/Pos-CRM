@@ -301,7 +301,7 @@ const AreaDetalleventa = styled.section`
   margin-top: 10px;
   flex-direction: column;
   gap: 10px;
-  max-height:calc(100vh - 500px);
+  max-height: min(52dvh, 480px);
   overflow-y: auto; /* Activa el scroll solo en Y */
   overflow-x: hidden; /* Oculta el scroll en X */
       
