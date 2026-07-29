@@ -1,26 +1,230 @@
-import { useEffect, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { FiAlertCircle, FiAlertTriangle, FiChevronLeft, FiChevronRight, FiCreditCard, FiDollarSign, FiFileText, FiMail, FiPrinter, FiRefreshCw, FiSearch } from "react-icons/fi";
+import {
+  FiAlertCircle,
+  FiAlertTriangle,
+  FiCheck,
+  FiChevronDown,
+  FiChevronLeft,
+  FiChevronRight,
+  FiCreditCard,
+  FiDollarSign,
+  FiFileText,
+  FiMail,
+  FiPrinter,
+  FiRefreshCw,
+  FiSearch,
+  FiX,
+} from "react-icons/fi";
 import styled from "styled-components";
 import { toast } from "sonner";
 import FacturaCliente from "../../../reports/FacturaCliente";
 import ReporteCobrosCrm from "../../../reports/ReporteCobrosCrm";
 import { v } from "../../../styles/variables";
 
-const methods = [{ value: "efectivo", label: "Efectivo" }, { value: "transferencia", label: "Transferencia" }, { value: "tarjeta", label: "Tarjeta" }, { value: "deposito", label: "Depósito" }, { value: "otro", label: "Otro" }];
-const todayMonth = () => new Date().toISOString().slice(0, 7);
-const nameOf = (item) => [item?.nombres, item?.apellidos].filter(Boolean).join(" ") || "Cliente";
-const dateOf = (value) => value ? new Intl.DateTimeFormat("es-NI", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value)) : "—";
-const money = (value, code, locale) => { try { return new Intl.NumberFormat(locale || "es-NI", { style: "currency", currency: code || "USD" }).format(Number(value || 0)); } catch { return `${code || "USD"} ${Number(value || 0).toFixed(2)}`; } };
+const methods = [
+  { value: "efectivo", label: "Efectivo" },
+  { value: "transferencia", label: "Transferencia" },
+  { value: "tarjeta", label: "Tarjeta" },
+  { value: "deposito", label: "Depósito" },
+  { value: "otro", label: "Otro" },
+];
 
-function PaymentFields({ method, total, received, setReceived, currency, locale }) {
+const todayMonth = () => new Date().toISOString().slice(0, 7);
+const nameOf = (item) =>
+  [item?.nombres, item?.apellidos].filter(Boolean).join(" ") || "Cliente";
+const normalize = (value) =>
+  String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+const dateOf = (value) =>
+  value
+    ? new Intl.DateTimeFormat("es-NI", {
+        dateStyle: "medium",
+        timeStyle: "short",
+      }).format(new Date(value))
+    : "—";
+
+function money(value, code, locale) {
+  try {
+    return new Intl.NumberFormat(locale || "es-NI", {
+      style: "currency",
+      currency: code || "USD",
+    }).format(Number(value || 0));
+  } catch {
+    return `${code || "USD"} ${Number(value || 0).toFixed(2)}`;
+  }
+}
+
+function SearchPicker({
+  items,
+  value,
+  onChange,
+  itemLabel,
+  itemDetail,
+  searchText,
+  placeholder,
+  emptyText = "No hay coincidencias.",
+}) {
+  const id = useId();
+  const rootRef = useRef(null);
+  const preserveQueryOnClearRef = useRef(false);
+  const itemLabelRef = useRef(itemLabel);
+  itemLabelRef.current = itemLabel;
+  const selected = items.find((item) => String(item.id) === String(value));
+  const [query, setQuery] = useState("");
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    if (selected) {
+      setQuery(itemLabelRef.current(selected));
+    } else if (!value && !preserveQueryOnClearRef.current) {
+      setQuery("");
+    }
+    preserveQueryOnClearRef.current = false;
+  }, [value, selected]);
+
+  useEffect(() => {
+    const close = (event) => {
+      if (!rootRef.current?.contains(event.target)) setOpen(false);
+    };
+    document.addEventListener("pointerdown", close);
+    return () => document.removeEventListener("pointerdown", close);
+  }, []);
+
+  const matches = useMemo(() => {
+    const term = normalize(selected && query === itemLabel(selected) ? "" : query);
+    return (term
+      ? items.filter((item) => normalize(searchText(item)).includes(term))
+      : items
+    ).slice(0, 10);
+  }, [items, query, searchText, selected, itemLabel]);
+
+  const choose = (item) => {
+    onChange(String(item.id), item);
+    setQuery(itemLabel(item));
+    setOpen(false);
+  };
+
+  return (
+    <div className="search-picker" ref={rootRef}>
+      <div className="picker-control">
+        <FiSearch />
+        <input
+          id={id}
+          type="search"
+          role="combobox"
+          aria-expanded={open}
+          aria-controls={`${id}-options`}
+          autoComplete="off"
+          value={query}
+          placeholder={placeholder}
+          onFocus={() => setOpen(true)}
+          onChange={(event) => {
+            setQuery(event.target.value);
+            if (value) {
+              preserveQueryOnClearRef.current = true;
+              onChange("", null);
+            }
+            setOpen(true);
+          }}
+        />
+        {value ? (
+          <button
+            type="button"
+            className="picker-clear"
+            aria-label="Limpiar selección"
+            onClick={() => {
+              onChange("", null);
+              setQuery("");
+              setOpen(true);
+            }}
+          >
+            <FiX />
+          </button>
+        ) : (
+          <FiChevronDown />
+        )}
+      </div>
+      {open ? (
+        <div className="picker-options" id={`${id}-options`} role="listbox">
+          <div className="picker-summary">
+            <span>{query ? "Resultados" : "Opciones recientes"}</span>
+            <small>Máximo 10 visibles</small>
+          </div>
+          {matches.map((item) => (
+            <button
+              type="button"
+              role="option"
+              aria-selected={String(item.id) === String(value)}
+              key={item.id}
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => choose(item)}
+            >
+              <span>
+                <b>{itemLabel(item)}</b>
+                <small>{itemDetail(item)}</small>
+              </span>
+              {String(item.id) === String(value) ? <FiCheck /> : null}
+            </button>
+          ))}
+          {!matches.length ? <p>{emptyText}</p> : null}
+          {items.length > matches.length ? (
+            <small className="picker-hint">
+              Escribe nombre, correo, teléfono o plan para acotar.
+            </small>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function PaymentFields({
+  method,
+  total,
+  received,
+  setReceived,
+  currency,
+  locale,
+}) {
   const cash = method === "efectivo";
   const change = Math.max(0, Number(received || 0) - Number(total || 0));
-  return <>
-    {cash ? <label>Recibido en caja<input name="monto_recibido" type="number" min={total || 0} step="0.01" value={received} onChange={(event) => setReceived(event.target.value)} required /></label> : null}
-    {["transferencia", "deposito"].includes(method) ? <label>Referencia bancaria<input name="referencia_pago" placeholder="N.º de operación" required /></label> : null}
-    {cash ? <div className="change"><span>Vuelto a entregar</span><strong>{money(change, currency, locale)}</strong></div> : null}
-  </>;
+  return (
+    <>
+      {cash ? (
+        <label>
+          Recibido en caja
+          <input
+            name="monto_recibido"
+            type="number"
+            min={total || 0}
+            step="0.01"
+            value={received}
+            onChange={(event) => setReceived(event.target.value)}
+            required
+          />
+        </label>
+      ) : null}
+      {["transferencia", "deposito"].includes(method) ? (
+        <label>
+          Referencia bancaria
+          <input
+            name="referencia_pago"
+            placeholder="N.º de operación"
+            required
+          />
+        </label>
+      ) : null}
+      {cash ? (
+        <div className="change">
+          <span>Vuelto a entregar</span>
+          <strong>{money(change, currency, locale)}</strong>
+        </div>
+      ) : null}
+    </>
+  );
 }
 
 function receiptPayload(item) {
@@ -32,22 +236,65 @@ function receiptPayload(item) {
       moneda: item.moneda,
       metodo_pago: item.metodo_pago,
       monto_recibido: item.monto_recibido,
-      vuelto: item.vuelto,
+      cambio: item.cambio,
       fecha_pago: item.fecha_pago,
       fecha_vencimiento: item.fecha_vencimiento,
       referencia_pago: item.referencia_pago,
       notas: item.notas,
       estado: item.estado,
+      total_plan: item.total_plan,
+      abonado_acumulado: item.abonado_acumulado,
+      saldo_pendiente: item.saldo_pendiente,
+      aplica_a_saldo_plan: item.aplica_a_saldo_plan,
     },
-    cliente: { nombres: item.cliente_nombres, apellidos: item.cliente_apellidos, email: item.cliente_email, telefono: item.cliente_telefono },
-    suscripcion: { fecha_inicio: item.fecha_inicio, fecha_fin: item.fecha_fin },
-    plan: { nombre: item.plan_nombre, descripcion: item.plan_descripcion },
+    cliente: {
+      nombres: item.cliente_nombres,
+      apellidos: item.cliente_apellidos,
+      email: item.cliente_email,
+      telefono: item.cliente_telefono,
+    },
+    suscripcion: {
+      fecha_inicio: item.periodo_inicio || item.suscripcion_inicio,
+      fecha_fin: item.periodo_fin || item.suscripcion_fin,
+    },
+    plan: {
+      nombre: item.plan_nombre,
+      descripcion: item.plan_descripcion,
+    },
   };
 }
 
-export function CrmPaymentsWorkspace({ crm, dataempresa, initialClient = null, onClientHandled }) {
+function subscriptionAccount(subscription, payments) {
+  const total = Number(
+    subscription?.precio_pactado || subscription?.crm_planes?.precio || 0
+  );
+  if (!subscription) return { total: 0, paid: 0, balance: 0 };
+  const paid = payments
+    .filter(
+      (payment) =>
+        String(payment.id_suscripcion) === String(subscription.id) &&
+        payment.estado === "pagado" &&
+        payment.aplica_a_saldo_plan &&
+        payment.periodo_inicio === subscription.fecha_inicio &&
+        payment.periodo_fin === subscription.fecha_fin
+    )
+    .reduce((sum, payment) => sum + Number(payment.monto || 0), 0);
+  return {
+    total,
+    paid: Math.min(total, paid),
+    balance: Math.max(0, total - paid),
+  };
+}
+
+export function CrmPaymentsWorkspace({
+  crm,
+  dataempresa,
+  initialClient = null,
+  onClientHandled,
+}) {
   const queryClient = useQueryClient();
   const [subscriptionId, setSubscriptionId] = useState("");
+  const [installmentAmount, setInstallmentAmount] = useState("");
   const [invoiceMethod, setInvoiceMethod] = useState("efectivo");
   const [invoiceReceived, setInvoiceReceived] = useState("");
   const [directClientId, setDirectClientId] = useState("");
@@ -65,46 +312,1373 @@ export function CrmPaymentsWorkspace({ crm, dataempresa, initialClient = null, o
     if (!initialClient?.id) return;
     const amount = Number(initialClient.saldo_vencido || 0);
     setDirectClientId(String(initialClient.id));
-    setDirectSubscriptionId(initialClient.id_suscripcion ? String(initialClient.id_suscripcion) : "");
-    if (amount > 0) { setDirectAmount(String(amount)); setDirectReceived(String(amount)); }
+    setDirectSubscriptionId(
+      initialClient.id_suscripcion
+        ? String(initialClient.id_suscripcion)
+        : ""
+    );
+    if (amount > 0) {
+      setDirectAmount(String(amount));
+      setDirectReceived(String(amount));
+    }
   }, [initialClient]);
-  useEffect(() => setHistoryPage(1), [historySearch, historyMethod, month]);
 
-  const invoiceSubscription = crm.suscripciones.find((item) => String(item.id) === String(subscriptionId));
-  const invoiceTotal = Number(invoiceSubscription?.precio_pactado || invoiceSubscription?.crm_planes?.precio || 0);
-  const directSubscriptions = crm.suscripciones.filter((item) => !directClientId || String(item.id_cliente_crm) === String(directClientId));
-  const focusClient = initialClient?.id ? initialClient : crm.clientes.find((item) => String(item.id) === String(directClientId));
+  useEffect(
+    () => setHistoryPage(1),
+    [historySearch, historyMethod, month]
+  );
+
+  const availableSubscriptions = useMemo(
+    () => crm.suscripciones.filter((item) => item.estado !== "cancelada"),
+    [crm.suscripciones]
+  );
+  const invoiceSubscription = availableSubscriptions.find(
+    (item) => String(item.id) === String(subscriptionId)
+  );
+  const invoiceAccount = useMemo(
+    () => subscriptionAccount(invoiceSubscription, crm.pagos),
+    [invoiceSubscription, crm.pagos]
+  );
+  const directSubscriptions = crm.suscripciones.filter(
+    (item) =>
+      !directClientId ||
+      String(item.id_cliente_crm) === String(directClientId)
+  );
+  const focusClient = initialClient?.id
+    ? initialClient
+    : crm.clientes.find(
+        (item) => String(item.id) === String(directClientId)
+      );
   const debt = Number(focusClient?.saldo_vencido || 0);
-  const reportQuery = useQuery({ queryKey: ["crm-monthly-income", dataempresa?.id, month], queryFn: () => crm.mostrarReporteIngresosMensual({ mes: `${month}-01` }), enabled: Boolean(dataempresa?.id && month), refetchOnWindowFocus: false });
-  const historyQuery = useQuery({ queryKey: ["crm-payment-history", dataempresa?.id, historyPage, historySearch, historyMethod, month], queryFn: () => crm.mostrarHistorialCobrosPage({ id_empresa: dataempresa.id, page: historyPage, pageSize: 10, search: historySearch, method: historyMethod, month }), enabled: Boolean(dataempresa?.id), placeholderData: (previous) => previous, refetchOnWindowFocus: false });
-  const monthlyRows = reportQuery.data || [];
-  const history = historyQuery.data || { data: [], pagination: { page: 1, totalPages: 1, total: 0, from: 0, to: 0, hasPreviousPage: false, hasNextPage: false } };
-  const monthlyTotal = monthlyRows.reduce((sum, item) => sum + Number(item.total_ingresos || 0), 0);
-  const monthlyPayments = monthlyRows.reduce((sum, item) => sum + Number(item.cantidad_pagos || 0), 0);
-  const invalidate = () => ["crm-data", "crm-clients-directory", "crm-subscriptions", "crm-monthly-income", "crm-payment-history"].forEach((key) => queryClient.invalidateQueries({ queryKey: [key] }));
-  const finish = async (result, message) => { toast.success(message); invalidate(); if (result?.pago) await FacturaCliente("print", { dataempresa, pago: result.pago, cliente: result.cliente, suscripcion: result.suscripcion, plan: result.plan }); };
-  const invoiceMutation = useMutation({ mutationFn: (payload) => crm.cobrarSuscripcionPos(payload), onSuccess: (data) => { void finish(data, "Cobro registrado e impresión preparada"); setSubscriptionId(""); setInvoiceReceived(""); }, onError: (error) => toast.error(error.message) });
-  const directMutation = useMutation({ mutationFn: (payload) => crm.registrarPagoPos(payload), onSuccess: (data) => { void finish(data, "Pago registrado e impresión preparada"); setDirectAmount(""); setDirectReceived(""); setDirectSubscriptionId(""); onClientHandled?.(); }, onError: (error) => toast.error(error.message) });
-  const debtMutation = useMutation({ mutationFn: (payload) => crm.cobrarMoraPos(payload), onSuccess: (data) => { void finish(data, `${data.facturas_liquidadas} documento(s) vencido(s) saldados`); onClientHandled?.(); }, onError: (error) => toast.error(error.message) });
-  const printReport = useMutation({ mutationFn: () => crm.mostrarHistorialCobrosPage({ id_empresa: dataempresa.id, page: 1, pageSize: 50, month }), onSuccess: ({ data }) => { void ReporteCobrosCrm("print", { dataempresa, month, rows: data, monthlyRows }); }, onError: (error) => toast.error(error.message) });
-  const emailReceipt = useMutation({ mutationFn: (item) => crm.enviarComprobanteCobro({ id_empresa: dataempresa.id, comprobante_id: item.id }), onSuccess: (data) => toast.success(`Comprobante enviado a ${data.recipient}`), onError: (error) => toast.error(error.message) });
-  const reprint = (item) => { void FacturaCliente("print", { dataempresa, ...receiptPayload(item) }); };
+  const installment = Number(installmentAmount || 0);
 
-  return <Container>
-    <header className="hero"><div><span className="eyebrow"><FiCreditCard /> Caja CRM</span><h2>Cobros con lógica de POS</h2><p>El total, efectivo recibido, vuelto y referencias quedan registrados en el comprobante y el cierre mensual.</p></div></header>
-    <section className="metric-grid"><article><span>Ingresos del mes</span><strong>{money(monthlyTotal, dataempresa?.currency, dataempresa?.iso)}</strong><small>{month}</small></article><article><span>Cobros registrados</span><strong>{monthlyPayments}</strong><small>Pagos efectivamente cobrados</small></article><article><span>Vuelto entregado</span><strong>{money(monthlyRows.reduce((sum, item) => sum + Number(item.total_vuelto || 0), 0), dataempresa?.currency, dataempresa?.iso)}</strong><small>Control de efectivo</small></article></section>
-    {focusClient?.id ? <section className={`customer-checkout ${debt > 0 ? "has-debt" : ""}`}><div><span>{debt > 0 ? <FiAlertTriangle /> : <FiCreditCard />}</span><div><b>{nameOf(focusClient)}</b><small>{focusClient.plan_nombre || focusClient.crm_planes?.nombre || "Cliente seleccionado"} · {focusClient.email || "sin correo"}</small></div></div><div className="checkout-total"><small>{debt > 0 ? "Saldo vencido por cobrar" : "Listo para cobrar"}</small><strong>{debt > 0 ? money(debt, dataempresa?.currency, dataempresa?.iso) : "Sin mora pendiente"}</strong></div>{debt > 0 ? <><select aria-label="Método para saldar mora" value={directMethod} onChange={(event) => setDirectMethod(event.target.value)}>{methods.map((method) => <option key={method.value} value={method.value}>{method.label}</option>)}</select>{["transferencia", "deposito"].includes(directMethod) ? <input aria-label="Referencia de mora" value={debtReference} onChange={(event) => setDebtReference(event.target.value)} placeholder="Referencia" /> : null}<button type="button" onClick={() => debtMutation.mutate({ id_cliente_crm: focusClient.id, metodo_pago: directMethod, monto_recibido: directMethod === "efectivo" ? (directReceived || debt) : null, referencia_pago: debtReference, notas: "Pago de mora desde directorio" })} disabled={debtMutation.isPending || (directMethod === "efectivo" && Number(directReceived || debt) < debt) || (["transferencia", "deposito"].includes(directMethod) && !debtReference.trim())}><FiPrinter /> {debtMutation.isPending ? "Cobrando…" : "Saldar mora e imprimir"}</button></> : null}</section> : null}
-    <section className="payment-guide"><article><span><FiFileText /></span><div><b>Facturar una suscripción</b><p>Usa el plan vigente: el importe se carga automáticamente y el cobro queda ligado a su periodo y membresía.</p></div></article><article><span><FiDollarSign /></span><div><b>Cobro directo</b><p>Registra servicios, abonos o ajustes con un monto manual. Puedes asociarlo a una suscripción solo como referencia; no la renueva.</p></div></article></section>
-    <section className="workspace">
-      <article className="panel invoice"><header><span><FiFileText /></span><div><h3>Facturar una suscripción</h3><p>Selecciona la membresía y cobra como en el POS.</p></div></header><form onSubmit={(event) => { event.preventDefault(); invoiceMutation.mutate({ id_suscripcion: subscriptionId, metodo_pago: invoiceMethod, monto_recibido: invoiceMethod === "efectivo" ? invoiceReceived : null, referencia_pago: new FormData(event.currentTarget).get("referencia_pago"), notas: new FormData(event.currentTarget).get("notas") }); }}><label className="wide">Cliente y suscripción<select value={subscriptionId} onChange={(event) => { setSubscriptionId(event.target.value); const value = crm.suscripciones.find((item) => String(item.id) === event.target.value); setInvoiceReceived(value ? String(Number(value.precio_pactado || value.crm_planes?.precio || 0)) : ""); }} required><option value="">Selecciona una suscripción</option>{crm.suscripciones.filter((item) => item.estado !== "cancelada").map((item) => <option key={item.id} value={item.id}>{nameOf(item.clientes_crm)} · {item.crm_planes?.nombre} · {money(item.precio_pactado, dataempresa?.currency, dataempresa?.iso)}</option>)}</select></label><div className="total"><span>Total a cobrar</span><strong>{money(invoiceTotal, dataempresa?.currency, dataempresa?.iso)}</strong></div><label>Método<select value={invoiceMethod} onChange={(event) => setInvoiceMethod(event.target.value)}>{methods.map((method) => <option key={method.value} value={method.value}>{method.label}</option>)}</select></label><PaymentFields method={invoiceMethod} total={invoiceTotal} received={invoiceReceived} setReceived={setInvoiceReceived} currency={dataempresa?.currency} locale={dataempresa?.iso} /><label className="wide">Notas<input name="notas" placeholder="Observación opcional" /></label><button className="wide" disabled={invoiceMutation.isPending || !subscriptionId || (invoiceMethod === "efectivo" && Number(invoiceReceived || 0) < invoiceTotal)}><FiPrinter /> {invoiceMutation.isPending ? "Cobrando…" : "Cobrar e imprimir"}</button></form></article>
-      <article className="panel direct"><header><span><FiDollarSign /></span><div><h3>Cobro directo</h3><p>Abonos o servicios fuera de una suscripción.</p></div></header><form onSubmit={(event) => { event.preventDefault(); directMutation.mutate({ id_cliente_crm: directClientId, id_suscripcion: directSubscriptionId || null, monto: directAmount, metodo_pago: directMethod, monto_recibido: directMethod === "efectivo" ? directReceived : null, referencia_pago: new FormData(event.currentTarget).get("referencia_pago"), fecha_vencimiento: new FormData(event.currentTarget).get("fecha_vencimiento"), notas: new FormData(event.currentTarget).get("notas") }); }}><label className="wide">Cliente<select value={directClientId} onChange={(event) => { setDirectClientId(event.target.value); setDirectSubscriptionId(""); }} required><option value="">Selecciona un cliente</option>{crm.clientes.map((client) => <option key={client.id} value={client.id}>{nameOf(client)}</option>)}</select></label><label>Suscripción (opcional)<select value={directSubscriptionId} onChange={(event) => { setDirectSubscriptionId(event.target.value); const item = crm.suscripciones.find((subscription) => String(subscription.id) === event.target.value); if (item) { const total = Number(item.precio_pactado || item.crm_planes?.precio || 0); setDirectAmount(String(total)); setDirectReceived(String(total)); } }}><option value="">Sin suscripción</option>{directSubscriptions.map((item) => <option key={item.id} value={item.id}>{item.crm_planes?.nombre || `Suscripción #${item.id}`}</option>)}</select></label><label>Monto a cobrar<input type="number" min="0.01" step="0.01" value={directAmount} onChange={(event) => { setDirectAmount(event.target.value); if (directMethod === "efectivo" && !directReceived) setDirectReceived(event.target.value); }} required /></label><label>Método<select value={directMethod} onChange={(event) => setDirectMethod(event.target.value)}>{methods.map((method) => <option key={method.value} value={method.value}>{method.label}</option>)}</select></label><PaymentFields method={directMethod} total={Number(directAmount || 0)} received={directReceived} setReceived={setDirectReceived} currency={dataempresa?.currency} locale={dataempresa?.iso} /><label>Vencimiento<input name="fecha_vencimiento" type="date" /></label><label className="wide">Notas<input name="notas" placeholder="Detalle u observación" /></label><button className="wide" disabled={directMutation.isPending || !directClientId || Number(directAmount || 0) <= 0 || (directMethod === "efectivo" && Number(directReceived || 0) < Number(directAmount || 0))}>{directMutation.isPending ? "Registrando…" : "Registrar e imprimir"}</button></form></article>
-    </section>
-    <section className="report panel"><header><div><h3>Entradas mensuales</h3><p>Resumen contable de los pagos cobrados.</p></div><div className="report-actions"><label>Mes<input type="month" value={month} onChange={(event) => setMonth(event.target.value)} /></label><button type="button" className="secondary" onClick={() => printReport.mutate()} disabled={printReport.isPending}><FiPrinter /> {printReport.isPending ? "Preparando…" : "Imprimir informe"}</button></div></header>{reportQuery.isLoading ? <p className="empty">Cargando reporte…</p> : <div className="report-table"><div className="report-row head"><span>Método</span><span>Cobros</span><span>Ingresos</span><span>Recibido</span><span>Vuelto</span></div>{monthlyRows.map((item) => <div className="report-row" key={item.metodo_pago}><span>{item.metodo_pago}</span><span>{item.cantidad_pagos}</span><b>{money(item.total_ingresos, dataempresa?.currency, dataempresa?.iso)}</b><span>{money(item.total_recibido, dataempresa?.currency, dataempresa?.iso)}</span><span>{money(item.total_vuelto, dataempresa?.currency, dataempresa?.iso)}</span></div>)}{!monthlyRows.length ? <p className="empty"><FiAlertCircle /> No hay entradas para este mes.</p> : null}</div>}</section>
-    <section className="history panel"><header><div><h3>Historial de cobros y comprobantes</h3><p>Encuentra cualquier pago, reimprime su comprobante, envíalo al correo registrado o prepara el informe mensual.</p></div><button type="button" className="secondary" onClick={() => historyQuery.refetch()} disabled={historyQuery.isFetching}><FiRefreshCw /> Actualizar</button></header><div className="history-filters"><label className="search"><FiSearch /><input value={historySearch} onChange={(event) => setHistorySearch(event.target.value)} placeholder="Cliente, referencia o plan" /></label><label><select value={historyMethod} onChange={(event) => setHistoryMethod(event.target.value)}><option value="todos">Todos los métodos</option>{methods.map((method) => <option key={method.value} value={method.value}>{method.label}</option>)}</select></label></div>{historyQuery.isLoading ? <p className="empty">Cargando comprobantes…</p> : <><div className="history-table"><div className="history-row head"><span>Documento</span><span>Cliente</span><span>Detalle</span><span>Fecha y método</span><span>Total</span><span>Acciones</span></div>{history.data.map((item) => <div className="history-row" key={item.id}><div><b>{item.referencia}</b><small>{item.origen === "recibo_mora" ? "Mora saldada" : item.origen === "pago" ? "Cobro directo" : "Cobro de suscripción"}</small></div><div><b>{[item.cliente_nombres, item.cliente_apellidos].filter(Boolean).join(" ") || "Cliente"}</b><small>{item.cliente_email || item.cliente_telefono || "Sin contacto"}</small></div><div><b>{item.plan_nombre || "Cobro general"}</b><small>{item.notas || "Sin observaciones"}</small></div><div><b>{dateOf(item.fecha_pago)}</b><small>{item.metodo_pago || "—"}{item.referencia_pago ? ` · ${item.referencia_pago}` : ""}</small></div><strong>{money(item.monto, item.moneda || dataempresa?.currency, dataempresa?.iso)}</strong><div className="receipt-actions"><button type="button" className="print" onClick={() => reprint(item)}><FiPrinter /> Reimprimir</button><button type="button" className="print" onClick={() => emailReceipt.mutate(item)} disabled={!item.cliente_email || emailReceipt.isPending}>{emailReceipt.isPending ? "Enviando…" : <><FiMail /> Correo</>}</button></div></div>)}{!history.data.length ? <p className="empty"><FiAlertCircle /> No hay cobros para estos filtros.</p> : null}</div><footer className="pagination"><span>Mostrando {history.pagination.from}–{history.pagination.to} de {history.pagination.total} comprobantes</span><div><button type="button" className="page" aria-label="Página anterior" disabled={!history.pagination.hasPreviousPage} onClick={() => setHistoryPage((page) => page - 1)}><FiChevronLeft /></button><b>{history.pagination.page} / {history.pagination.totalPages}</b><button type="button" className="page" aria-label="Página siguiente" disabled={!history.pagination.hasNextPage} onClick={() => setHistoryPage((page) => page + 1)}><FiChevronRight /></button></div></footer></>}</section>
-  </Container>;
+  const reportQuery = useQuery({
+    queryKey: ["crm-monthly-income", dataempresa?.id, month],
+    queryFn: () => crm.mostrarReporteIngresosMensual({ mes: `${month}-01` }),
+    enabled: Boolean(dataempresa?.id && month),
+    refetchOnWindowFocus: false,
+  });
+  const historyQuery = useQuery({
+    queryKey: [
+      "crm-payment-history",
+      dataempresa?.id,
+      historyPage,
+      historySearch,
+      historyMethod,
+      month,
+    ],
+    queryFn: () =>
+      crm.mostrarHistorialCobrosPage({
+        id_empresa: dataempresa.id,
+        page: historyPage,
+        pageSize: 10,
+        search: historySearch,
+        method: historyMethod,
+        month,
+      }),
+    enabled: Boolean(dataempresa?.id),
+    placeholderData: (previous) => previous,
+    refetchOnWindowFocus: false,
+  });
+
+  const monthlyRows = reportQuery.data || [];
+  const history = historyQuery.data || {
+    data: [],
+    pagination: {
+      page: 1,
+      totalPages: 1,
+      total: 0,
+      from: 0,
+      to: 0,
+      hasPreviousPage: false,
+      hasNextPage: false,
+    },
+  };
+  const monthlyTotal = monthlyRows.reduce(
+    (sum, item) => sum + Number(item.total_ingresos || 0),
+    0
+  );
+  const monthlyPayments = monthlyRows.reduce(
+    (sum, item) => sum + Number(item.cantidad_pagos || 0),
+    0
+  );
+
+  const invalidate = () =>
+    [
+      "crm-data",
+      "crm-clients-directory",
+      "crm-subscriptions",
+      "crm-monthly-income",
+      "crm-payment-history",
+    ].forEach((key) => queryClient.invalidateQueries({ queryKey: [key] }));
+
+  const finish = async (result, message) => {
+    toast.success(message);
+    invalidate();
+    if (result?.pago) {
+      await FacturaCliente("print", {
+        dataempresa,
+        pago: {
+          ...result.pago,
+          total_plan: result.total_plan,
+          abonado_acumulado: result.abonado_acumulado,
+          saldo_pendiente: result.saldo_pendiente,
+          aplica_a_saldo_plan: result.total_plan != null,
+        },
+        cliente: result.cliente,
+        suscripcion: result.suscripcion,
+        plan: result.plan,
+      });
+    }
+    if (
+      Number(result?.saldo_pendiente || 0) > 0 &&
+      result?.cliente?.email &&
+      result?.comprobante_id
+    ) {
+      try {
+        const sent = await crm.enviarComprobanteCobro({
+          id_empresa: dataempresa.id,
+          comprobante_id: result.comprobante_id,
+        });
+        toast.success(`Saldo pendiente enviado a ${sent.recipient}`);
+      } catch (error) {
+        toast.error(
+          `El abono se guardó, pero el correo no pudo enviarse: ${error.message}`
+        );
+      }
+    }
+  };
+
+  const invoiceMutation = useMutation({
+    mutationFn: (payload) => crm.abonarSuscripcionPos(payload),
+    onSuccess: (data) => {
+      void finish(
+        data,
+        data.saldo_pendiente > 0
+          ? "Abono registrado; el saldo quedó actualizado"
+          : "Plan pagado por completo"
+      );
+      setSubscriptionId("");
+      setInstallmentAmount("");
+      setInvoiceReceived("");
+    },
+    onError: (error) => toast.error(error.message),
+  });
+  const directMutation = useMutation({
+    mutationFn: (payload) => crm.registrarPagoPos(payload),
+    onSuccess: (data) => {
+      void finish(data, "Pago directo registrado e impresión preparada");
+      setDirectAmount("");
+      setDirectReceived("");
+      setDirectSubscriptionId("");
+      onClientHandled?.();
+    },
+    onError: (error) => toast.error(error.message),
+  });
+  const debtMutation = useMutation({
+    mutationFn: (payload) => crm.cobrarMoraPos(payload),
+    onSuccess: (data) => {
+      void finish(
+        data,
+        `${data.facturas_liquidadas} documento(s) vencido(s) saldados`
+      );
+      onClientHandled?.();
+    },
+    onError: (error) => toast.error(error.message),
+  });
+  const printReport = useMutation({
+    mutationFn: () =>
+      crm.mostrarHistorialCobrosPage({
+        id_empresa: dataempresa.id,
+        page: 1,
+        pageSize: 50,
+        month,
+      }),
+    onSuccess: ({ data }) => {
+      void ReporteCobrosCrm("print", {
+        dataempresa,
+        month,
+        rows: data,
+        monthlyRows,
+      });
+    },
+    onError: (error) => toast.error(error.message),
+  });
+  const emailReceipt = useMutation({
+    mutationFn: (item) =>
+      crm.enviarComprobanteCobro({
+        id_empresa: dataempresa.id,
+        comprobante_id: item.id,
+      }),
+    onSuccess: (data) =>
+      toast.success(`Comprobante enviado a ${data.recipient}`),
+    onError: (error) => toast.error(error.message),
+  });
+
+  const reprint = (item) => {
+    void FacturaCliente("print", {
+      dataempresa,
+      ...receiptPayload(item),
+    });
+  };
+
+  const selectInvoice = (nextId, item) => {
+    setSubscriptionId(nextId);
+    const account = subscriptionAccount(item, crm.pagos);
+    const nextAmount = item ? String(account.balance) : "";
+    setInstallmentAmount(nextAmount);
+    setInvoiceReceived(nextAmount);
+  };
+
+  return (
+    <Container>
+      <header className="hero">
+        <div>
+          <span className="eyebrow">
+            <FiCreditCard /> Caja CRM
+          </span>
+          <h2>Cobros y abonos del plan, sin perder el saldo</h2>
+          <p>
+            Cada pago queda aplicado al período vigente. Puedes recibir varios
+            abonos y el sistema conserva el total, lo acumulado y lo pendiente.
+          </p>
+        </div>
+      </header>
+
+      <section className="metric-grid">
+        <article>
+          <span>Ingresos del mes</span>
+          <strong>
+            {money(monthlyTotal, dataempresa?.currency, dataempresa?.iso)}
+          </strong>
+          <small>{month}</small>
+        </article>
+        <article>
+          <span>Cobros registrados</span>
+          <strong>{monthlyPayments}</strong>
+          <small>Pagos efectivamente cobrados</small>
+        </article>
+        <article>
+          <span>Vuelto entregado</span>
+          <strong>
+            {money(
+              monthlyRows.reduce(
+                (sum, item) => sum + Number(item.total_vuelto || 0),
+                0
+              ),
+              dataempresa?.currency,
+              dataempresa?.iso
+            )}
+          </strong>
+          <small>Control de efectivo</small>
+        </article>
+      </section>
+
+      {focusClient?.id ? (
+        <section
+          className={`customer-checkout ${debt > 0 ? "has-debt" : ""}`}
+        >
+          <div>
+            <span>
+              {debt > 0 ? <FiAlertTriangle /> : <FiCreditCard />}
+            </span>
+            <div>
+              <b>{nameOf(focusClient)}</b>
+              <small>
+                {focusClient.plan_nombre ||
+                  focusClient.crm_planes?.nombre ||
+                  "Cliente seleccionado"}{" "}
+                · {focusClient.email || "sin correo"}
+              </small>
+            </div>
+          </div>
+          <div className="checkout-total">
+            <small>
+              {debt > 0 ? "Saldo vencido por cobrar" : "Listo para cobrar"}
+            </small>
+            <strong>
+              {debt > 0
+                ? money(debt, dataempresa?.currency, dataempresa?.iso)
+                : "Sin mora pendiente"}
+            </strong>
+          </div>
+          {debt > 0 ? (
+            <>
+              <select
+                aria-label="Método para saldar mora"
+                value={directMethod}
+                onChange={(event) => setDirectMethod(event.target.value)}
+              >
+                {methods.map((method) => (
+                  <option key={method.value} value={method.value}>
+                    {method.label}
+                  </option>
+                ))}
+              </select>
+              {["transferencia", "deposito"].includes(directMethod) ? (
+                <input
+                  aria-label="Referencia de mora"
+                  value={debtReference}
+                  onChange={(event) => setDebtReference(event.target.value)}
+                  placeholder="Referencia"
+                />
+              ) : null}
+              <button
+                type="button"
+                onClick={() =>
+                  debtMutation.mutate({
+                    id_cliente_crm: focusClient.id,
+                    metodo_pago: directMethod,
+                    monto_recibido:
+                      directMethod === "efectivo"
+                        ? directReceived || debt
+                        : null,
+                    referencia_pago: debtReference,
+                    notas: "Pago de mora desde directorio",
+                  })
+                }
+                disabled={
+                  debtMutation.isPending ||
+                  (directMethod === "efectivo" &&
+                    Number(directReceived || debt) < debt) ||
+                  (["transferencia", "deposito"].includes(directMethod) &&
+                    !debtReference.trim())
+                }
+              >
+                <FiPrinter />{" "}
+                {debtMutation.isPending
+                  ? "Cobrando…"
+                  : "Saldar mora e imprimir"}
+              </button>
+            </>
+          ) : null}
+        </section>
+      ) : null}
+
+      <section className="payment-guide">
+        <article>
+          <span>
+            <FiFileText />
+          </span>
+          <div>
+            <b>Abonar una suscripción</b>
+            <p>
+              Registra uno o varios pagos del mismo período. El plan no se
+              renueva hasta que corresponda.
+            </p>
+          </div>
+        </article>
+        <article>
+          <span>
+            <FiDollarSign />
+          </span>
+          <div>
+            <b>Cobro directo</b>
+            <p>
+              Registra servicios o ajustes fuera del saldo del plan, aun si
+              guardas la suscripción como referencia.
+            </p>
+          </div>
+        </article>
+      </section>
+
+      <section className="workspace">
+        <article className="panel invoice">
+          <header>
+            <span>
+              <FiFileText />
+            </span>
+            <div>
+              <h3>Abonar una suscripción</h3>
+              <p>Busca al cliente o su plan y registra el monto que entrega.</p>
+            </div>
+          </header>
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              const values = new FormData(event.currentTarget);
+              invoiceMutation.mutate({
+                id_suscripcion: subscriptionId,
+                monto_abono: installmentAmount,
+                metodo_pago: invoiceMethod,
+                monto_recibido:
+                  invoiceMethod === "efectivo" ? invoiceReceived : null,
+                referencia_pago: values.get("referencia_pago"),
+                notas: values.get("notas"),
+              });
+            }}
+          >
+            <label className="wide">
+              Cliente y suscripción
+              <SearchPicker
+                items={availableSubscriptions}
+                value={subscriptionId}
+                onChange={selectInvoice}
+                itemLabel={(item) =>
+                  `${nameOf(item.clientes_crm)} · ${item.crm_planes?.nombre || "Plan"}`
+                }
+                itemDetail={(item) => {
+                  const account = subscriptionAccount(item, crm.pagos);
+                  return `Saldo ${money(account.balance, dataempresa?.currency, dataempresa?.iso)} · vence ${item.fecha_fin}`;
+                }}
+                searchText={(item) =>
+                  [
+                    nameOf(item.clientes_crm),
+                    item.clientes_crm?.email,
+                    item.clientes_crm?.telefono,
+                    item.crm_planes?.nombre,
+                  ].join(" ")
+                }
+                placeholder="Buscar cliente, correo, teléfono o plan"
+                emptyText="No encontramos una suscripción con esa búsqueda."
+              />
+            </label>
+
+            <div className="account-summary wide">
+              <span>
+                <small>Valor del plan</small>
+                <b>
+                  {money(
+                    invoiceAccount.total,
+                    dataempresa?.currency,
+                    dataempresa?.iso
+                  )}
+                </b>
+              </span>
+              <span>
+                <small>Ya abonado</small>
+                <b>
+                  {money(
+                    invoiceAccount.paid,
+                    dataempresa?.currency,
+                    dataempresa?.iso
+                  )}
+                </b>
+              </span>
+              <span className="balance">
+                <small>Saldo pendiente</small>
+                <b>
+                  {money(
+                    invoiceAccount.balance,
+                    dataempresa?.currency,
+                    dataempresa?.iso
+                  )}
+                </b>
+              </span>
+            </div>
+
+            <label>
+              Abono de hoy
+              <input
+                type="number"
+                min="0.01"
+                max={invoiceAccount.balance || undefined}
+                step="0.01"
+                value={installmentAmount}
+                onChange={(event) => {
+                  setInstallmentAmount(event.target.value);
+                  if (invoiceMethod === "efectivo") {
+                    setInvoiceReceived(event.target.value);
+                  }
+                }}
+                required
+              />
+            </label>
+            <label>
+              Método
+              <select
+                value={invoiceMethod}
+                onChange={(event) => setInvoiceMethod(event.target.value)}
+              >
+                {methods.map((method) => (
+                  <option key={method.value} value={method.value}>
+                    {method.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <PaymentFields
+              method={invoiceMethod}
+              total={installment}
+              received={invoiceReceived}
+              setReceived={setInvoiceReceived}
+              currency={dataempresa?.currency}
+              locale={dataempresa?.iso}
+            />
+            <label className="wide">
+              Notas
+              <input name="notas" placeholder="Observación opcional" />
+            </label>
+            <button
+              className="wide"
+              disabled={
+                invoiceMutation.isPending ||
+                !subscriptionId ||
+                installment <= 0 ||
+                installment > invoiceAccount.balance ||
+                invoiceAccount.balance <= 0 ||
+                (invoiceMethod === "efectivo" &&
+                  Number(invoiceReceived || 0) < installment)
+              }
+            >
+              <FiPrinter />{" "}
+              {invoiceMutation.isPending
+                ? "Registrando…"
+                : invoiceAccount.balance > 0
+                  ? "Registrar abono e imprimir"
+                  : "Período pagado"}
+            </button>
+          </form>
+        </article>
+
+        <article className="panel direct">
+          <header>
+            <span>
+              <FiDollarSign />
+            </span>
+            <div>
+              <h3>Cobro directo</h3>
+              <p>Servicios o ajustes fuera del saldo de una suscripción.</p>
+            </div>
+          </header>
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              const values = new FormData(event.currentTarget);
+              directMutation.mutate({
+                id_cliente_crm: directClientId,
+                id_suscripcion: directSubscriptionId || null,
+                monto: directAmount,
+                metodo_pago: directMethod,
+                monto_recibido:
+                  directMethod === "efectivo" ? directReceived : null,
+                referencia_pago: values.get("referencia_pago"),
+                fecha_vencimiento: values.get("fecha_vencimiento"),
+                notas: values.get("notas"),
+              });
+            }}
+          >
+            <label className="wide">
+              Cliente
+              <SearchPicker
+                items={crm.clientes}
+                value={directClientId}
+                onChange={(nextId) => {
+                  setDirectClientId(nextId);
+                  setDirectSubscriptionId("");
+                }}
+                itemLabel={nameOf}
+                itemDetail={(item) =>
+                  [item.email, item.telefono].filter(Boolean).join(" · ") ||
+                  "Sin contacto"
+                }
+                searchText={(item) =>
+                  [nameOf(item), item.email, item.telefono].join(" ")
+                }
+                placeholder="Buscar cliente por nombre, correo o teléfono"
+              />
+            </label>
+            <label>
+              Suscripción (referencia)
+              <select
+                value={directSubscriptionId}
+                onChange={(event) =>
+                  setDirectSubscriptionId(event.target.value)
+                }
+              >
+                <option value="">Sin suscripción</option>
+                {directSubscriptions.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.crm_planes?.nombre || `Suscripción #${item.id}`}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Monto a cobrar
+              <input
+                type="number"
+                min="0.01"
+                step="0.01"
+                value={directAmount}
+                onChange={(event) => {
+                  setDirectAmount(event.target.value);
+                  if (directMethod === "efectivo" && !directReceived) {
+                    setDirectReceived(event.target.value);
+                  }
+                }}
+                required
+              />
+            </label>
+            <label>
+              Método
+              <select
+                value={directMethod}
+                onChange={(event) => setDirectMethod(event.target.value)}
+              >
+                {methods.map((method) => (
+                  <option key={method.value} value={method.value}>
+                    {method.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <PaymentFields
+              method={directMethod}
+              total={Number(directAmount || 0)}
+              received={directReceived}
+              setReceived={setDirectReceived}
+              currency={dataempresa?.currency}
+              locale={dataempresa?.iso}
+            />
+            <label>
+              Vencimiento
+              <input name="fecha_vencimiento" type="date" />
+            </label>
+            <label className="wide">
+              Notas
+              <input name="notas" placeholder="Detalle u observación" />
+            </label>
+            <button
+              className="wide"
+              disabled={
+                directMutation.isPending ||
+                !directClientId ||
+                Number(directAmount || 0) <= 0 ||
+                (directMethod === "efectivo" &&
+                  Number(directReceived || 0) < Number(directAmount || 0))
+              }
+            >
+              {directMutation.isPending
+                ? "Registrando…"
+                : "Registrar e imprimir"}
+            </button>
+          </form>
+        </article>
+      </section>
+
+      <section className="report panel">
+        <header>
+          <div>
+            <h3>Entradas mensuales</h3>
+            <p>Resumen contable de los pagos cobrados.</p>
+          </div>
+          <div className="report-actions">
+            <label>
+              Mes
+              <input
+                type="month"
+                value={month}
+                onChange={(event) => setMonth(event.target.value)}
+              />
+            </label>
+            <button
+              type="button"
+              className="secondary"
+              onClick={() => printReport.mutate()}
+              disabled={printReport.isPending}
+            >
+              <FiPrinter />{" "}
+              {printReport.isPending ? "Preparando…" : "Imprimir informe"}
+            </button>
+          </div>
+        </header>
+        {reportQuery.isLoading ? (
+          <p className="empty">Cargando reporte…</p>
+        ) : (
+          <div className="report-table">
+            <div className="report-row head">
+              <span>Método</span>
+              <span>Cobros</span>
+              <span>Ingresos</span>
+              <span>Recibido</span>
+              <span>Vuelto</span>
+            </div>
+            {monthlyRows.map((item) => (
+              <div className="report-row" key={item.metodo_pago}>
+                <span>{item.metodo_pago}</span>
+                <span>{item.cantidad_pagos}</span>
+                <b>
+                  {money(
+                    item.total_ingresos,
+                    dataempresa?.currency,
+                    dataempresa?.iso
+                  )}
+                </b>
+                <span>
+                  {money(
+                    item.total_recibido,
+                    dataempresa?.currency,
+                    dataempresa?.iso
+                  )}
+                </span>
+                <span>
+                  {money(
+                    item.total_vuelto,
+                    dataempresa?.currency,
+                    dataempresa?.iso
+                  )}
+                </span>
+              </div>
+            ))}
+            {!monthlyRows.length ? (
+              <p className="empty">
+                <FiAlertCircle /> No hay entradas para este mes.
+              </p>
+            ) : null}
+          </div>
+        )}
+      </section>
+
+      <section className="history panel">
+        <header>
+          <div>
+            <h3>Historial de cobros y comprobantes</h3>
+            <p>
+              Busca cualquier pago, reimprime el comprobante o envíalo al
+              correo registrado.
+            </p>
+          </div>
+          <button
+            type="button"
+            className="secondary"
+            onClick={() => historyQuery.refetch()}
+            disabled={historyQuery.isFetching}
+          >
+            <FiRefreshCw /> Actualizar
+          </button>
+        </header>
+        <div className="history-filters">
+          <label className="search">
+            <FiSearch />
+            <input
+              value={historySearch}
+              onChange={(event) => setHistorySearch(event.target.value)}
+              placeholder="Cliente, referencia o plan"
+            />
+          </label>
+          <label>
+            <select
+              value={historyMethod}
+              onChange={(event) => setHistoryMethod(event.target.value)}
+            >
+              <option value="todos">Todos los métodos</option>
+              {methods.map((method) => (
+                <option key={method.value} value={method.value}>
+                  {method.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+        {historyQuery.isLoading ? (
+          <p className="empty">Cargando comprobantes…</p>
+        ) : (
+          <>
+            <div className="history-table">
+              <div className="history-row head">
+                <span>Documento</span>
+                <span>Cliente</span>
+                <span>Detalle y saldo</span>
+                <span>Fecha y método</span>
+                <span>Abono</span>
+                <span>Acciones</span>
+              </div>
+              {history.data.map((item) => (
+                <div className="history-row" key={item.id}>
+                  <div>
+                    <b>{item.referencia}</b>
+                    <small>
+                      {item.origen === "recibo_mora"
+                        ? "Mora saldada"
+                        : item.aplica_a_saldo_plan
+                          ? "Abono de suscripción"
+                          : "Cobro directo"}
+                    </small>
+                  </div>
+                  <div>
+                    <b>
+                      {[item.cliente_nombres, item.cliente_apellidos]
+                        .filter(Boolean)
+                        .join(" ") || "Cliente"}
+                    </b>
+                    <small>
+                      {item.cliente_email ||
+                        item.cliente_telefono ||
+                        "Sin contacto"}
+                    </small>
+                  </div>
+                  <div>
+                    <b>{item.plan_nombre || "Cobro general"}</b>
+                    <small>
+                      {item.aplica_a_saldo_plan
+                        ? `Acumulado ${money(item.abonado_acumulado, item.moneda, dataempresa?.iso)} · Falta ${money(item.saldo_pendiente, item.moneda, dataempresa?.iso)}`
+                        : item.notas || "Sin observaciones"}
+                    </small>
+                  </div>
+                  <div>
+                    <b>{dateOf(item.fecha_pago)}</b>
+                    <small>
+                      {item.metodo_pago || "—"}
+                      {item.referencia_pago
+                        ? ` · ${item.referencia_pago}`
+                        : ""}
+                    </small>
+                  </div>
+                  <strong>
+                    {money(
+                      item.monto,
+                      item.moneda || dataempresa?.currency,
+                      dataempresa?.iso
+                    )}
+                  </strong>
+                  <div className="receipt-actions">
+                    <button
+                      type="button"
+                      className="print"
+                      onClick={() => reprint(item)}
+                    >
+                      <FiPrinter /> Reimprimir
+                    </button>
+                    <button
+                      type="button"
+                      className="print"
+                      onClick={() => emailReceipt.mutate(item)}
+                      disabled={!item.cliente_email || emailReceipt.isPending}
+                    >
+                      {emailReceipt.isPending ? (
+                        "Enviando…"
+                      ) : (
+                        <>
+                          <FiMail /> Correo
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              ))}
+              {!history.data.length ? (
+                <p className="empty">
+                  <FiAlertCircle /> No hay cobros para estos filtros.
+                </p>
+              ) : null}
+            </div>
+            <footer className="pagination">
+              <span>
+                Mostrando {history.pagination.from}–{history.pagination.to} de{" "}
+                {history.pagination.total} comprobantes
+              </span>
+              <div>
+                <button
+                  type="button"
+                  className="page"
+                  aria-label="Página anterior"
+                  disabled={!history.pagination.hasPreviousPage}
+                  onClick={() => setHistoryPage((page) => page - 1)}
+                >
+                  <FiChevronLeft />
+                </button>
+                <b>
+                  {history.pagination.page} / {history.pagination.totalPages}
+                </b>
+                <button
+                  type="button"
+                  className="page"
+                  aria-label="Página siguiente"
+                  disabled={!history.pagination.hasNextPage}
+                  onClick={() => setHistoryPage((page) => page + 1)}
+                >
+                  <FiChevronRight />
+                </button>
+              </div>
+            </footer>
+          </>
+        )}
+      </section>
+    </Container>
+  );
 }
 
 const Container = styled.section`
-  width:min(1380px,100%);margin:0 auto;display:grid;gap:16px;color:${({theme})=>theme.text};
-  .hero,.panel,.metric-grid article,.customer-checkout,.payment-guide article{border:1px solid ${({theme})=>theme.color2};background:${({theme})=>theme.bgcards};border-radius:18px}.hero{padding:23px;background:linear-gradient(120deg,rgba(243,210,12,.15),transparent 48%),${({theme})=>theme.bgcards}}.eyebrow{display:inline-flex;gap:7px;align-items:center;color:#b45309;font-size:11px;font-weight:900;letter-spacing:.08em;text-transform:uppercase}h2,h3,p{margin:0}.hero h2{margin:7px 0;font-size:clamp(23px,3vw,32px)}.hero p,.panel header p{color:${({theme})=>theme.colorSubtitle};line-height:1.45}.metric-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.metric-grid article{padding:16px;display:grid;gap:5px}.metric-grid span,.metric-grid small{color:${({theme})=>theme.colorSubtitle}}.metric-grid strong{font-size:23px}.payment-guide{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.payment-guide article{display:flex;gap:11px;padding:14px}.payment-guide article>span{display:grid;place-items:center;flex:none;width:35px;height:35px;border-radius:10px;background:#fef3c7;color:#b45309}.payment-guide b{display:block;margin-bottom:3px}.payment-guide p{font-size:13px;line-height:1.45;color:${({theme})=>theme.colorSubtitle}}.customer-checkout{padding:15px 18px;display:flex;align-items:center;gap:10px}.customer-checkout>div:first-child{display:flex;align-items:center;gap:10px;min-width:0;flex:1}.customer-checkout>div:first-child>span{display:grid;place-items:center;width:37px;height:37px;border-radius:11px;background:#e0f2fe;color:#0369a1}.customer-checkout b,.customer-checkout small,.history-row b,.history-row small{display:block}.customer-checkout small,.history-row small{color:${({theme})=>theme.colorSubtitle};font-size:12px;margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.customer-checkout.has-debt{border-color:#fecaca;background:linear-gradient(90deg,#fff7ed,${({theme})=>theme.bgcards})}.customer-checkout.has-debt>div:first-child>span{background:#fee2e2;color:#dc2626}.checkout-total{text-align:right;white-space:nowrap}.checkout-total strong{display:block;font-size:18px;color:#15803d}.has-debt .checkout-total strong{color:#dc2626}.customer-checkout input,.customer-checkout select{width:132px;padding:8px}.workspace{display:grid;grid-template-columns:1.2fr .8fr;gap:16px}.panel{padding:18px}.panel>header,.report header{display:flex;justify-content:space-between;gap:12px;align-items:start;margin-bottom:15px}.panel>header>span{display:grid;place-items:center;width:39px;height:39px;border-radius:11px;background:#fef3c7;color:#b45309}.panel>header>div{flex:1}form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}label{display:grid;gap:6px;font-size:12px;font-weight:800}input,select{min-width:0;border:1px solid ${({theme})=>theme.color2};border-radius:10px;background:${({theme})=>theme.bgtotal};color:${({theme})=>theme.text};padding:11px}.wide{grid-column:span 2}.total,.change{border-radius:11px;background:${({theme})=>theme.bgtotal};padding:11px;display:flex;justify-content:space-between;align-items:center}.total span,.change span{font-size:12px;color:${({theme})=>theme.colorSubtitle}}.total strong{font-size:20px}.change strong{color:#15803d}button{border:0;border-radius:10px;background:${v.colorPrincipal};color:#111827;padding:12px;font-weight:900;cursor:pointer;display:inline-flex;justify-content:center;align-items:center;gap:7px}button:disabled{opacity:.55;cursor:not-allowed}.secondary,.print,.page{background:${({theme})=>theme.bgtotal};color:${({theme})=>theme.text};border:1px solid ${({theme})=>theme.color2};padding:9px 11px}.report-actions{display:flex;gap:8px;align-items:end}.report header label{display:flex;align-items:center;gap:8px}.report header input{padding:7px}.report-table,.history-table{overflow-x:auto;border:1px solid ${({theme})=>theme.color2};border-radius:12px}.report-row{min-width:720px;display:grid;grid-template-columns:1.2fr .7fr 1fr 1fr 1fr;gap:10px;padding:12px 14px;border-bottom:1px solid ${({theme})=>theme.color2};font-size:13px}.report-row:last-child{border:0}.report-row.head,.history-row.head{background:${({theme})=>theme.bgtotal};font-size:11px;font-weight:900;text-transform:uppercase}.history-filters{display:grid;grid-template-columns:1fr 220px;gap:10px;margin-bottom:12px}.history-filters label{display:flex;align-items:center;gap:8px;padding:0 10px;border:1px solid ${({theme})=>theme.color2};border-radius:10px;background:${({theme})=>theme.bgtotal}}.history-filters input,.history-filters select{width:100%;border:0;background:transparent;padding:11px 0}.history-row{min-width:1110px;display:grid;grid-template-columns:1.05fr 1.1fr 1.15fr 1.25fr .75fr 190px;align-items:center;gap:12px;padding:12px 14px;border-bottom:1px solid ${({theme})=>theme.color2};font-size:13px}.history-row:last-child{border:0}.history-row:not(.head)>strong{font-size:14px}.receipt-actions{display:flex;gap:6px;flex-wrap:wrap}.print{font-size:12px}.pagination{display:flex;justify-content:space-between;align-items:center;gap:10px;padding-top:12px;color:${({theme})=>theme.colorSubtitle};font-size:12px}.pagination>div{display:flex;align-items:center;gap:7px}.page{padding:7px}.empty{padding:22px;text-align:center;color:${({theme})=>theme.colorSubtitle};display:flex;justify-content:center;align-items:center;gap:7px}@media(max-width:900px){.metric-grid,.workspace,.payment-guide{grid-template-columns:1fr}.customer-checkout{align-items:start;flex-wrap:wrap}.checkout-total{text-align:left}.panel>header{align-items:start}}@media(max-width:560px){form{grid-template-columns:1fr}form>*{grid-column:span 1!important}.metric-grid{grid-template-columns:1fr}.report header{flex-direction:column}.report-actions,.history-filters{width:100%;grid-template-columns:1fr}.history-filters{display:grid}.pagination{align-items:flex-start;flex-direction:column}}
+  width: min(1380px, 100%);
+  margin: 0 auto;
+  display: grid;
+  gap: 16px;
+  color: ${({ theme }) => theme.text};
+  .hero,
+  .panel,
+  .metric-grid article,
+  .customer-checkout,
+  .payment-guide article {
+    border: 1px solid ${({ theme }) => theme.color2};
+    background: ${({ theme }) => theme.bgcards};
+    border-radius: 18px;
+  }
+  .hero {
+    padding: 23px;
+    background:
+      linear-gradient(120deg, rgba(243, 210, 12, 0.15), transparent 48%),
+      ${({ theme }) => theme.bgcards};
+  }
+  .eyebrow {
+    display: inline-flex;
+    gap: 7px;
+    align-items: center;
+    color: #b45309;
+    font-size: 11px;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  h2,
+  h3,
+  p {
+    margin: 0;
+  }
+  .hero h2 {
+    margin: 7px 0;
+    font-size: clamp(23px, 3vw, 32px);
+  }
+  .hero p,
+  .panel header p {
+    color: ${({ theme }) => theme.colorSubtitle};
+    line-height: 1.45;
+  }
+  .metric-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+  }
+  .metric-grid article {
+    padding: 16px;
+    display: grid;
+    gap: 5px;
+  }
+  .metric-grid span,
+  .metric-grid small {
+    color: ${({ theme }) => theme.colorSubtitle};
+  }
+  .metric-grid strong {
+    font-size: 23px;
+  }
+  .payment-guide {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+  .payment-guide article {
+    display: flex;
+    gap: 11px;
+    padding: 14px;
+  }
+  .payment-guide article > span,
+  .panel > header > span {
+    display: grid;
+    place-items: center;
+    flex: none;
+    width: 39px;
+    height: 39px;
+    border-radius: 11px;
+    background: #fef3c7;
+    color: #b45309;
+  }
+  .payment-guide b {
+    display: block;
+    margin-bottom: 3px;
+  }
+  .payment-guide p {
+    font-size: 13px;
+    line-height: 1.45;
+    color: ${({ theme }) => theme.colorSubtitle};
+  }
+  .customer-checkout {
+    padding: 15px 18px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .customer-checkout > div:first-child {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    flex: 1;
+  }
+  .customer-checkout > div:first-child > span {
+    display: grid;
+    place-items: center;
+    width: 37px;
+    height: 37px;
+    border-radius: 11px;
+    background: #e0f2fe;
+    color: #0369a1;
+  }
+  .customer-checkout b,
+  .customer-checkout small,
+  .history-row b,
+  .history-row small {
+    display: block;
+  }
+  .customer-checkout small,
+  .history-row small {
+    color: ${({ theme }) => theme.colorSubtitle};
+    font-size: 12px;
+    margin-top: 3px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .customer-checkout.has-debt {
+    border-color: #fecaca;
+  }
+  .checkout-total {
+    text-align: right;
+    white-space: nowrap;
+  }
+  .checkout-total strong {
+    display: block;
+    font-size: 18px;
+    color: #15803d;
+  }
+  .has-debt .checkout-total strong {
+    color: #dc2626;
+  }
+  .customer-checkout input,
+  .customer-checkout select {
+    width: 145px;
+    padding: 8px;
+  }
+  .workspace {
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.85fr);
+    gap: 16px;
+    align-items: start;
+  }
+  .panel {
+    min-width: 0;
+    padding: 18px;
+  }
+  .panel > header,
+  .report header {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: start;
+    margin-bottom: 15px;
+  }
+  .panel > header > div {
+    flex: 1;
+    min-width: 0;
+  }
+  form {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+  label {
+    display: grid;
+    gap: 6px;
+    min-width: 0;
+    font-size: 12px;
+    font-weight: 800;
+  }
+  input,
+  select {
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    border: 1px solid ${({ theme }) => theme.color2};
+    border-radius: 10px;
+    background: ${({ theme }) => theme.bgtotal};
+    color: ${({ theme }) => theme.text};
+    padding: 11px;
+  }
+  .wide {
+    grid-column: span 2;
+  }
+  .change {
+    border-radius: 11px;
+    background: ${({ theme }) => theme.bgtotal};
+    padding: 11px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .change span {
+    font-size: 12px;
+    color: ${({ theme }) => theme.colorSubtitle};
+  }
+  .change strong {
+    color: #15803d;
+  }
+  .account-summary {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .account-summary > span {
+    min-width: 0;
+    padding: 11px;
+    border-radius: 11px;
+    background: ${({ theme }) => theme.bgtotal};
+  }
+  .account-summary small,
+  .account-summary b {
+    display: block;
+  }
+  .account-summary small {
+    color: ${({ theme }) => theme.colorSubtitle};
+    margin-bottom: 4px;
+  }
+  .account-summary b {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .account-summary .balance b {
+    color: #b45309;
+  }
+  button {
+    border: 0;
+    border-radius: 10px;
+    background: ${v.colorPrincipal};
+    color: #111827;
+    padding: 12px;
+    font-weight: 900;
+    cursor: pointer;
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    gap: 7px;
+  }
+  button:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+  .search-picker {
+    position: relative;
+    font-weight: 400;
+  }
+  .picker-control {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 10px;
+    border: 1px solid ${({ theme }) => theme.color2};
+    border-radius: 10px;
+    background: ${({ theme }) => theme.bgtotal};
+  }
+  .picker-control input {
+    border: 0;
+    padding-inline: 0;
+    outline: 0;
+    background: transparent;
+  }
+  .picker-clear {
+    padding: 5px;
+    background: transparent;
+    color: ${({ theme }) => theme.text};
+  }
+  .picker-options {
+    position: absolute;
+    z-index: 20;
+    top: calc(100% + 6px);
+    left: 0;
+    right: 0;
+    max-height: min(360px, 55vh);
+    overflow-y: auto;
+    padding: 7px;
+    border: 1px solid ${({ theme }) => theme.color2};
+    border-radius: 12px;
+    background: ${({ theme }) => theme.bgcards};
+    box-shadow: 0 18px 40px rgba(15, 23, 42, 0.22);
+  }
+  .picker-summary {
+    display: flex;
+    justify-content: space-between;
+    padding: 7px 8px;
+    color: ${({ theme }) => theme.colorSubtitle};
+    font-size: 11px;
+    font-weight: 800;
+  }
+  .picker-options > button {
+    width: 100%;
+    justify-content: space-between;
+    text-align: left;
+    padding: 10px;
+    background: transparent;
+    color: ${({ theme }) => theme.text};
+  }
+  .picker-options > button:hover,
+  .picker-options > button[aria-selected="true"] {
+    background: ${({ theme }) => theme.bgtotal};
+  }
+  .picker-options b,
+  .picker-options small {
+    display: block;
+  }
+  .picker-options small,
+  .picker-options p {
+    margin-top: 3px;
+    color: ${({ theme }) => theme.colorSubtitle};
+    font-size: 11px;
+  }
+  .picker-options p,
+  .picker-hint {
+    padding: 12px 9px;
+  }
+  .secondary,
+  .print,
+  .page {
+    background: ${({ theme }) => theme.bgtotal};
+    color: ${({ theme }) => theme.text};
+    border: 1px solid ${({ theme }) => theme.color2};
+    padding: 9px 11px;
+  }
+  .report-actions {
+    display: flex;
+    gap: 8px;
+    align-items: end;
+  }
+  .report header label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .report header input {
+    padding: 7px;
+  }
+  .report-table,
+  .history-table {
+    overflow-x: auto;
+    border: 1px solid ${({ theme }) => theme.color2};
+    border-radius: 12px;
+  }
+  .report-row {
+    min-width: 720px;
+    display: grid;
+    grid-template-columns: 1.2fr 0.7fr 1fr 1fr 1fr;
+    gap: 10px;
+    padding: 12px 14px;
+    border-bottom: 1px solid ${({ theme }) => theme.color2};
+    font-size: 13px;
+  }
+  .report-row:last-child,
+  .history-row:last-child {
+    border: 0;
+  }
+  .report-row.head,
+  .history-row.head {
+    background: ${({ theme }) => theme.bgtotal};
+    font-size: 11px;
+    font-weight: 900;
+    text-transform: uppercase;
+  }
+  .history-filters {
+    display: grid;
+    grid-template-columns: 1fr 220px;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+  .history-filters label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 10px;
+    border: 1px solid ${({ theme }) => theme.color2};
+    border-radius: 10px;
+    background: ${({ theme }) => theme.bgtotal};
+  }
+  .history-filters input,
+  .history-filters select {
+    border: 0;
+    background: transparent;
+    padding: 11px 0;
+  }
+  .history-row {
+    min-width: 1120px;
+    display: grid;
+    grid-template-columns: 1.05fr 1.1fr 1.4fr 1.2fr 0.7fr 190px;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    border-bottom: 1px solid ${({ theme }) => theme.color2};
+    font-size: 13px;
+  }
+  .receipt-actions {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .print {
+    font-size: 12px;
+  }
+  .pagination {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    padding-top: 12px;
+    color: ${({ theme }) => theme.colorSubtitle};
+    font-size: 12px;
+  }
+  .pagination > div {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+  }
+  .page {
+    padding: 7px;
+  }
+  .empty {
+    padding: 22px;
+    text-align: center;
+    color: ${({ theme }) => theme.colorSubtitle};
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 7px;
+  }
+  @media (max-width: 900px) {
+    .metric-grid,
+    .workspace,
+    .payment-guide {
+      grid-template-columns: 1fr;
+    }
+    .customer-checkout {
+      align-items: start;
+      flex-wrap: wrap;
+    }
+    .checkout-total {
+      text-align: left;
+    }
+  }
+  @media (max-width: 560px) {
+    form,
+    .account-summary {
+      grid-template-columns: 1fr;
+    }
+    form > *,
+    .account-summary {
+      grid-column: span 1 !important;
+    }
+    .metric-grid {
+      grid-template-columns: 1fr;
+    }
+    .report header,
+    .panel > header {
+      flex-direction: column;
+    }
+    .report-actions,
+    .history-filters {
+      width: 100%;
+      grid-template-columns: 1fr;
+    }
+    .history-filters {
+      display: grid;
+    }
+    .pagination {
+      align-items: flex-start;
+      flex-direction: column;
+    }
+  }
 `;

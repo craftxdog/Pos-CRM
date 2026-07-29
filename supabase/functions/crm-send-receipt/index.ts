@@ -116,6 +116,10 @@ export default {
       const total = Number(receipt.monto || 0);
       const received = Number(receipt.monto_recibido ?? total);
       const change = Number(receipt.cambio || 0);
+      const hasPlanAccount = Boolean(receipt.aplica_a_saldo_plan);
+      const planTotal = Number(receipt.total_plan || 0);
+      const cumulativePaid = Number(receipt.abonado_acumulado || 0);
+      const remainingBalance = Number(receipt.saldo_pendiente || 0);
       const templateContext = {
         companyName: company.nombre,
         receiptReference: receipt.referencia || receiptId,
@@ -129,6 +133,11 @@ export default {
         received: money(received, receipt.moneda || company.currency || "USD"),
         change: money(change, receipt.moneda || company.currency || "USD"),
         showCashBreakdown: received !== total || change > 0,
+        hasPlanAccount,
+        planTotal: money(planTotal, receipt.moneda || company.currency || "USD"),
+        cumulativePaid: money(cumulativePaid, receipt.moneda || company.currency || "USD"),
+        remainingBalance: money(remainingBalance, receipt.moneda || company.currency || "USD"),
+        hasRemainingBalance: hasPlanAccount && remainingBalance > 0,
         period: receipt.periodo_inicio && receipt.periodo_fin ? `${receipt.periodo_inicio} – ${receipt.periodo_fin}` : "",
         replyTo: replyTo || "",
         currentYear: new Date().getUTCFullYear(),
@@ -141,7 +150,9 @@ export default {
           from: { name: fromName, address: fromEmail },
           to: recipient,
           replyTo,
-          subject: `${company.nombre} · comprobante ${templateContext.receiptReference}`,
+          subject: templateContext.hasRemainingBalance
+            ? `${company.nombre} · abono recibido y saldo pendiente`
+            : `${company.nombre} · comprobante ${templateContext.receiptReference}`,
           text: textEnvironment.renderString(textTemplate, templateContext),
           html: htmlEnvironment.renderString(htmlTemplate, templateContext),
         });

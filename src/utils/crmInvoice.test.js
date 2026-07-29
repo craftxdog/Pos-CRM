@@ -61,3 +61,23 @@ test("includes the POS cash received, change and transfer reference", () => {
   assert.equal(invoice.payment.change, 50);
   assert.equal(invoice.payment.paymentReference, "TRX-001");
 });
+
+test("shows the cumulative plan account on an installment receipt", () => {
+  const invoice = buildCrmInvoiceModel({
+    company: { currency: "NIO", iso: "es-NI" },
+    payment: {
+      monto: 300,
+      estado: "pagado",
+      aplica_a_saldo_plan: true,
+      total_plan: 1460,
+      abonado_acumulado: 1030,
+      saldo_pendiente: 430,
+    },
+  });
+
+  assert.equal(invoice.status, "ABONO REGISTRADO");
+  assert.equal(invoice.payment.total, 300);
+  assert.equal(invoice.payment.planTotal, 1460);
+  assert.equal(invoice.payment.cumulativePaid, 1030);
+  assert.equal(invoice.payment.remainingBalance, 430);
+});

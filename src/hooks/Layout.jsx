@@ -41,8 +41,15 @@ export function Layout({ children }) {
 
   // Consolidación de isLoading y error
   const isLoading =
-    (!!id_auth && !datausuarios?.id) || isLoadingSucursales || isLoadingEmpresa;
+    isLoadingSucursales || isLoadingEmpresa;
   const error = errorSucursales || errorEmpresa;
+
+  // ProtectedRoute owns authentication and tenant-access recovery. Rendering
+  // it immediately avoids a circular spinner when an expired feature gate
+  // hides the legacy user profile that Layout normally waits for.
+  if (id_auth && !datausuarios?.id) {
+    return children;
+  }
 
   if (isLoading) {
     return <Spinner1 />;

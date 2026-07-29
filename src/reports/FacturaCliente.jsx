@@ -15,6 +15,11 @@ export default async function FacturaCliente(output, { dataempresa, pago, client
     [{ text: "RECIBIDO", style: "label" }, { text: amount(invoice.payment.received), style: "amount" }],
     [{ text: "VUELTO", style: "label" }, { text: amount(invoice.payment.change), style: "amount" }],
   ] : [];
+  const accountRows = invoice.payment.appliesToPlan ? [
+    [{ text: "VALOR DEL PLAN", style: "label" }, { text: amount(invoice.payment.planTotal), style: "amount" }],
+    [{ text: "ABONADO ACUMULADO", style: "label" }, { text: amount(invoice.payment.cumulativePaid), style: "amount" }],
+    [{ text: "SALDO PENDIENTE", bold: true, fontSize: 9, color: invoice.payment.remainingBalance > 0 ? "#b45309" : "#15803d" }, { text: amount(invoice.payment.remainingBalance), style: "amount", color: invoice.payment.remainingBalance > 0 ? "#b45309" : "#15803d" }],
+  ] : [];
   return createPdf({
     info: { title: `Comprobante ${invoice.number}`, author: invoice.company.name },
     styles: {
@@ -31,7 +36,7 @@ export default async function FacturaCliente(output, { dataempresa, pago, client
       rule([0, 10, 0, 7]),
       { text: "COMPROBANTE DE PAGO", alignment: "center", bold: true, fontSize: 10 },
       { text: invoice.number, alignment: "center", bold: true, fontSize: 9, color: "#b45309", margin: [0, 3, 0, 0] },
-      { text: invoice.status, alignment: "center", bold: true, fontSize: 8, color: invoice.status === "PAGADA" ? "#15803d" : "#b45309", margin: [0, 3, 0, 0] },
+      { text: invoice.status, alignment: "center", bold: true, fontSize: 8, color: invoice.payment.remainingBalance === 0 ? "#15803d" : "#b45309", margin: [0, 3, 0, 0] },
       rule(),
       { table: { widths: [55, "*"], body: [
         [{ text: "FECHA", style: "label", border: [false, false, false, false] }, { text: invoice.issueDate, style: "value", alignment: "right", border: [false, false, false, false] }],
@@ -50,8 +55,9 @@ export default async function FacturaCliente(output, { dataempresa, pago, client
       rule(),
       { table: { widths: ["*", 84], body: [
         [{ text: "SUBTOTAL", style: "label", border: [false, false, false, true] }, { text: amount(invoice.payment.subtotal), style: "amount", border: [false, false, false, true] }],
-        [{ text: "TOTAL", bold: true, fontSize: 12, border: [false, false, false, false], margin: [0, 6, 0, 5] }, { text: amount(invoice.payment.total), style: "total", border: [false, false, false, false], margin: [0, 6, 0, 5] }],
+        [{ text: invoice.payment.appliesToPlan ? "ABONO DE HOY" : "TOTAL", bold: true, fontSize: 12, border: [false, false, false, false], margin: [0, 6, 0, 5] }, { text: amount(invoice.payment.total), style: "total", border: [false, false, false, false], margin: [0, 6, 0, 5] }],
         ...receivedRows.map((row) => row.map((cell) => ({ ...cell, border: [false, false, false, false] }))),
+        ...accountRows.map((row) => row.map((cell) => ({ ...cell, border: [false, false, false, false], margin: [0, 3, 0, 3] }))),
       ] }, layout: { hLineColor: () => "#cbd5e1" } },
       rule(),
       { table: { widths: [55, "*"], body: [

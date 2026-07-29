@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import {
+  AbonarSuscripcionPos,
   ActualizarEstadoCrmSuscripcion,
   AsignarCrmHorarioCliente,
   CancelarInvitacionCliente,
@@ -12,6 +13,7 @@ import {
   EditarCrmCliente,
   EditarCrmHorario,
   EditarCrmPlan,
+  EditarCrmSuscripcion,
   EliminarCrmHorario,
   EnviarComprobanteCobro,
   EditarWhatsappPlantilla,
@@ -88,6 +90,7 @@ export const useCrmStore = create((set) => ({
   facturarPlan: (payload) => FacturarPlanCliente(payload),
   facturarSuscripcion: (payload) => FacturarSuscripcionCliente(payload),
   cobrarSuscripcionPos: (payload) => CobrarSuscripcionPos(payload),
+  abonarSuscripcionPos: (payload) => AbonarSuscripcionPos(payload),
   cobrarMoraPos: (payload) => CobrarMoraPos(payload),
   registrarPagoPos: (payload) => RegistrarPagoPos(payload),
   renovarSuscripcionPos: (payload) => RenovarSuscripcionPos(payload),
@@ -102,6 +105,7 @@ export const useCrmStore = create((set) => ({
   actualizarEstadoSuscripcion: (payload) =>
     ActualizarEstadoCrmSuscripcion(payload),
   gestionarSuscripcion: (payload) => GestionarCrmSuscripcion(payload),
+  editarSuscripcion: (payload) => EditarCrmSuscripcion(payload),
   mostrarClientesAsistencia: (payload) =>
     MostrarCrmClientesAsistencia(payload),
   asignarHorarioCliente: (payload) => AsignarCrmHorarioCliente(payload),

@@ -16,7 +16,6 @@ import { PanelBuscador } from "./PanelBuscador";
 import { useClientesProveedoresStore } from "../../../store/ClientesProveedoresStore";
 import { useMetodosPagoStore } from "../../../store/MetodosPagoStore";
 import { useCierreCajaStore } from "../../../store/CierreCajaStore";
-import { useMovCajaStore } from "../../../store/MovCajaStore";
 import { useFormattedDate } from "../../../hooks/useFormattedDate";
 import { useAsignacionCajaSucursalStore } from "../../../store/AsignacionCajaSucursalStore";
 import { useSerializacionStore } from "../../../store/SerializacionStore";
@@ -89,8 +88,6 @@ export const IngresoCobro = forwardRef((props, ref) => {
   //Mostrar cierres de caja
   const { dataCierreCaja } = useCierreCajaStore();
   // Función para calcular vuelto y restante
-  //Movientos de caja
-  const { insertarMovCaja } = useMovCajaStore();
   const calcularVueltoYRestante = () => {
     const totalPagado = Object.values(valoresPago).reduce(
       (acc, curr) => acc + curr,
@@ -139,9 +136,28 @@ export const IngresoCobro = forwardRef((props, ref) => {
       queryClient.invalidateQueries(["mostrar detalle venta"]);
       toast.success("🎉 venta generada correctamente!!!");
     },
+    onError: (error) => {
+      toast.error(
+        error?.message ||
+          "No se pudo confirmar la venta. La caja no registró movimientos."
+      );
+    },
   });
   async function ConfirmarVenta() {
     if (restante === 0) {
+      const nuevosMetodosPago = Object.entries(valoresPago)
+        .filter(([, monto]) => monto > 0)
+        .map(([tipo, monto]) => {
+          const metodoPago = dataMetodosPago.find(
+            (item) => item.nombre === tipo
+          );
+          return {
+            tipo,
+            monto,
+            id_metodo_pago: metodoPago?.id,
+            vuelto: tipo === "Efectivo" ? vuelto : 0,
+          };
+        });
       const pventas = {
         _id_venta: idventa,
         _id_usuario: datausuarios?.id,
@@ -152,30 +168,10 @@ export const IngresoCobro = forwardRef((props, ref) => {
         _id_cliente: cliproItemSelect?.id || null,
         _fecha: fechaActual,
         _monto_total: total,
+        _id_cierre_caja: dataCierreCaja?.id,
+        _pagos: nuevosMetodosPago,
       };
-      console.log("confirmarVenta", pventas);
       const dataVentaConfirmada = await confirmarVenta(pventas);
-      const nuevosMetodosPago = [];
-      // Insertar en MovCaja solo los métodos de pago con monto mayor a 0
-      for (const [tipo, monto] of Object.entries(valoresPago)) {
-        if (monto > 0) {
-          const metodoPago = dataMetodosPago.find(
-            (item) => item.nombre === tipo
-          );
-          const pmovcaja = {
-            tipo_movimiento: "ingreso",
-            monto: monto,
-            id_metodo_pago: metodoPago?.id,
-            descripcion: `Pago de venta con ${tipo}`,
-            id_usuario: datausuarios?.id,
-            id_cierre_caja: dataCierreCaja?.id,
-            id_ventas: idventa,
-            vuelto: tipo === "Efectivo" ? vuelto : 0,
-          };
-          await insertarMovCaja(pmovcaja);
-          nuevosMetodosPago.push({ tipo, monto, vuelto });
-        }
-      }
       const pPrint = {
         dataempresa: dataempresa,
         productos: datadetalleventa,
@@ -263,7 +259,6 @@ export const IngresoCobro = forwardRef((props, ref) => {
         <span>guardando...🐖</span>
       ) : (
         <>
-          {mutation.isError && <span>error: {mutation.error.message}</span>}
           <section className="area1">
             <span className="tipocobro">{tipocobro}</span>
             <section>
@@ -357,7 +352,7 @@ export const IngresoCobro = forwardRef((props, ref) => {
           <Linea />
           <section className="area4">
             <Btn1
-              funcion={() => mutation.mutateAsync()}
+              funcion={() => mutation.mutate()}
               border="2px"
               titulo="COBRAR (enter)"
               bgcolor="#0aca21"

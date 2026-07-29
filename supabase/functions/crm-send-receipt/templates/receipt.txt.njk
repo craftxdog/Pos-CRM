@@ -13,8 +13,13 @@ Total: {{ total }}
 {% if period %}Periodo: {{ period }}
 {% endif %}{% if showCashBreakdown %}Recibido: {{ received }}
 Vuelto: {{ change }}
+{% endif %}{% if hasPlanAccount %}Valor del plan: {{ planTotal }}
+Abonado acumulado: {{ cumulativePaid }}
+Saldo pendiente: {{ remainingBalance }}
 {% endif %}
-Conserva este correo como comprobante de tu pago.
+{% if hasRemainingBalance %}Este pago es un abono. El saldo indicado continúa pendiente dentro del período vigente.
+{% else %}Conserva este correo como comprobante de tu pago.
+{% endif %}
 {% if replyTo %}Soporte: {{ replyTo }}
 {% endif %}
 © {{ currentYear }} {{ companyName }}

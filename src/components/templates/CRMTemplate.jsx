@@ -49,6 +49,7 @@ import { CrmAttendanceWorkspace } from "../organismos/CRMDesign/CrmAttendanceWor
 import { CrmClientsWorkspace } from "../organismos/CRMDesign/CrmClientsWorkspace";
 import { CrmPaymentsWorkspace } from "../organismos/CRMDesign/CrmPaymentsWorkspace";
 import { CrmSubscriptionsWorkspace } from "../organismos/CRMDesign/CrmSubscriptionsWorkspace";
+import { calculateSubscriptionEnd } from "../../utils/crmSubscriptions";
 import FacturaCliente from "../../reports/FacturaCliente";
 import { v } from "../../styles/variables";
 import { AppToaster } from "../ui/feedback/AppToaster";
@@ -142,12 +143,6 @@ function readForm(event) {
 
 function fullName(item) {
   return [item?.nombres, item?.apellidos].filter(Boolean).join(" ");
-}
-
-function addDays(date, days) {
-  const next = new Date(date);
-  next.setDate(next.getDate() + Math.max(0, Number(days || 30) - 1));
-  return next.toISOString().slice(0, 10);
 }
 
 function dateOnly(value) {
@@ -372,7 +367,9 @@ export function CRMTemplate({ initialTab = "procesos" }) {
           id_cliente_crm: Number(values.id_cliente_crm),
           id_plan: Number(values.id_plan),
           fecha_inicio,
-          fecha_fin: values.fecha_fin || addDays(fecha_inicio, plan?.duracion_dias || 30),
+          fecha_fin:
+            values.fecha_fin ||
+            calculateSubscriptionEnd(fecha_inicio, plan?.duracion_dias || 30),
           precio_pactado: Number(values.precio_pactado || plan?.precio || 0),
           auto_renovar: values.auto_renovar === "on",
           estado: "activa",
@@ -592,6 +589,9 @@ export function CRMTemplate({ initialTab = "procesos" }) {
       }
     },
     onError: (error) => {
+      if (error.code === "TENANT_ACCESS_REQUIRED") {
+        queryClient.invalidateQueries({ queryKey: ["tenant-access"] });
+      }
       toast.error(error.message);
     },
   });
@@ -619,7 +619,12 @@ export function CRMTemplate({ initialTab = "procesos" }) {
     const priceInput = form.elements.namedItem("precio_pactado");
     const start = startInput?.value || new Date().toISOString().slice(0, 10);
     if (startInput) startInput.value = start;
-    if (endInput) endInput.value = addDays(start, plan.duracion_dias || 30);
+    if (endInput) {
+      endInput.value = calculateSubscriptionEnd(
+        start,
+        plan.duracion_dias || 30
+      );
+    }
     if (priceInput) priceInput.value = Number(plan.precio || 0);
   };
 
@@ -629,7 +634,12 @@ export function CRMTemplate({ initialTab = "procesos" }) {
     const plan = crm.planes.find((item) => String(item.id) === planId);
     if (form && plan && event.target.value) {
       const endInput = form.elements.namedItem("fecha_fin");
-      if (endInput) endInput.value = addDays(event.target.value, plan.duracion_dias || 30);
+      if (endInput) {
+        endInput.value = calculateSubscriptionEnd(
+          event.target.value,
+          plan.duracion_dias || 30
+        );
+      }
     }
   };
 
