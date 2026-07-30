@@ -31,6 +31,16 @@ function normalizeCrmError(message) {
   ) {
     return "No se pudo conectar con el servicio de correo. Verifica el SMTP de Hostinger (host, puerto, cifrado y credenciales) e inténtalo de nuevo.";
   }
+  if (
+    detail.toLowerCase().includes("whatsapp credentials are missing") ||
+    detail.includes("WHATSAPP_ACCESS_TOKEN") ||
+    detail.includes("N8N_WHATSAPP_WEBHOOK_URL")
+  ) {
+    return "La conexión de WhatsApp todavía no tiene credenciales válidas en el servidor. Puedes abrir y enviar el mensaje manualmente mientras se completa la configuración de Meta u OpenWA.";
+  }
+  if (detail.toLowerCase().includes("whatsapp is not connected")) {
+    return "Activa una conexión de WhatsApp antes de usar el envío automático. El envío manual sigue disponible.";
+  }
   return detail || "No se pudo completar la operación";
 }
 
@@ -918,7 +928,7 @@ export async function DespacharWhatsappMensaje({ id, mode = "template" }) {
       mode,
     },
   });
-  throwIfError(error);
+  await throwFunctionError(error);
   return data;
 }
 

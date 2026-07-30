@@ -6,8 +6,8 @@ export const useMostrarMetodosPagoQuery = () => {
   const { mostrarMetodosPago } = useMetodosPagoStore();
   const { dataempresa } = useEmpresaStore();
   return useQuery({
-    queryKey: ["mostrar metodos de pago"],
+    queryKey: ["mostrar metodos de pago", dataempresa?.id],
     queryFn: () => mostrarMetodosPago({ id_empresa: dataempresa?.id }),
-    enabled: !!dataempresa,
+    enabled: Boolean(dataempresa?.id),
   });
 };

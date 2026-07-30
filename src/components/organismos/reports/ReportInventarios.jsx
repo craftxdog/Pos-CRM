@@ -5,7 +5,6 @@ import {
   Page,
   View,
   StyleSheet,
-  Font,
   Text,
 } from "@react-pdf/renderer";
 import { useReporteInventarioValoradoQuery } from "../../../tanstack/ReportesStack";
@@ -24,10 +23,6 @@ export const ReportInventarios = () => {
     ) || 0;
   const currentDate = new Date();
   const formattedDate = `${currentDate.toLocaleDateString()} ${currentDate.toLocaleTimeString()}`;
-  Font.register({
-    family: "Inconsolata",
-    src: "http://fonts.gstatic.com/s/inconsolata/v15/7bMKuoy6Nh0ft0SHnIGMuaCWcynf_cDxXwCLxiixG1c.ttf",
-  });
   const styles = StyleSheet.create({
     page: {
       flexDirection: "row",
@@ -61,7 +56,7 @@ export const ReportInventarios = () => {
     cell: {
       flex: 1,
       textAlign: "center",
-      fontFamily: "Inconsolata",
+      fontFamily: "Helvetica",
       fontSize: 9,
       padding: 3,
       borderRightColor: "#000",
@@ -71,7 +66,7 @@ export const ReportInventarios = () => {
       flex: 1,
 
       fontWeight: "bold",
-      fontFamily: "Inconsolata",
+      fontFamily: "Helvetica",
       textAlign: "center",
       fontSize: 9,
       padding: 3,
@@ -80,7 +75,7 @@ export const ReportInventarios = () => {
     },
     reportInfo: {
       fontSize: 12,
-      fontFamily: "Inconsolata",
+      fontFamily: "Helvetica",
       marginBottom: 5,
     },
     title: {
@@ -88,11 +83,11 @@ export const ReportInventarios = () => {
       fontWeight: "bold",
       textAlign: "left",
       marginBottom: 10,
-      fontFamily: "Inconsolata",
+      fontFamily: "Helvetica",
     },
     subTitle: {
       fontSize: 12,
-      fontFamily: "Inconsolata",
+      fontFamily: "Helvetica",
       marginBottom: 5,
       textAlign: "left",
     },
@@ -101,19 +96,19 @@ export const ReportInventarios = () => {
       textAlign: "right",
       fontSize: 12,
       marginTop: 10,
-      fontFamily: "Inconsolata",
+      fontFamily: "Helvetica",
     },
     codeCell: {
       flex: 0.8,
       textAlign: "center",
-      fontFamily: "Inconsolata",
+      fontFamily: "Helvetica",
       fontSize: 9,
       padding: 3,
     },
     descriptionCell: {
       flex: 2,
       textAlign: "left",
-      fontFamily: "Inconsolata",
+      fontFamily: "Helvetica",
       fontSize: 9,
       padding: 3,
       paddingLeft: 5,
@@ -121,7 +116,7 @@ export const ReportInventarios = () => {
     numberCell: {
       flex: 0.8,
       textAlign: "right",
-      fontFamily: "Inconsolata",
+      fontFamily: "Helvetica",
       fontSize: 9,
       padding: 3,
       paddingRight: 5,
@@ -130,7 +125,7 @@ export const ReportInventarios = () => {
       flex: 0.8,
 
       fontWeight: "bold",
-      fontFamily: "Inconsolata",
+      fontFamily: "Helvetica",
       textAlign: "center",
       fontSize: 9,
       padding: 3,
@@ -139,7 +134,7 @@ export const ReportInventarios = () => {
       flex: 2,
 
       fontWeight: "bold",
-      fontFamily: "Inconsolata",
+      fontFamily: "Helvetica",
       textAlign: "center",
       fontSize: 9,
       padding: 3,
@@ -148,7 +143,7 @@ export const ReportInventarios = () => {
       flex: 0.8,
 
       fontWeight: "bold",
-      fontFamily: "Inconsolata",
+      fontFamily: "Helvetica",
       textAlign: "center",
       fontSize: 9,
       padding: 3,
@@ -156,7 +151,7 @@ export const ReportInventarios = () => {
     totalLabelCell: {
       flex: 2.8,
       textAlign: "right",
-      fontFamily: "Inconsolata",
+      fontFamily: "Helvetica",
       fontWeight: "bold",
       fontSize: 9,
       padding: 3,
