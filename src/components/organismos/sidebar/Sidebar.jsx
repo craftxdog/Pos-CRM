@@ -17,9 +17,15 @@ export function Sidebar({ state, setState }) {
   ];
   return (
     <Main $isopen={state.toString()}>
-      <span className="Sidebarbutton" onClick={() => setState(!state)}>
+      <button
+        className="Sidebarbutton"
+        type="button"
+        aria-label={state ? "Contraer menú lateral" : "Desplegar menú lateral"}
+        aria-expanded={state}
+        onClick={() => setState(!state)}
+      >
         {<v.iconoflechaderecha />}
-      </span>
+      </button>
       <Container $isopen={state.toString()} className={state ? "active" : ""}>
         <div className="Logocontent">
           <div className="imgcontent">
@@ -93,9 +99,10 @@ const Container = styled.div`
   background: ${({ theme }) => theme.bgtotal};
   color: ${(props) => props.theme.text};
   position: fixed;
-  padding-top: 20px;
+  padding: 12px 0 8px;
   z-index: 2;
-  height: 100%;
+  height: 100vh;
+  height: 100dvh;
   width: 88px;
   transition: 0.1s ease-in-out;
   overflow-y: auto;
@@ -118,7 +125,8 @@ const Container = styled.div`
     display: flex;
     justify-content: center;
     align-items: center;
-    padding-bottom: 60px;
+    min-height: 50px;
+    padding-bottom: 8px;
     .imgcontent {
       display: flex;
       justify-content: center;
@@ -140,9 +148,7 @@ const Container = styled.div`
     }
   }
   .LinkContainer {
-    margin: 9px 0;
-    margin-right:10px;
-    margin-left:8px;
+    margin: 3px 8px;
     transition: all 0.3s ease-in-out;
     position: relative;
     text-transform: uppercase;
@@ -150,12 +156,12 @@ const Container = styled.div`
   }
   .domain-section + .domain-section {
     border-top: 1px solid ${({ theme }) => theme.color2};
-    padding-top: 8px;
+    padding-top: 4px;
   }
   .domain-label {
     display: ${({ $isopen }) => ($isopen === "true" ? "block" : "none")};
-    padding: 4px 20px;
-    font-size: 11px;
+    padding: 2px 20px;
+    font-size: 10px;
     letter-spacing: 0.16em;
     opacity: 0.55;
     font-weight: 800;
@@ -168,7 +174,7 @@ const Container = styled.div`
     text-decoration: none;
     width: 100%;
     color: ${(props) => props.theme.text};
-    height: 60px;
+    min-height: 48px;
     position: relative;
     .content {
       display: flex;
@@ -177,8 +183,8 @@ const Container = styled.div`
       align-items: center;
       .Linkicon {
         display: flex;
-        font-size: 33px;
-filter:grayscale(100%);
+        font-size: 28px;
+        filter: grayscale(100%);
         svg {
           font-size: 25px;
         }
@@ -197,8 +203,8 @@ filter:grayscale(100%);
 
       &.open {
         justify-content: start;
-        gap: 20px;
-        padding: 20px;
+        gap: 16px;
+        padding: 11px 16px;
       }
     }
 
@@ -214,6 +220,23 @@ filter:grayscale(100%);
       .Linkicon{
         filter: grayscale(0%);
       }
+    }
+  }
+
+  @media (max-height: 760px) {
+    padding-top: 6px;
+    .Logocontent {
+      min-height: 40px;
+      padding-bottom: 2px;
+    }
+    .LinkContainer {
+      margin-block: 1px;
+    }
+    .Links {
+      min-height: 41px;
+    }
+    .domain-label {
+      padding-block: 1px;
     }
   }
 `;
@@ -233,6 +256,7 @@ const Main = styled.div`
     justify-content: center;
     cursor: pointer;
     transition: all 0.2s;
+    border: 0;
     z-index: 3;
     transform: ${({ $isopen }) =>
       $isopen === "true" ? `translateX(173px) rotate(3.142rad)` : `initial`};
@@ -243,5 +267,5 @@ const Divider = styled.div`
   height: 1px;
   width: 100%;
   background: ${(props) => props.theme.bg4};
-  margin: ${() => v.lgSpacing} 0;
+  margin: 5px 0;
 `;

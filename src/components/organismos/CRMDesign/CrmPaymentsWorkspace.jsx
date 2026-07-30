@@ -11,6 +11,7 @@ import {
   FiDollarSign,
   FiFileText,
   FiMail,
+  FiMessageCircle,
   FiPrinter,
   FiRefreshCw,
   FiSearch,
@@ -26,6 +27,7 @@ import {
   calculateSubscriptionAccount,
   resolveClientChargeTarget,
 } from "../../../utils/crmPayments";
+import { buildWhatsappReceiptUrl } from "../../../utils/crmWhatsapp";
 
 const methods = [
   { value: "efectivo", label: "Efectivo" },
@@ -1099,8 +1101,8 @@ export function CrmPaymentsWorkspace({
           <div>
             <h3>Historial de cobros y comprobantes</h3>
             <p>
-              Busca cualquier pago, reimprime el comprobante o envíalo al
-              correo registrado.
+              Busca cualquier pago, reimprime el comprobante o compártelo por
+              correo y WhatsApp.
             </p>
           </div>
           <button
@@ -1222,6 +1224,29 @@ export function CrmPaymentsWorkspace({
                           <FiMail /> Correo
                         </>
                       )}
+                    </button>
+                    <button
+                      type="button"
+                      className="print whatsapp"
+                      disabled={!item.currentPhone}
+                      title={
+                        item.currentPhone
+                          ? `Compartir con ${item.currentPhone}`
+                          : "Agrega un teléfono al cliente para habilitar WhatsApp"
+                      }
+                      onClick={() => {
+                        const url = buildWhatsappReceiptUrl({
+                          receipt: item,
+                          company: dataempresa,
+                          defaultCountryCode:
+                            crm.whatsappConfig?.default_country_code || "505",
+                        });
+                        if (url) {
+                          window.open(url, "_blank", "noopener,noreferrer");
+                        }
+                      }}
+                    >
+                      <FiMessageCircle /> WhatsApp
                     </button>
                   </div>
                 </div>

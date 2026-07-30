@@ -119,6 +119,12 @@ export const AuthContextProvider = ({ children }) => {
     window.addEventListener("focus", revalidateWhenActive);
     window.addEventListener("online", revalidateWhenActive);
     document.addEventListener("visibilitychange", revalidateWhenActive);
+    const handleExpiredSession = () => {
+      setUser(null);
+      setLoadingAuth(false);
+      void supabase.auth.signOut({ scope: "local" });
+    };
+    window.addEventListener("asc:session-expired", handleExpiredSession);
 
     const { data } = supabase.auth.onAuthStateChange((_event, session) => {
       scheduleSessionSync(session);
@@ -128,6 +134,7 @@ export const AuthContextProvider = ({ children }) => {
       window.removeEventListener("focus", revalidateWhenActive);
       window.removeEventListener("online", revalidateWhenActive);
       document.removeEventListener("visibilitychange", revalidateWhenActive);
+      window.removeEventListener("asc:session-expired", handleExpiredSession);
       data.subscription.unsubscribe();
     };
   }, [insertarDatos]);

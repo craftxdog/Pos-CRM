@@ -1,10 +1,13 @@
 import { supabase } from "./supabase.config";
 const tabla = "metodos_pago";
 export async function MostrarMetodosPago(p) {
-  const { data } = await supabase
+  if (!p?.id_empresa) return [];
+
+  const { data, error } = await supabase
     .from(tabla)
     .select()
     .eq("id_empresa", p.id_empresa);
+  if (error) throw error;
   return data;
 }
 //manejo de icono en forma de imagen

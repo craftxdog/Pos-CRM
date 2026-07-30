@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { FiArchive, FiBookOpen, FiBriefcase, FiDatabase, FiMapPin, FiPrinter, FiShield, FiTool, FiTrendingUp } from "react-icons/fi";
+import { FiArchive, FiBookOpen, FiBriefcase, FiDatabase, FiHelpCircle, FiLock, FiMapPin, FiPrinter, FiShield, FiTool, FiTrendingUp } from "react-icons/fi";
 import styled from "styled-components";
 import ScrollReveal from "scrollreveal";
 import { CardFuncion } from "./CardFuncion";
@@ -42,7 +42,13 @@ export const LandingPagesWelcome = () => {
         </MockupImage></RightSection>
       </SubContentSection>
     </ContentSection>
-    <Footer className="footer-section"><div><span><FiShield /></span><section><b>Operación protegida</b><p>Roles, permisos y trazabilidad para que cada equipo trabaje con claridad.</p></section></div><div><span><FiDatabase /></span><section><b>Datos siempre conectados</b><p>POS, CRM y reportes comparten una sola fuente operativa.</p></section></div><small>ActiveSelfControl · Plataforma de gestión</small></Footer>
+    <Footer className="footer-section">
+      <div><span><FiShield /></span><section><b>Operación protegida</b><p>Roles, permisos y trazabilidad para que cada equipo trabaje con claridad.</p></section></div>
+      <div><span><FiDatabase /></span><section><b>Datos siempre conectados</b><p>POS, CRM y reportes comparten una sola fuente operativa.</p></section></div>
+      <div><span><FiLock /></span><section><b>Información bajo control</b><p>Acceso por organización y sesiones verificadas para proteger los datos del cliente.</p></section></div>
+      <div><span><FiHelpCircle /></span><section><b>¿Necesitas ayuda?</b><p><a href="mailto:soporte@alphaby.cloud">Contactar soporte técnico</a></p></section></div>
+      <small><span>© {new Date().getFullYear()} ActiveSelfControl</span><span>POS · CRM · Inventario · Reportes</span></small>
+    </Footer>
   </Container>;
 };
 
@@ -73,5 +79,5 @@ const MockupImage = styled.div`
   width:250px;height:500px;background:linear-gradient(180deg,${({ theme }) => theme.bg3},${({ theme }) => theme.bg});border-radius:24px;border:6px solid ${({ theme }) => theme.bg3};box-shadow:0 22px 46px rgba(15,23,42,.3);position:relative;&::before{content:"";height:330px;width:330px;background:rgba(14,165,233,.13);position:absolute;z-index:-1;bottom:76px;left:-49px;border-radius:50%;animation:palpitar 3s infinite}@keyframes palpitar{50%{transform:scale(1.08)}}
 `;
 const Footer = styled.footer`
-  width:min(1200px,100%);display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;padding:18px 22px;border-radius:16px;background:${({ theme }) => theme.bg3};color:${({ theme }) => theme.text};box-shadow:0 15px 30px rgba(15,23,42,.2);border:1px solid ${({ theme }) => theme.bordercolorDash};>div{display:flex;align-items:flex-start;gap:10px}>div>span{display:grid;place-items:center;width:34px;height:34px;border-radius:10px;background:${({ theme }) => theme.bg4};color:#7dd3fc;flex:none}svg{width:18px;height:18px}b{font-size:14px}p{margin:3px 0 0;font-size:12px;color:${({ theme }) => theme.colorSubtitle};line-height:1.45}small{grid-column:1/-1;padding-top:10px;border-top:1px solid ${({ theme }) => theme.bordercolorDash};font-size:11px;color:${({ theme }) => theme.colorSubtitle};text-align:center}@media(max-width:620px){grid-template-columns:1fr;}
+  width:min(1200px,100%);display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;padding:18px 22px;border-radius:16px;background:${({ theme }) => theme.bg3};color:${({ theme }) => theme.text};box-shadow:0 15px 30px rgba(15,23,42,.2);border:1px solid ${({ theme }) => theme.bordercolorDash};>div{display:flex;align-items:flex-start;gap:10px}>div>span{display:grid;place-items:center;width:34px;height:34px;border-radius:10px;background:${({ theme }) => theme.bg4};color:#7dd3fc;flex:none}svg{width:18px;height:18px}b{font-size:13px}p{margin:3px 0 0;font-size:11px;color:${({ theme }) => theme.colorSubtitle};line-height:1.45}a{color:#0284c7;font-weight:800;text-decoration:none}small{grid-column:1/-1;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;padding-top:10px;border-top:1px solid ${({ theme }) => theme.bordercolorDash};font-size:11px;color:${({ theme }) => theme.colorSubtitle}}@media(max-width:900px){grid-template-columns:repeat(2,minmax(0,1fr))}@media(max-width:620px){grid-template-columns:1fr;small{justify-content:center}}
 `;
