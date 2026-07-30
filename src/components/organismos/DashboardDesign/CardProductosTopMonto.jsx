@@ -22,7 +22,7 @@ export const CardProductosTopMonto = () => {
       _fecha_inicio: fechaInicio,
       _fecha_fin: fechaFin,
     }),
-    enabled: !!dataempresa,
+    enabled: Boolean(dataempresa?.id && fechaInicio && fechaFin),
   });
   if(isLoading) return <BarLoader color="#6d6d6d"/>
   if(error) return <span>error...{error.message} </span>

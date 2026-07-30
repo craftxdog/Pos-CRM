@@ -43,17 +43,27 @@ export const useCierreCajaStore = create((set) => ({
     return data || [];
   },
   mostrarCierreCajaPorUsuario: async (p) => {
-    const { data, error } = await supabase
+    if (!p?.id_usuario) return null;
+
+    let query = supabase
       .from(tabla)
       .select(`*, caja(*,sucursales(*))`)
       .eq("id_usuario", p.id_usuario)
       .eq("estado", 0)
-      .maybeSingle();
+      .order("fechainicio", { ascending: false });
+
+    if (p.id_caja) {
+      query = query.eq("id_caja", p.id_caja);
+    }
+
+    const { data, error } = await query.limit(1);
     if (error) {
       throw new Error(error.message);
     }
-    set({ dataCierreCaja: data });
-    return data;
+
+    const cierreActivo = data?.[0] ?? null;
+    set({ dataCierreCaja: cierreActivo });
+    return cierreActivo;
   },
   cierreCajaItemSelect: null,
   setCierreCajaItemSelect: (p) => {

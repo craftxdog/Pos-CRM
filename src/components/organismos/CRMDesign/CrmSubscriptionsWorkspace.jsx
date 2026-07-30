@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  FiCheck,
   FiChevronLeft,
   FiChevronRight,
   FiClock,
@@ -19,10 +20,11 @@ import styled from "styled-components";
 import { toast } from "sonner";
 import { v } from "../../../styles/variables";
 import FacturaCliente from "../../../reports/FacturaCliente";
+import { calculateSubscriptionEnd } from "../../../utils/crmSubscriptions";
 import { ConfirmDialog } from "../../ui/feedback/ConfirmDialog";
 import { CrmPlansTable } from "./CrmPlansTable";
 
-const pageSizes = [10, 20, 50];
+const pageSizes = [5, 10, 20];
 
 const statusCopy = {
   activa: {
@@ -76,6 +78,227 @@ function SubscriptionStatus({ item }) {
   );
 }
 
+function normalizeLookup(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
+function clientName(client) {
+  return [client?.nombres, client?.apellidos].filter(Boolean).join(" ").trim();
+}
+
+function ClientPicker({ clients }) {
+  const inputId = useId();
+  const listboxId = `${inputId}-options`;
+  const rootRef = useRef(null);
+  const searchInputRef = useRef(null);
+  const [query, setQuery] = useState("");
+  const [selected, setSelected] = useState(null);
+  const [open, setOpen] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(0);
+
+  const availableClients = useMemo(
+    () => (clients || []).filter((client) => client.estado !== "inactivo"),
+    [clients]
+  );
+  const matches = useMemo(() => {
+    const value = normalizeLookup(query);
+    const list = value
+      ? availableClients.filter((client) =>
+          normalizeLookup(
+            [
+              clientName(client),
+              client.email,
+              client.telefono,
+              client.identificador_nacional,
+            ]
+              .filter(Boolean)
+              .join(" ")
+          ).includes(value)
+        )
+      : availableClients;
+    return list.slice(0, 8);
+  }, [availableClients, query]);
+
+  useEffect(() => {
+    setActiveIndex(0);
+  }, [query]);
+
+  useEffect(() => {
+    const closeOnOutsideClick = (event) => {
+      if (!rootRef.current?.contains(event.target)) setOpen(false);
+    };
+    document.addEventListener("pointerdown", closeOnOutsideClick);
+    return () => document.removeEventListener("pointerdown", closeOnOutsideClick);
+  }, []);
+
+  useEffect(() => {
+    const form = rootRef.current?.closest("form");
+    if (!form) return undefined;
+    const reset = () => {
+      setSelected(null);
+      setQuery("");
+      setOpen(false);
+      searchInputRef.current?.setCustomValidity("");
+    };
+    form.addEventListener("reset", reset);
+    return () => form.removeEventListener("reset", reset);
+  }, []);
+
+  const selectClient = (client) => {
+    setSelected(client);
+    setQuery(clientName(client));
+    setOpen(false);
+    searchInputRef.current?.setCustomValidity("");
+  };
+
+  const handleKeyDown = (event) => {
+    if (event.key === "Escape") {
+      setOpen(false);
+      return;
+    }
+    if (!["ArrowDown", "ArrowUp", "Enter"].includes(event.key)) return;
+    if (!open) {
+      setOpen(true);
+      return;
+    }
+    if (!matches.length) return;
+    event.preventDefault();
+    if (event.key === "ArrowDown") {
+      setActiveIndex((index) => (index + 1) % matches.length);
+    } else if (event.key === "ArrowUp") {
+      setActiveIndex((index) => (index - 1 + matches.length) % matches.length);
+    } else {
+      selectClient(matches[activeIndex] || matches[0]);
+    }
+  };
+
+  return (
+    <div className="client-picker-field">
+      <label htmlFor={inputId}>Cliente</label>
+      <div className={`client-picker ${open ? "open" : ""}`} ref={rootRef}>
+        <input
+          type="hidden"
+          name="id_cliente_crm"
+          value={selected?.id || ""}
+          readOnly
+        />
+        <div className="client-picker-control">
+          <FiSearch aria-hidden="true" />
+          <input
+            ref={searchInputRef}
+            id={inputId}
+            type="search"
+            role="combobox"
+            autoComplete="off"
+            aria-autocomplete="list"
+            aria-controls={listboxId}
+            aria-expanded={open}
+            aria-activedescendant={
+              open && matches[activeIndex]
+                ? `${listboxId}-${matches[activeIndex].id}`
+                : undefined
+            }
+            placeholder="Busca por nombre, correo o teléfono"
+            value={query}
+            required
+            onFocus={() => setOpen(true)}
+            onChange={(event) => {
+              setQuery(event.target.value);
+              setSelected(null);
+              setOpen(true);
+              event.target.setCustomValidity(
+                event.target.value
+                  ? "Selecciona un cliente de los resultados."
+                  : ""
+              );
+            }}
+            onInvalid={(event) => {
+              if (event.currentTarget.value && !selected) {
+                event.currentTarget.setCustomValidity(
+                  "Selecciona un cliente de los resultados."
+                );
+              }
+            }}
+            onKeyDown={handleKeyDown}
+          />
+          {selected ? (
+            <button
+              type="button"
+              className="clear-client"
+              onClick={() => {
+                setSelected(null);
+                setQuery("");
+                setOpen(true);
+                searchInputRef.current?.setCustomValidity("");
+              }}
+              aria-label="Quitar cliente seleccionado"
+            >
+              <FiXCircle />
+            </button>
+          ) : null}
+        </div>
+
+        {open ? (
+          <div className="client-options" id={listboxId} role="listbox">
+            <div className="client-options-title">
+              {query.trim() ? "Coincidencias" : "Clientes recientes"}
+              <span>
+                {matches.length} de {availableClients.length}
+              </span>
+            </div>
+            {matches.map((client, index) => {
+              const contact =
+                [client.email, client.telefono].filter(Boolean).join(" · ") ||
+                "Sin datos de contacto";
+              return (
+                <button
+                  type="button"
+                  role="option"
+                  id={`${listboxId}-${client.id}`}
+                  aria-selected={selected?.id === client.id}
+                  className={index === activeIndex ? "active" : ""}
+                  key={client.id}
+                  onMouseDown={(event) => event.preventDefault()}
+                  onMouseEnter={() => setActiveIndex(index)}
+                  onClick={() => selectClient(client)}
+                >
+                  <span className="client-avatar" aria-hidden="true">
+                    {clientName(client).charAt(0).toUpperCase() || "C"}
+                  </span>
+                  <span>
+                    <strong>{clientName(client) || "Cliente sin nombre"}</strong>
+                    <small>{contact}</small>
+                  </span>
+                  {selected?.id === client.id ? <FiCheck /> : null}
+                </button>
+              );
+            })}
+            {!matches.length ? (
+              <p className="no-client-results">
+                No encontramos clientes activos con esa búsqueda.
+              </p>
+            ) : null}
+            {availableClients.length > matches.length ? (
+              <small className="client-search-hint">
+                Escribe más datos para acotar la búsqueda.
+              </small>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
+      {selected ? (
+        <small className="selected-client-copy">
+          <FiCheck /> Cliente seleccionado
+        </small>
+      ) : null}
+    </div>
+  );
+}
+
 export function CrmSubscriptionsWorkspace({
   crm,
   dataempresa,
@@ -89,12 +312,13 @@ export function CrmSubscriptionsWorkspace({
   const [status, setStatus] = useState("todos");
   const [planId, setPlanId] = useState("todos");
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize, setPageSize] = useState(5);
   const [selectedSubscription, setSelectedSubscription] = useState(null);
   const [newPlanId, setNewPlanId] = useState("");
   const [effectiveDate, setEffectiveDate] = useState(
     new Date().toISOString().slice(0, 10)
   );
+  const [editedEndDate, setEditedEndDate] = useState("");
   const [renewalSubscription, setRenewalSubscription] = useState(null);
   const [renewalMethod, setRenewalMethod] = useState("efectivo");
   const [renewalReceived, setRenewalReceived] = useState("");
@@ -144,7 +368,7 @@ export function CrmSubscriptionsWorkspace({
         accion,
         id_plan,
         fecha,
-    }),
+      }),
     onSuccess: (_, variables) => {
       const messages = {
         cambiar_plan: {
@@ -181,6 +405,26 @@ export function CrmSubscriptionsWorkspace({
     },
     onError: (error) =>
       toast.error("No se pudo actualizar la suscripción", {
+        description: error.message,
+      }),
+  });
+
+  const editMutation = useMutation({
+    mutationFn: (payload) => crm.editarSuscripcion(payload),
+    onSuccess: () => {
+      toast.success("Suscripción actualizada", {
+        description:
+          "Las fechas quedaron corregidas y el cambio se guardó en el historial.",
+      });
+      setSelectedSubscription(null);
+      setNewPlanId("");
+      setEditedEndDate("");
+      queryClient.invalidateQueries({ queryKey: ["crm-subscriptions"] });
+      queryClient.invalidateQueries({ queryKey: ["crm-clients-directory"] });
+      queryClient.invalidateQueries({ queryKey: ["crm-data"] });
+    },
+    onError: (error) =>
+      toast.error("No se pudo editar la suscripción", {
         description: error.message,
       }),
   });
@@ -223,6 +467,24 @@ export function CrmSubscriptionsWorkspace({
     () => pageNumbers(result.pagination.page, result.pagination.totalPages),
     [result.pagination.page, result.pagination.totalPages]
   );
+  const editorPlan = useMemo(
+    () => crm.planes.find((plan) => String(plan.id) === String(newPlanId)),
+    [crm.planes, newPlanId]
+  );
+
+  const openSubscriptionEditor = (item) => {
+    setRenewalSubscription(null);
+    setSelectedSubscription(item);
+    setNewPlanId(String(item.id_plan));
+    setEffectiveDate(item.fecha_inicio);
+    setEditedEndDate(item.fecha_fin);
+  };
+
+  const recalculateEditedEnd = (startDate, plan) => {
+    setEditedEndDate(
+      calculateSubscriptionEnd(startDate, plan?.duracion_dias || 30)
+    );
+  };
 
   return (
     <>
@@ -252,19 +514,7 @@ export function CrmSubscriptionsWorkspace({
             </div>
           </header>
           <form onSubmit={submitForm("suscripcion")}>
-            <label>
-              Cliente
-              <select name="id_cliente_crm" required defaultValue="">
-                <option value="">Selecciona un cliente</option>
-                {crm.clientes
-                  .filter((client) => client.estado !== "inactivo")
-                  .map((client) => (
-                    <option key={client.id} value={client.id}>
-                      {[client.nombres, client.apellidos].filter(Boolean).join(" ")}
-                    </option>
-                  ))}
-              </select>
-            </label>
+            <ClientPicker clients={crm.clientes} />
             <label>
               Tipo de suscripción
               <select
@@ -297,6 +547,9 @@ export function CrmSubscriptionsWorkspace({
               <label>
                 Vencimiento
                 <input name="fecha_fin" type="date" required />
+                <small className="date-help">
+                  Se calcula con la duración del plan y puedes ajustarlo.
+                </small>
               </label>
             </div>
             <label>
@@ -376,55 +629,96 @@ export function CrmSubscriptionsWorkspace({
 
           {selectedSubscription ? (
             <section className="plan-editor">
-              <div>
-                <span>Cambiar plan</span>
+              <div className="editor-heading">
+                <span>Editar suscripción</span>
                 <strong>{selectedSubscription.cliente_nombre}</strong>
-                <small>Plan actual: {selectedSubscription.plan_nombre}</small>
+                <small>
+                  Corrige el inicio; el vencimiento se recalcula y también puede
+                  editarse manualmente.
+                </small>
               </div>
-              <select
-                value={newPlanId}
-                onChange={(event) => setNewPlanId(event.target.value)}
-              >
-                <option value="">Selecciona el nuevo plan</option>
-                {crm.planes
-                  .filter(
-                    (plan) =>
-                      plan.activo && plan.id !== selectedSubscription.id_plan
-                  )
-                  .map((plan) => (
-                    <option key={plan.id} value={plan.id}>
-                      {plan.nombre} · {plan.duracion_dias} días
-                    </option>
-                  ))}
-              </select>
-              <input
-                type="date"
-                value={effectiveDate}
-                onChange={(event) => setEffectiveDate(event.target.value)}
-                aria-label="Fecha efectiva del cambio"
-              />
-              <button
-                type="button"
-                onClick={() =>
-                  lifecycleMutation.mutate({
-                    id: selectedSubscription.id,
-                    accion: "cambiar_plan",
-                    id_plan: newPlanId,
-                    fecha: effectiveDate,
-                  })
-                }
-                disabled={!newPlanId || lifecycleMutation.isPending}
-              >
-                Aplicar cambio
-              </button>
-              <button
-                type="button"
-                className="close-editor"
-                onClick={() => setSelectedSubscription(null)}
-                aria-label="Cerrar cambio de plan"
-              >
-                <FiXCircle />
-              </button>
+              <label>
+                Plan
+                <select
+                  value={newPlanId}
+                  onChange={(event) => {
+                    const nextPlan = crm.planes.find(
+                      (plan) => String(plan.id) === event.target.value
+                    );
+                    setNewPlanId(event.target.value);
+                    recalculateEditedEnd(effectiveDate, nextPlan);
+                  }}
+                  required
+                >
+                  {crm.planes
+                    .filter(
+                      (plan) =>
+                        plan.activo || plan.id === selectedSubscription.id_plan
+                    )
+                    .map((plan) => (
+                      <option key={plan.id} value={plan.id}>
+                        {plan.nombre} · {plan.duracion_dias} días
+                      </option>
+                    ))}
+                </select>
+              </label>
+              <label>
+                Inicio
+                <input
+                  type="date"
+                  value={effectiveDate}
+                  onChange={(event) => {
+                    setEffectiveDate(event.target.value);
+                    recalculateEditedEnd(event.target.value, editorPlan);
+                  }}
+                  required
+                />
+              </label>
+              <label>
+                Vencimiento
+                <input
+                  type="date"
+                  value={editedEndDate}
+                  min={effectiveDate}
+                  onChange={(event) => setEditedEndDate(event.target.value)}
+                  required
+                />
+              </label>
+              <p className="editor-calculation">
+                <FiClock />
+                {editorPlan?.duracion_dias || 0} días desde el inicio. El
+                vencimiento permanece editable.
+              </p>
+              <div className="editor-actions">
+                <button
+                  type="button"
+                  className="secondary"
+                  onClick={() => setSelectedSubscription(null)}
+                  disabled={editMutation.isPending}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    editMutation.mutate({
+                      id: selectedSubscription.id,
+                      id_plan: newPlanId,
+                      fecha_inicio: effectiveDate,
+                      fecha_fin: editedEndDate,
+                    })
+                  }
+                  disabled={
+                    !newPlanId ||
+                    !effectiveDate ||
+                    !editedEndDate ||
+                    editedEndDate < effectiveDate ||
+                    editMutation.isPending
+                  }
+                >
+                  {editMutation.isPending ? "Guardando…" : "Guardar cambios"}
+                </button>
+              </div>
             </section>
           ) : null}
 
@@ -486,14 +780,13 @@ export function CrmSubscriptionsWorkspace({
                 <span className="actions-cell">
                   <button
                     type="button"
-                    onClick={() => {
-                      setSelectedSubscription(item);
-                      setNewPlanId("");
-                    }}
-                    disabled={lifecycleMutation.isPending}
-                    title="Cambiar plan"
+                    onClick={() => openSubscriptionEditor(item)}
+                    disabled={
+                      lifecycleMutation.isPending || editMutation.isPending
+                    }
+                    title="Editar plan y fechas"
                   >
-                    <FiEdit3 /> Plan
+                    <FiEdit3 /> Editar
                   </button>
                   <button
                     type="button"
@@ -687,8 +980,8 @@ const Container = styled.section`
   .subscription-grid {
     min-width: 0;
     display: grid;
-    grid-template-columns: minmax(260px, 330px) minmax(0, 1fr);
-    gap: 16px;
+    grid-template-columns: minmax(320px, 380px) minmax(0, 1fr);
+    gap: 14px;
     align-items: start;
   }
 
@@ -747,6 +1040,183 @@ const Container = styled.section`
       font-weight: 700;
     }
 
+    .client-picker-field {
+      min-width: 0;
+      display: grid;
+      gap: 7px;
+
+      > label {
+        color: ${({ theme }) => theme.colorSubtitle};
+        font-size: 12px;
+        font-weight: 700;
+      }
+    }
+
+    .client-picker {
+      position: relative;
+      min-width: 0;
+    }
+
+    .client-picker-control {
+      min-height: 46px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border: 1px solid ${({ theme }) => theme.color2};
+      border-radius: 10px;
+      background: ${({ theme }) => theme.bgtotal};
+      padding: 0 10px;
+      transition: border-color 140ms ease, box-shadow 140ms ease;
+
+      > svg {
+        flex: none;
+        color: ${({ theme }) => theme.colorSubtitle};
+      }
+
+      input {
+        min-height: 44px;
+        flex: 1;
+        border: 0;
+        background: transparent;
+        padding: 0;
+        outline: 0;
+        font-size: 16px;
+      }
+    }
+
+    .client-picker.open .client-picker-control {
+      border-color: ${v.colorPrincipal};
+      box-shadow: 0 0 0 3px rgba(243, 210, 12, 0.16);
+    }
+
+    .clear-client {
+      width: 30px;
+      height: 30px;
+      display: grid;
+      flex: none;
+      place-items: center;
+      border: 0;
+      border-radius: 8px;
+      background: transparent;
+      color: ${({ theme }) => theme.colorSubtitle};
+      cursor: pointer;
+      padding: 0;
+    }
+
+    .client-options {
+      position: absolute;
+      z-index: 30;
+      top: calc(100% + 7px);
+      left: 0;
+      width: 100%;
+      max-height: min(340px, 52vh);
+      overflow-y: auto;
+      border: 1px solid ${({ theme }) => theme.color2};
+      border-radius: 12px;
+      background: ${({ theme }) => theme.bgcards};
+      box-shadow: 0 18px 40px rgba(15, 23, 42, 0.2);
+      padding: 6px;
+    }
+
+    .client-options-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 7px 8px;
+      color: ${({ theme }) => theme.colorSubtitle};
+      font-size: 10px;
+      font-weight: 900;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+
+      span {
+        letter-spacing: 0;
+        text-transform: none;
+      }
+    }
+
+    .client-options > button {
+      width: 100%;
+      min-height: 54px;
+      display: grid;
+      grid-template-columns: 34px minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 9px;
+      border: 0;
+      border-radius: 9px;
+      background: transparent;
+      color: ${({ theme }) => theme.text};
+      padding: 7px 8px;
+      text-align: left;
+      cursor: pointer;
+
+      &:hover,
+      &.active {
+        background: ${({ theme }) => theme.bgtotal};
+      }
+
+      > span:not(.client-avatar) {
+        min-width: 0;
+      }
+
+      strong,
+      small {
+        display: block;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      strong {
+        font-size: 12px;
+      }
+
+      small {
+        margin-top: 3px;
+        color: ${({ theme }) => theme.colorSubtitle};
+        font-size: 10px;
+      }
+    }
+
+    .client-avatar {
+      width: 34px;
+      height: 34px;
+      display: grid;
+      place-items: center;
+      border-radius: 10px;
+      background: rgba(243, 210, 12, 0.2);
+      color: #8a7600;
+      font-size: 12px;
+      font-weight: 900;
+    }
+
+    .no-client-results {
+      margin: 0;
+      padding: 18px 10px;
+      color: ${({ theme }) => theme.colorSubtitle};
+      font-size: 12px;
+      line-height: 1.45;
+      text-align: center;
+    }
+
+    .client-search-hint {
+      display: block;
+      padding: 7px 8px 5px;
+      color: ${({ theme }) => theme.colorSubtitle};
+      font-size: 10px;
+      text-align: center;
+    }
+
+    .selected-client-copy {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      color: #15803d;
+      font-size: 10px;
+      font-weight: 800;
+    }
+
     input,
     select,
     textarea {
@@ -774,6 +1244,13 @@ const Container = styled.section`
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 9px;
+    }
+
+    .date-help {
+      color: ${({ theme }) => theme.colorSubtitle};
+      font-size: 10px;
+      font-weight: 500;
+      line-height: 1.35;
     }
 
     .checkline {
@@ -1025,18 +1502,19 @@ const Container = styled.section`
 
   .plan-editor {
     display: grid;
-    grid-template-columns: minmax(150px, 1fr) minmax(170px, 1fr) auto auto auto;
-    align-items: center;
-    gap: 8px;
+    grid-template-columns: repeat(3, minmax(140px, 1fr));
+    align-items: end;
+    gap: 10px;
     margin: 0 0 14px;
     border: 1px solid rgba(243, 210, 12, 0.55);
     border-radius: 12px;
     background: rgba(243, 210, 12, 0.08);
-    padding: 10px;
+    padding: 14px;
 
-    > div {
+    .editor-heading {
+      grid-column: 1 / -1;
       display: grid;
-      gap: 1px;
+      gap: 2px;
 
       span {
         color: #8a7600;
@@ -1049,6 +1527,14 @@ const Container = styled.section`
       small {
         color: ${({ theme }) => theme.colorSubtitle};
       }
+    }
+
+    label {
+      display: grid;
+      gap: 6px;
+      color: ${({ theme }) => theme.colorSubtitle};
+      font-size: 11px;
+      font-weight: 800;
     }
 
     select,
@@ -1071,14 +1557,36 @@ const Container = styled.section`
       cursor: pointer;
     }
 
-    .close-editor {
-      width: 38px;
-      display: grid;
-      place-items: center;
+    .editor-calculation {
+      grid-column: 1 / -1;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      margin: 0;
+      color: ${({ theme }) => theme.colorSubtitle};
+      font-size: 11px;
+    }
+
+    .editor-actions {
+      grid-column: 1 / -1;
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+
+      button {
+        min-width: 130px;
+      }
+
+      .secondary {
       border-color: ${({ theme }) => theme.color2};
-      background: transparent;
+        background: ${({ theme }) => theme.bgcards};
       color: ${({ theme }) => theme.text};
-      padding: 0;
+      }
+
+      button:disabled {
+        cursor: not-allowed;
+        opacity: 0.55;
+      }
     }
   }
 
@@ -1190,11 +1698,7 @@ const Container = styled.section`
     }
 
     .plan-editor {
-      grid-template-columns: 1fr 1fr;
-
-      > div {
-        grid-column: 1 / -1;
-      }
+      grid-template-columns: repeat(2, minmax(0, 1fr));
     }
     .renewal-checkout { grid-template-columns:1fr 1fr; > div{grid-column:1/-1} }
   }
@@ -1218,10 +1722,28 @@ const Container = styled.section`
     .plan-editor {
       grid-template-columns: 1fr;
 
-      > div {
+      .editor-heading,
+      .editor-calculation,
+      .editor-actions {
         grid-column: auto;
+      }
+
+      .editor-actions {
+        display: grid;
+        grid-template-columns: 1fr;
+
+        button {
+          width: 100%;
+        }
       }
     }
     .renewal-checkout { grid-template-columns:1fr; > div{grid-column:auto} }
+
+    .assignment-card .client-options {
+      position: static;
+      max-height: 300px;
+      margin-top: 7px;
+      box-shadow: none;
+    }
   }
 `;

@@ -3,10 +3,9 @@ import styled from "styled-components";
 import { blur_in } from "../../../styles/keyframes";
 import { FormatearNumeroDinero } from "../../../utils/Conversiones";
 import {
-  Btn1,
   InputText2,
   Lottieanimacion,
- 
+
   useDetalleVentasStore,
   useEmpresaStore,
   useVentasStore,
@@ -199,14 +198,17 @@ export function AreaDetalleventaPos() {
               </ContentTotalResponsive>
             </article>
             <article className="contentbtn">
-              <Btn1
-                funcion={() =>
-                  updateQuantityImmediately(item, Number(item.cantidad) + 1)
+              <QuantityButton
+                type="button"
+                aria-label={`Quitar una unidad de ${item.descripcion}`}
+                title="Quitar una unidad"
+                disabled={Number(item.cantidad) <= 1}
+                onClick={() =>
+                  updateQuantityImmediately(item, Number(item.cantidad) - 1)
                 }
-                width="20px"
-                height="35px"
-                icono={<Icon icon="mdi:add-bold" />}
-              ></Btn1>
+              >
+                <Icon icon="mdi:minus" />
+              </QuantityButton>
               {editIndex === index ? (
                 <InputText2>
                   <input
@@ -226,18 +228,22 @@ export function AreaDetalleventaPos() {
                     icon="mdi:pencil"
                     onClick={() => handleEditClick(index, item.cantidad)}
                     className="edit-icon"
+                    role="button"
+                    aria-label={`Editar cantidad de ${item.descripcion}`}
                   />
                 </>
               )}
 
-              <Btn1
-                funcion={() =>
-                  updateQuantityImmediately(item, Number(item.cantidad) - 1)
+              <QuantityButton
+                type="button"
+                aria-label={`Agregar una unidad de ${item.descripcion}`}
+                title="Agregar una unidad"
+                onClick={() =>
+                  updateQuantityImmediately(item, Number(item.cantidad) + 1)
                 }
-                width="20px"
-                height="35px"
-                icono={<Icon icon="subway:subtraction-1" />}
-              ></Btn1>
+              >
+                <Icon icon="mdi:plus" />
+              </QuantityButton>
             </article>
             <article className="contentTotaldetalleventa">
               <span className="cantidad">
@@ -293,6 +299,41 @@ gap:8px;
       width: 20px;
       align-self: center;
     }
+  }
+`;
+const QuantityButton = styled.button`
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  padding: 0;
+  display: inline-grid;
+  place-items: center;
+  border: 2px solid ${({ theme }) => theme.color2};
+  border-radius: 12px;
+  background: ${({ theme }) => theme.body};
+  color: ${({ theme }) => theme.text};
+  box-shadow: 0 3px 0 ${({ theme }) => theme.color2};
+  cursor: pointer;
+  transition: transform 120ms ease, box-shadow 120ms ease, opacity 120ms ease;
+
+  svg {
+    width: 25px;
+    height: 25px;
+    max-width: none;
+  }
+
+  &:hover:not(:disabled) {
+    transform: translateY(-1px);
+  }
+
+  &:active:not(:disabled) {
+    transform: translateY(2px);
+    box-shadow: 0 1px 0 ${({ theme }) => theme.color2};
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.4;
   }
 `;
 const AreaDetalleventa = styled.section`
@@ -356,6 +397,15 @@ const Itemventa = styled.section`
     gap: 10px;
     align-items: center;
     justify-content: center;
+    padding: 2px 0 8px;
+    > div {
+      width: 86px;
+    }
+    .form__field {
+      text-align: center;
+      font-size: 1.25rem;
+      font-weight: 700;
+    }
     .cantidad {
       font-size: 1.8rem;
       font-weight: 700;

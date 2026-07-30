@@ -36,15 +36,22 @@ export function buildCrmInvoiceModel({
   const resolvedPlan =
     plan || resolvedSubscription?.crm_planes || payment?.crm_suscripciones?.crm_planes || {};
   const amount = Number(payment?.monto ?? resolvedPlan?.precio ?? 0);
+  const appliesToPlan = Boolean(payment?.aplica_a_saldo_plan);
+  const planTotal = Number(payment?.total_plan ?? resolvedSubscription?.precio_pactado ?? resolvedPlan?.precio ?? amount);
+  const cumulativePaid = Number(payment?.abonado_acumulado ?? amount);
+  const remainingBalance = Number(payment?.saldo_pendiente ?? Math.max(0, planTotal - cumulativePaid));
   const locale = company?.iso || "es-NI";
 
   return {
     number: crmInvoiceNumber(payment),
-    status: invoiceStatusLabels[payment?.estado] || String(payment?.estado || "pendiente").toUpperCase(),
+    status: appliesToPlan && remainingBalance > 0
+      ? "ABONO REGISTRADO"
+      : invoiceStatusLabels[payment?.estado] || String(payment?.estado || "pendiente").toUpperCase(),
     issueDate: dateLabel(payment?.fecha_pago || payment?.created_at || new Date(), locale),
     dueDate: dateLabel(payment?.fecha_vencimiento || resolvedSubscription?.fecha_fin, locale),
     company: {
       name: company?.nombre || "Empresa",
+      logo: company?.logo || "",
       taxId: company?.id_fiscal || "-",
       address: company?.direccion_fiscal || "-",
       email: company?.correo || "",
@@ -85,6 +92,10 @@ export function buildCrmInvoiceModel({
       notes: payment?.notas || "",
       subtotal: amount,
       total: amount,
+      appliesToPlan,
+      planTotal,
+      cumulativePaid,
+      remainingBalance,
     },
   };
 }

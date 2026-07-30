@@ -29,13 +29,12 @@ export const useCajasStore = create((set) => ({
     const { error, data } = await supabase
       .from(tabla)
       .insert(p)
-      .select()
-      .maybeSingle();
+      .select();
 
     if (error) {
       throw new Error(error.message);
     }
-    return data;
+    return data?.[0] ?? null;
   },
   editarCaja: async (p) => {
     await EditarCaja(p);

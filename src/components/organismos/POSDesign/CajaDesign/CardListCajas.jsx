@@ -12,9 +12,8 @@ import { toast } from "sonner";
 import { useFormattedDate } from "../../../../hooks/useFormattedDate";
 import { useMetodosPagoStore } from "../../../../store/MetodosPagoStore";
 import { useMovCajaStore } from "../../../../store/MovCajaStore";
-import { useAsignacionCajaSucursalStore } from "../../../../store/AsignacionCajaSucursalStore";
-import { useCajasStore } from "../../../../store/CajasStore";
 export function CardListCajas({
+  caja,
   title,
   subtitle,
   bgcolor,
@@ -26,18 +25,12 @@ export function CardListCajas({
   const fechaActual = useFormattedDate();
   const queryClient = useQueryClient();
   const { datausuarios } = useUsuariosStore();
-  const { sucursalesItemSelectAsignadas, dataSucursalesAsignadas } =
-    useAsignacionCajaSucursalStore();
 
   const { aperturarcaja } = useCierreCajaStore();
   const { dataMetodosPago } = useMetodosPagoStore();
   const { insertarMovCaja } = useMovCajaStore();
-  const {cajaSelectItem} = useCajasStore()
 
-  const registrarMovCaja = async (p) => {
-    const id_metodo_pago = dataMetodosPago
-      .filter((item) => item.nombre === "Efectivo")
-      .map((item) => item.id)[0];
+  const registrarMovCaja = async ({ id_cierre_caja, id_metodo_pago }) => {
     const pmovcaja = {
       fecha_movimiento: fechaActual,
       tipo_movimiento: "apertura",
@@ -45,22 +38,47 @@ export function CardListCajas({
       id_metodo_pago: id_metodo_pago,
       descripcion: `Apertura de caja con`,
       id_usuario: datausuarios?.id,
-      id_cierre_caja: p.id_cierre_caja,
+      id_cierre_caja,
     };
 
     await insertarMovCaja(pmovcaja);
   };
   const insertar = async () => {
+    if (!datausuarios?.id) {
+      throw new Error("Tu sesión no está disponible. Vuelve a iniciar sesión.");
+    }
+    if (!caja?.id_caja) {
+      throw new Error("Selecciona una caja válida.");
+    }
+
+    const metodoEfectivo = Array.isArray(dataMetodosPago)
+      ? dataMetodosPago.find(
+          (item) => item?.nombre?.trim().toLowerCase() === "efectivo"
+        )
+      : null;
+
+    if (!metodoEfectivo?.id) {
+      throw new Error(
+        "No se cargó el método de pago Efectivo. Recarga la sesión antes de aperturar."
+      );
+    }
+
     const p = {
       fechainicio: fechaActual,
       fechacierre: fechaActual,
       id_usuario: datausuarios?.id,
-      id_caja: cajaSelectItem?.id_caja,
+      id_caja: caja.id_caja,
     };
-    console.log("pcierrecaja",p)
     const data = await aperturarcaja(p);
 
-    await registrarMovCaja({ id_cierre_caja: data?.id });
+    if (!data?.id) {
+      throw new Error("La base de datos no devolvió la apertura creada.");
+    }
+
+    await registrarMovCaja({
+      id_cierre_caja: data.id,
+      id_metodo_pago: metodoEfectivo.id,
+    });
   };
 
   const mutation = useMutation({
@@ -68,10 +86,20 @@ export function CardListCajas({
     mutationFn: insertar,
     onSuccess: () => {
       toast.success("🎉 Caja aperturada correctamente!!!");
-      queryClient.invalidateQueries("mostrar cierre de caja");
+      queryClient.invalidateQueries({
+        queryKey: ["mostrar caja aperturada por usuario"],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["mostrar cierre caja por empresa"],
+      });
     },
     onError: (error) => {
-      toast.error(`Error: ${error.message}`);
+      toast.error("No se pudo aperturar la caja", {
+        description: error.message,
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["mostrar caja aperturada por usuario"],
+      });
     },
   });
   return (
@@ -120,6 +148,7 @@ export function CardListCajas({
         {!state && (
           <article className="contentbtn">
             <Btn1
+              disabled={mutation.isPending}
               titulo="OMITIR"
               funcion={() => {
                 setMontoEfectivo(0);
@@ -127,6 +156,7 @@ export function CardListCajas({
               }}
             />
             <Btn1
+              disabled={mutation.isPending}
               titulo="APERTURAR"
               color="#ffffff"
               border="2px"

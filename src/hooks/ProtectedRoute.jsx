@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useUsuariosStore } from "../store/UsuariosStore";
 import { Spinner1 } from "../components/moleculas/Spinner1";
 import { useTenantAccessStore } from "../store/TenantAccessStore";
+import { supabase } from "../supabase/supabase.config";
 
 function requiredFeature(pathname) {
   if (pathname === "/miperfil") return null;
@@ -13,20 +14,68 @@ function requiredFeature(pathname) {
   return "pos";
 }
 
-function SubscriptionRequired({ feature, message }) {
+function formatAccessDate(value) {
+  if (!value) return "";
+  try {
+    return new Intl.DateTimeFormat("es-NI", {
+      dateStyle: "long",
+      timeStyle: "short",
+    }).format(new Date(value));
+  } catch {
+    return value;
+  }
+}
+
+function SubscriptionRequired({ feature, message, access }) {
   const labels = {
     pos: "Punto de venta",
     crm: "CRM",
     whatsapp_automation: "Automatizacion de WhatsApp",
   };
+  const subscription = access?.subscription;
+  const periodEnded =
+    subscription?.current_period_end &&
+    new Date(subscription.current_period_end).getTime() <= Date.now();
+  const title = periodEnded
+    ? subscription?.status === "trialing"
+      ? "El periodo de prueba finalizó"
+      : "La suscripción necesita atención"
+    : `${labels[feature] || "Módulo"} no está habilitado`;
+  const detail =
+    message ||
+    (periodEnded
+      ? `El acceso venció el ${formatAccessDate(subscription.current_period_end)}. Renueva o actualiza el plan para continuar.`
+      : "La suscripción de esta organización no incluye este módulo o necesita regularizarse.");
+
+  const signOut = async () => {
+    await supabase.auth.signOut({ scope: "local" });
+    window.location.assign("/login");
+  };
+
   return (
-    <main style={{ padding: "48px", maxWidth: "720px", margin: "0 auto" }}>
+    <main
+      style={{
+        padding: "clamp(28px, 8vw, 72px) 24px",
+        maxWidth: "720px",
+        margin: "0 auto",
+      }}
+    >
       <small>ACTIVESELFCONTROL · ACCESO DEL PLAN</small>
-      <h1>{labels[feature] || "Modulo"} no esta habilitado</h1>
-      <p>
-        {message ||
-          "La suscripcion de esta organizacion no incluye este modulo o necesita regularizarse."}
-      </p>
+      <h1>{title}</h1>
+      <p>{detail}</p>
+      {subscription?.plan_name ? (
+        <p>
+          Plan actual: <strong>{subscription.plan_name}</strong>
+        </p>
+      ) : null}
+      <div style={{ display: "flex", flexWrap: "wrap", gap: "10px", marginTop: "24px" }}>
+        <button type="button" onClick={() => window.location.reload()}>
+          Comprobar de nuevo
+        </button>
+        <button type="button" onClick={signOut}>
+          Cerrar sesión
+        </button>
+      </div>
     </main>
   );
 }
@@ -63,7 +112,7 @@ export const ProtectedRoute = ({ children, accessBy }) => {
   } = useQuery({
     queryKey: ["tenant-access", user?.id],
     queryFn: cargarAcceso,
-    enabled: shouldLoadPermissions,
+    enabled: accessBy === "authenticated" && !!user,
     staleTime: 60_000,
     refetchOnWindowFocus: false,
   });
@@ -77,16 +126,8 @@ export const ProtectedRoute = ({ children, accessBy }) => {
     enabled: shouldLoadPermissions,
   });
 
-  if (
-    loadingAuth ||
-    isLoadingUsuario ||
-    (accessBy === "authenticated" && user && !datausuarios?.id)
-  ) {
+  if (loadingAuth) {
     return <Spinner1 />;
-  }
-
-  if (errorUsuario) {
-    return <span>error sesión...{errorUsuario.message}</span>;
   }
 
   if (accessBy === "non-authenticated") {
@@ -97,7 +138,7 @@ export const ProtectedRoute = ({ children, accessBy }) => {
     }
   } else if (accessBy === "authenticated") {
     if (user) {
-      if (isLoadingPermisosGlobales || isLoadingTenant) {
+      if (isLoadingTenant) {
         return <Spinner1 />;
       }
 
@@ -107,7 +148,35 @@ export const ProtectedRoute = ({ children, accessBy }) => {
 
       const feature = requiredFeature(location.pathname);
       if (feature && tenantAccess?.features?.[feature] !== true) {
-        return <SubscriptionRequired feature={feature} />;
+        return (
+          <SubscriptionRequired
+            feature={feature}
+            access={tenantAccess}
+          />
+        );
+      }
+
+      if (isLoadingUsuario) {
+        return <Spinner1 />;
+      }
+
+      if (errorUsuario || !datausuarios?.id) {
+        return (
+          <main style={{ padding: "48px", maxWidth: "720px", margin: "0 auto" }}>
+            <h1>No se pudo cargar tu perfil</h1>
+            <p>
+              {errorUsuario?.message ||
+                "La sesión es válida, pero no existe un perfil operativo asociado."}
+            </p>
+            <button type="button" onClick={() => window.location.reload()}>
+              Reintentar
+            </button>
+          </main>
+        );
+      }
+
+      if (isLoadingPermisosGlobales) {
+        return <Spinner1 />;
       }
 
       const hasPermission = dataPermisosGlobales?.some(

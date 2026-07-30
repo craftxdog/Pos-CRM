@@ -64,7 +64,7 @@ export const useVentasStore = create((set, get) => ({
 
   confirmarVenta: async (p) => {
     const { error, data } = await supabase
-      .rpc("confirmar_venta", p)
+      .rpc("confirmar_venta_pos", p)
       .select()
       .maybeSingle();
     if (error) {

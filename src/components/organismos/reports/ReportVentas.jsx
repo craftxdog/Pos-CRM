@@ -12,11 +12,13 @@ import { useQuery } from "@tanstack/react-query";
 import { useReportStore } from "../../../store/ReportStore";
 import { useSucursalesStore } from "../../../store/SucursalesStore";
 import { useDashboardStore } from "../../../store/DashboardStore";
+import { useEmpresaStore } from "../../../store/EmpresaStore";
 
 const ReportVentas = () => {
   const { reportVentasPorSucursal } = useReportStore();
   const { sucursalesItemSelect } = useSucursalesStore();
   const { fechaInicio, fechaFin } = useDashboardStore();
+  const { dataempresa } = useEmpresaStore();
 
   const { data, isLoading, error } = useQuery({
     queryKey: [
@@ -33,25 +35,54 @@ const ReportVentas = () => {
         fecha_inicio: fechaInicio,
         fecha_fin: fechaFin,
       }),
+    enabled: Boolean(sucursalesItemSelect?.id && fechaInicio && fechaFin),
     refetchOnWindowFocus: false,
   });
 
-  if (isLoading) return <div>Cargando...</div>;
-  if (error) return <span>Error {(error)?.message}</span>;
+  if (!sucursalesItemSelect?.id) {
+    return <StateMessage>Selecciona una sucursal para generar el reporte.</StateMessage>;
+  }
+  if (isLoading) return <StateMessage>Generando reporte…</StateMessage>;
+  if (error) {
+    return (
+      <StateMessage $error>
+        No se pudo consultar las ventas. {error.message}
+      </StateMessage>
+    );
+  }
 
   // --------- helpers (JS puro) ----------
+  const locale = `es-${dataempresa?.iso || "NI"}`;
+  const currency = dataempresa?.currency || "NIO";
   const n = (v) =>
-    new Intl.NumberFormat("es-PE", {
+    new Intl.NumberFormat(locale, {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     }).format(Number(v || 0));
+  const money = (v) => {
+    try {
+      return new Intl.NumberFormat(locale, {
+        style: "currency",
+        currency,
+        minimumFractionDigits: 2,
+      }).format(Number(v || 0));
+    } catch {
+      return `${currency} ${n(v)}`;
+    }
+  };
 
   const d = (iso) => {
     if (!iso) return "-";
-    const dt = new Date(iso);
-    return `${dt.toLocaleDateString("es-PE")} ${dt
-      .toLocaleTimeString("es-PE", { hour: "2-digit", minute: "2-digit" })
-      .replace(".", "")}`;
+    const source = String(iso);
+    const dt = new Date(
+      source.length === 10 ? `${source}T00:00:00` : source
+    );
+    return source.length === 10
+      ? dt.toLocaleDateString(locale)
+      : `${dt.toLocaleDateString(locale)} ${dt.toLocaleTimeString(locale, {
+          hour: "2-digit",
+          minute: "2-digit",
+        })}`;
   };
 
   const rows = Array.isArray(data) ? data : [];
@@ -191,7 +222,7 @@ const ReportVentas = () => {
               <View style={styles.brandBar} />
               <Text style={styles.title}>Reporte de Ventas</Text>
               <Text style={styles.subtitle}>
-                Generado: {generatedAt.toLocaleString("es-PE", { hour12: false })}
+                Generado: {generatedAt.toLocaleString(locale, { hour12: false })}
               </Text>
 
               <View style={styles.meta}>
@@ -217,11 +248,11 @@ const ReportVentas = () => {
               <View style={styles.kpis}>
                 <View style={styles.kpi}>
                   <Text style={styles.kpiLabel}>Monto total de ventas</Text>
-                  <Text style={styles.kpiValue}>S/ {n(totalVentas)}</Text>
+                  <Text style={styles.kpiValue}>{money(totalVentas)}</Text>
                 </View>
                 <View style={styles.kpi}>
                   <Text style={styles.kpiLabel}>Total impuestos</Text>
-                  <Text style={styles.kpiValue}>S/ {n(totalImpuestos)}</Text>
+                  <Text style={styles.kpiValue}>{money(totalImpuestos)}</Text>
                 </View>
                 <View style={[styles.kpi, styles.kpiLast]}>
                   <Text style={styles.kpiLabel}>Cantidad de productos</Text>
@@ -279,7 +310,7 @@ const ReportVentas = () => {
 
             {/* Footer: dos Text fijos */}
             <Text style={styles.footerLeft} fixed>
-              {`Generado: ${generatedAt.toLocaleString("es-PE", { hour12: false })}`}
+              {`Generado: ${generatedAt.toLocaleString(locale, { hour12: false })}`}
             </Text>
             <Text
               style={styles.footerRight}
@@ -301,6 +332,19 @@ const Container = styled.main`
     width: 100%;
     height: 100%;
   }
+`;
+
+const StateMessage = styled.div`
+  min-height: 240px;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  border: 1px dashed ${({ theme }) => theme.color2};
+  border-radius: 16px;
+  color: ${({ $error, theme }) => ($error ? "#dc2626" : theme.colorSubtitle)};
+  background: ${({ theme }) => theme.bg};
+  text-align: center;
+  font-weight: 700;
 `;
 
 export default ReportVentas;

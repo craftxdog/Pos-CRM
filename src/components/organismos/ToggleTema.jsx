@@ -3,6 +3,7 @@ import { useThemeStore } from "../../store/ThemeStore";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useUsuariosStore } from "../../store/UsuariosStore";
 import { Dark, Light } from "../../styles/themes";
+import { toast } from "sonner";
 export function ToggleTema() {
   const { editarThemeUser, datausuarios, setTemaLocal } = useUsuariosStore();
   const { setTheme, theme } = useThemeStore();
@@ -28,7 +29,7 @@ export function ToggleTema() {
       const previousTheme = context?.previousTheme || "light";
       setTheme({ tema: previousTheme, style: previousTheme === "light" ? Light : Dark });
       if (context?.previousUserTheme) setTemaLocal(context.previousUserTheme);
-      console.error(`Error al editar tema: ${error.message}`);
+      toast.error(`No se pudo guardar el tema: ${error.message}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries(["mostrar usuarios"]);

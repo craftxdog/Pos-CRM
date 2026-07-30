@@ -28,6 +28,7 @@ export const AuthContextProvider = ({ children }) => {
   useEffect(() => {
     let isMounted = true;
     let lastSessionKey;
+    let validationInFlight = false;
 
     const syncSession = async (session) => {
       if (!isMounted) return;
@@ -42,8 +43,7 @@ export const AuthContextProvider = ({ children }) => {
         await insertarDatos(session?.user.id);
         if (!isMounted) return;
         setUser(session?.user);
-      } catch (error) {
-        console.error("No se pudo sincronizar el usuario autenticado:", error);
+      } catch {
         if (!isMounted) return;
         setUser(session?.user);
       } finally {
@@ -65,23 +65,69 @@ export const AuthContextProvider = ({ children }) => {
       }, 0);
     };
 
-    supabase.auth.getSession()
-      .then(({ data }) => {
-        scheduleSessionSync(data.session);
-      })
-      .catch((error) => {
-        // Un refresh token vencido en un navegador compartido no debe dejar la
-        // aplicación cargando ni contaminar la consola con un fallo no tratado.
-        console.warn("La sesión anterior ya no es válida; vuelve a iniciar sesión.", error?.message);
-        void supabase.auth.signOut({ scope: "local" });
+    const validateSession = async () => {
+      if (validationInFlight || !isMounted) return;
+      validationInFlight = true;
+
+      try {
+        const {
+          data: { session },
+          error: sessionError,
+        } = await supabase.auth.getSession();
+
+        if (sessionError) {
+          await supabase.auth.signOut({ scope: "local" });
+          scheduleSessionSync(null);
+          return;
+        }
+
+        if (!session) {
+          scheduleSessionSync(null);
+          return;
+        }
+
+        // getSession lee el almacenamiento local. getUser confirma con Auth
+        // que el JWT sigue siendo válido antes de disparar las consultas del POS.
+        const {
+          data: { user: verifiedUser },
+          error: userError,
+        } = await supabase.auth.getUser();
+
+        if (userError || !verifiedUser) {
+          await supabase.auth.signOut({ scope: "local" });
+          scheduleSessionSync(null);
+          return;
+        }
+
+        scheduleSessionSync({ ...session, user: verifiedUser });
+      } catch {
+        await supabase.auth.signOut({ scope: "local" }).catch(() => undefined);
         scheduleSessionSync(null);
-      });
+      } finally {
+        validationInFlight = false;
+      }
+    };
+
+    void validateSession();
+
+    const revalidateWhenActive = () => {
+      if (document.visibilityState === "visible") {
+        void validateSession();
+      }
+    };
+
+    window.addEventListener("focus", revalidateWhenActive);
+    window.addEventListener("online", revalidateWhenActive);
+    document.addEventListener("visibilitychange", revalidateWhenActive);
 
     const { data } = supabase.auth.onAuthStateChange((_event, session) => {
       scheduleSessionSync(session);
     });
     return () => {
       isMounted = false;
+      window.removeEventListener("focus", revalidateWhenActive);
+      window.removeEventListener("online", revalidateWhenActive);
+      document.removeEventListener("visibilitychange", revalidateWhenActive);
       data.subscription.unsubscribe();
     };
   }, [insertarDatos]);

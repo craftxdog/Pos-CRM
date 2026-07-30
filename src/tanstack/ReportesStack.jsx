@@ -25,14 +25,13 @@ export const useMostrarVentasDashboardQuery = () => {
         _fecha_inicio: fechaInicio,
         _fecha_fin: fechaFin,
       }),
-    enabled: !!dataempresa,
+    enabled: Boolean(dataempresa?.id && fechaInicio && fechaFin),
   });
 };
 export const useMostrarCantidadDetalleVentaDashboardQuery = () => {
   const { dataempresa } = useEmpresaStore();
   const { fechaInicio, fechaFin } = useDashboardStore();
-  const { mostrarVentasDashboard, mostrarCantidadDetalleVentasDashboard } =
-    useReportesStore();
+  const { mostrarCantidadDetalleVentasDashboard } = useReportesStore();
   return useQuery({
     queryKey: [
       "mostrar cantidad detalle Ventas Dashboard",
@@ -48,7 +47,7 @@ export const useMostrarCantidadDetalleVentaDashboardQuery = () => {
         _fecha_inicio: fechaInicio,
         _fecha_fin: fechaFin,
       }),
-    enabled: !!dataempresa,
+    enabled: Boolean(dataempresa?.id && fechaInicio && fechaFin),
   });
 };
 export const useMostrarCantidadDetalleVentaPeriodoAnteriorDashboardQuery =
@@ -57,9 +56,12 @@ export const useMostrarCantidadDetalleVentaPeriodoAnteriorDashboardQuery =
     const { setFechasAnteriores } = useDashboardStore();
     const { mostrarCantidadDetalleVentasDashboard } = useReportesStore();
     const fechasAnteriores = setFechasAnteriores();
+    const hasPreviousRange = Boolean(
+      fechasAnteriores.fechaAnteriorInicio && fechasAnteriores.fechaAnteriorFin
+    );
     return useQuery({
       queryKey: [
-        "mostrar cantidad detalle Ventas Dashboard",
+        "mostrar cantidad detalle Ventas Dashboard periodo anterior",
         {
           _id_empresa: dataempresa?.id,
           _fecha_inicio: fechasAnteriores?.fechaAnteriorInicio,
@@ -72,16 +74,18 @@ export const useMostrarCantidadDetalleVentaPeriodoAnteriorDashboardQuery =
           _fecha_inicio: fechasAnteriores?.fechaAnteriorInicio,
           _fecha_fin: fechasAnteriores?.fechaAnteriorFin,
         }),
-      enabled: !!dataempresa,
+      enabled: Boolean(dataempresa?.id && hasPreviousRange),
     });
   };
 export const useMostrarVentasDashboardPeriodoAnteriorQuery = () => {
   const { dataempresa } = useEmpresaStore();
-  const { fechaInicio, fechaFin, setFechasAnteriores } = useDashboardStore();
+  const { setFechasAnteriores } = useDashboardStore();
 
-  const { mostrarVentasDashboardPeriodoAnterior, mostrarVentasDashboard } =
-    useReportesStore();
+  const { mostrarVentasDashboardPeriodoAnterior } = useReportesStore();
   const fechasAnteriores = setFechasAnteriores();
+  const hasPreviousRange = Boolean(
+    fechasAnteriores.fechaAnteriorInicio && fechasAnteriores.fechaAnteriorFin
+  );
   return useQuery({
     queryKey: [
       "mostrar Ventas Dashboard periodo anterior",
@@ -97,7 +101,7 @@ export const useMostrarVentasDashboardPeriodoAnteriorQuery = () => {
         _fecha_inicio: fechasAnteriores?.fechaAnteriorInicio,
         _fecha_fin: fechasAnteriores?.fechaAnteriorFin,
       }),
-    enabled: !!dataempresa,
+    enabled: Boolean(dataempresa?.id && hasPreviousRange),
     refetchOnWindowFocus: false,
   });
 };
@@ -122,7 +126,7 @@ export const useGananciasDetalleVentaQuery = () => {
         _fecha_inicio: fechaInicio,
         _fecha_fin: fechaFin,
       }),
-    enabled: !!dataempresa,
+    enabled: Boolean(dataempresa?.id && fechaInicio && fechaFin),
     refetchOnWindowFocus: false,
   });
 };
@@ -144,6 +148,7 @@ export const useReporteInventarioValoradoQuery = () => {
         sucursal_id: sucursalesItemSelect?.id,
         almacen_id: almacenSelectItem?.id,
       }),
+    enabled: Boolean(sucursalesItemSelect?.id && almacenSelectItem?.id),
     refetchOnWindowFocus: false,
   });
 };

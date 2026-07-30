@@ -49,6 +49,7 @@ import { CrmAttendanceWorkspace } from "../organismos/CRMDesign/CrmAttendanceWor
 import { CrmClientsWorkspace } from "../organismos/CRMDesign/CrmClientsWorkspace";
 import { CrmPaymentsWorkspace } from "../organismos/CRMDesign/CrmPaymentsWorkspace";
 import { CrmSubscriptionsWorkspace } from "../organismos/CRMDesign/CrmSubscriptionsWorkspace";
+import { calculateSubscriptionEnd } from "../../utils/crmSubscriptions";
 import FacturaCliente from "../../reports/FacturaCliente";
 import { v } from "../../styles/variables";
 import { AppToaster } from "../ui/feedback/AppToaster";
@@ -73,6 +74,16 @@ const whatsappTypes = [
 ];
 
 const chartColors = ["#F3D20C", "#16a34a", "#38bdf8", "#d97706", "#f97316", "#ef4444"];
+
+const dashboardPeriods = [
+  { id: "today", label: "Hoy" },
+  { id: "last7", label: "Últimos 7 días" },
+  { id: "last30", label: "Últimos 30 días" },
+  { id: "month", label: "Este mes" },
+  { id: "3m", label: "Últimos 3 meses" },
+  { id: "6m", label: "Últimos 6 meses" },
+  { id: "12m", label: "Últimos 12 meses" },
+];
 
 const statusLabels = {
   prospecto: "Prospectos",
@@ -142,12 +153,6 @@ function readForm(event) {
 
 function fullName(item) {
   return [item?.nombres, item?.apellidos].filter(Boolean).join(" ");
-}
-
-function addDays(date, days) {
-  const next = new Date(date);
-  next.setDate(next.getDate() + Math.max(0, Number(days || 30) - 1));
-  return next.toISOString().slice(0, 10);
 }
 
 function dateOnly(value) {
@@ -233,22 +238,53 @@ function countBy(items, key, expected = []) {
   }));
 }
 
-function buildRevenueTrend(pagos, length = 6) {
+function periodStart(period) {
   const now = new Date();
-  const months = Array.from({ length }, (_, index) => {
-    const date = new Date(now.getFullYear(), now.getMonth() - (length - 1 - index), 1);
-    const key = date.toISOString().slice(0, 7);
+  now.setHours(23, 59, 59, 999);
+  if (period === "today") return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  if (period === "last7") return new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6);
+  if (period === "last30") return new Date(now.getFullYear(), now.getMonth(), now.getDate() - 29);
+  if (period === "month") return new Date(now.getFullYear(), now.getMonth(), 1);
+  const monthCount = Number.parseInt(period, 10) || 6;
+  return new Date(now.getFullYear(), now.getMonth() - (monthCount - 1), 1);
+}
+
+function inDashboardPeriod(value, period) {
+  if (!value) return false;
+  const source = String(value);
+  const date = new Date(source.length === 10 ? `${source}T00:00:00` : source);
+  return !Number.isNaN(date.getTime()) && date >= periodStart(period) && date <= new Date();
+}
+
+function buildRevenueTrend(pagos, period = "month") {
+  const now = new Date();
+  const start = periodStart(period);
+  const useDays = ["today", "last7", "last30", "month"].includes(period);
+  const bucketCount = useDays
+    ? Math.floor((new Date(now.getFullYear(), now.getMonth(), now.getDate()) - start) / 86400000) + 1
+    : Number.parseInt(period, 10) || 6;
+
+  const buckets = Array.from({ length: bucketCount }, (_, index) => {
+    const date = useDays
+      ? new Date(start.getFullYear(), start.getMonth(), start.getDate() + index)
+      : new Date(now.getFullYear(), now.getMonth() - (bucketCount - 1 - index), 1);
+    const key = useDays
+      ? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`
+      : `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
     return {
       key,
-      name: date.toLocaleDateString("es", { month: "short" }),
+      name: useDays
+        ? date.toLocaleDateString("es", { day: "2-digit", month: "short" })
+        : date.toLocaleDateString("es", { month: "short" }),
       ingresos: 0,
       pagos: 0,
     };
   });
 
   pagos.forEach((pago) => {
-    const key = dateOnly(pago.fecha_pago || pago.created_at)?.slice(0, 7);
-    const bucket = months.find((item) => item.key === key);
+    const paymentDate = dateOnly(pago.fecha_pago || pago.created_at);
+    const key = useDays ? paymentDate : paymentDate?.slice(0, 7);
+    const bucket = buckets.find((item) => item.key === key);
     if (!bucket) return;
     bucket.pagos += 1;
     if (pago.estado === "pagado") {
@@ -256,7 +292,7 @@ function buildRevenueTrend(pagos, length = 6) {
     }
   });
 
-  return months;
+  return buckets;
 }
 
 function hasChartData(data, key = "value") {
@@ -294,7 +330,7 @@ export function CRMTemplate({ initialTab = "procesos" }) {
   const [clientPage, setClientPage] = useState(1);
   const [paymentClientId, setPaymentClientId] = useState("");
   const [paymentClient, setPaymentClient] = useState(null);
-  const [dashboardMonths, setDashboardMonths] = useState(6);
+  const [dashboardPeriod, setDashboardPeriod] = useState("month");
   const [debtFilter, setDebtFilter] = useState("todos");
   const [debtSearch, setDebtSearch] = useState("");
   const queryClient = useQueryClient();
@@ -340,6 +376,7 @@ export function CRMTemplate({ initialTab = "procesos" }) {
       if (action === "editar_cliente") {
         return crm.editarCliente({
           id: Number(values.id),
+          id_empresa,
           nombres: values.nombres,
           apellidos: values.apellidos || null,
           email: values.email || null,
@@ -372,7 +409,9 @@ export function CRMTemplate({ initialTab = "procesos" }) {
           id_cliente_crm: Number(values.id_cliente_crm),
           id_plan: Number(values.id_plan),
           fecha_inicio,
-          fecha_fin: values.fecha_fin || addDays(fecha_inicio, plan?.duracion_dias || 30),
+          fecha_fin:
+            values.fecha_fin ||
+            calculateSubscriptionEnd(fecha_inicio, plan?.duracion_dias || 30),
           precio_pactado: Number(values.precio_pactado || plan?.precio || 0),
           auto_renovar: values.auto_renovar === "on",
           estado: "activa",
@@ -577,10 +616,22 @@ export function CRMTemplate({ initialTab = "procesos" }) {
         });
       }
     },
-    onSuccess: (result, variables) => {
+    onSuccess: async (result, variables) => {
       toast.success(actionMessages[variables.action] || "Datos guardados");
-      queryClient.invalidateQueries({ queryKey: ["crm-data"] });
-      queryClient.invalidateQueries({ queryKey: ["crm-subscriptions"] });
+      const queryKeys = [
+        "crm-data",
+        "crm-subscriptions",
+        "crm-clients-directory",
+        "crm-payment-history",
+      ];
+      await Promise.all(
+        queryKeys.map((key) =>
+          queryClient.invalidateQueries({
+            queryKey: [key],
+            refetchType: "active",
+          })
+        )
+      );
       if (variables.action === "facturar_suscripcion" && result?.pago) {
         void FacturaCliente("print", {
           dataempresa,
@@ -592,6 +643,9 @@ export function CRMTemplate({ initialTab = "procesos" }) {
       }
     },
     onError: (error) => {
+      if (error.code === "TENANT_ACCESS_REQUIRED") {
+        queryClient.invalidateQueries({ queryKey: ["tenant-access"] });
+      }
       toast.error(error.message);
     },
   });
@@ -619,7 +673,12 @@ export function CRMTemplate({ initialTab = "procesos" }) {
     const priceInput = form.elements.namedItem("precio_pactado");
     const start = startInput?.value || new Date().toISOString().slice(0, 10);
     if (startInput) startInput.value = start;
-    if (endInput) endInput.value = addDays(start, plan.duracion_dias || 30);
+    if (endInput) {
+      endInput.value = calculateSubscriptionEnd(
+        start,
+        plan.duracion_dias || 30
+      );
+    }
     if (priceInput) priceInput.value = Number(plan.precio || 0);
   };
 
@@ -629,7 +688,12 @@ export function CRMTemplate({ initialTab = "procesos" }) {
     const plan = crm.planes.find((item) => String(item.id) === planId);
     if (form && plan && event.target.value) {
       const endInput = form.elements.namedItem("fecha_fin");
-      if (endInput) endInput.value = addDays(event.target.value, plan.duracion_dias || 30);
+      if (endInput) {
+        endInput.value = calculateSubscriptionEnd(
+          event.target.value,
+          plan.duracion_dias || 30
+        );
+      }
     }
   };
 
@@ -653,13 +717,16 @@ export function CRMTemplate({ initialTab = "procesos" }) {
 
   const operational = useMemo(() => {
     const today = new Date().toISOString().slice(0, 10);
-    const monthPrefix = today.slice(0, 7);
     const pagosPendientes = crm.pagos.filter((item) => item.estado === "pendiente");
     const pagosVencidos = crm.pagos.filter(
       (item) => item.estado === "vencido" || (item.estado === "pendiente" && isBeforeToday(item.fecha_vencimiento, today))
     );
-    const ingresosMes = crm.pagos
-      .filter((item) => item.estado === "pagado" && dateOnly(item.fecha_pago)?.startsWith(monthPrefix))
+    const ingresosPeriodo = crm.pagos
+      .filter(
+        (item) =>
+          item.estado === "pagado" &&
+          inDashboardPeriod(item.fecha_pago || item.created_at, dashboardPeriod)
+      )
       .reduce((sum, item) => sum + Number(item.monto || 0), 0);
     const carteraPendiente = pagosPendientes.reduce((sum, item) => sum + Number(item.monto || 0), 0);
     const asistenciasHoy = crm.asistencias.filter((item) => item.fecha === today);
@@ -716,7 +783,7 @@ export function CRMTemplate({ initialTab = "procesos" }) {
       today,
       pagosPendientes,
       pagosVencidos,
-      ingresosMes,
+      ingresosPeriodo,
       carteraPendiente,
       asistenciasHoy,
       suscripcionesPorVencer,
@@ -732,6 +799,7 @@ export function CRMTemplate({ initialTab = "procesos" }) {
     crm.pagos,
     crm.suscripciones,
     crm.whatsappMensajes,
+    dashboardPeriod,
     dataempresa?.currency,
     dataempresa?.iso,
   ]);
@@ -742,18 +810,25 @@ export function CRMTemplate({ initialTab = "procesos" }) {
       raw: item.estado,
       value: item.total,
     }));
-    const pagosEstado = countBy(crm.pagos, "estado", ["pagado", "pendiente", "vencido", "anulado"]);
+    const pagosFiltrados = crm.pagos.filter((item) =>
+      inDashboardPeriod(
+        item.fecha_pago || item.created_at || item.fecha_vencimiento,
+        dashboardPeriod
+      )
+    );
+    const pagosEstado = countBy(pagosFiltrados, "estado", ["pagado", "pendiente", "vencido", "anulado"]);
     const suscripcionesEstado = countBy(crm.suscripciones, "estado", ["activa", "pendiente", "vencida", "cancelada"]);
     const asistenciasEstado = countBy(crm.asistencias, "estado", ["presente", "tarde", "ausente", "salida_registrada"]);
     const invitacionesEstado = countBy(crm.invitaciones, "estado", ["pendiente", "aceptada", "expirada"]);
     const whatsappEstado = countBy(crm.whatsappMensajes, "estado", ["borrador", "pendiente", "enviado", "error"]);
     const trabajadoresEstado = countBy(crm.trabajadores, "estado", ["activo", "inactivo"]);
-    const ingresosPorMes = buildRevenueTrend(crm.pagos, dashboardMonths);
-    const totalPagado = crm.pagos
+    const ingresosPorMes = buildRevenueTrend(pagosFiltrados, dashboardPeriod);
+    const totalPagado = pagosFiltrados
       .filter((item) => item.estado === "pagado")
       .reduce((sum, item) => sum + Number(item.monto || 0), 0);
-    const ticketPromedio = crm.pagos.filter((item) => item.estado === "pagado").length
-      ? totalPagado / crm.pagos.filter((item) => item.estado === "pagado").length
+    const pagosCompletados = pagosFiltrados.filter((item) => item.estado === "pagado");
+    const ticketPromedio = pagosCompletados.length
+      ? totalPagado / pagosCompletados.length
       : 0;
     const modulosHabilitados = crm.empresaModulos.filter((item) => item.habilitado).length;
     const permisosActivos = crm.rolModulos.filter(
@@ -803,6 +878,7 @@ export function CRMTemplate({ initialTab = "procesos" }) {
       totalPlantillas: crm.whatsappPlantillas.length,
       totalAutomatizaciones: crm.automatizaciones.length,
       clientesMorosos,
+      pagosFiltrados,
     };
   }, [
     crm.asistencias,
@@ -819,7 +895,7 @@ export function CRMTemplate({ initialTab = "procesos" }) {
     crm.trabajadores,
     crm.whatsappMensajes,
     crm.whatsappPlantillas,
-    dashboardMonths,
+    dashboardPeriod,
     operational.clientesPorEstado,
     operational.pagosVencidos,
   ]);
@@ -945,13 +1021,35 @@ export function CRMTemplate({ initialTab = "procesos" }) {
               <span className="eyebrow"><FiTrendingUp /> Análisis operativo</span>
               <strong>Información accionable y actualizada en tiempo real</strong>
             </div>
-            <label>Historial de ingresos<select value={dashboardMonths} onChange={(event) => setDashboardMonths(Number(event.target.value))}><option value={3}>Últimos 3 meses</option><option value={6}>Últimos 6 meses</option><option value={12}>Últimos 12 meses</option></select></label>
-            <button type="button" className="secondary" onClick={() => queryClient.invalidateQueries({ queryKey: ["crm-data"] })}><FiRefreshCw /> Actualizar ahora</button>
+            <div className="period-pills" role="group" aria-label="Período del análisis">
+              {dashboardPeriods.slice(0, 4).map((period) => (
+                <button
+                  key={period.id}
+                  type="button"
+                  className={dashboardPeriod === period.id ? "active" : ""}
+                  onClick={() => setDashboardPeriod(period.id)}
+                >
+                  {period.label}
+                </button>
+              ))}
+            </div>
+            <label>
+              Más períodos
+              <select
+                value={dashboardPeriod}
+                onChange={(event) => setDashboardPeriod(event.target.value)}
+              >
+                {dashboardPeriods.map((period) => (
+                  <option key={period.id} value={period.id}>{period.label}</option>
+                ))}
+              </select>
+            </label>
+            <button type="button" className="secondary refresh-dashboard" onClick={() => queryClient.invalidateQueries({ queryKey: ["crm-data"] })}><FiRefreshCw /> Actualizar</button>
           </section>
           <section className="dashboard-primary-metrics" aria-label="Resumen ejecutivo">
             <MetricCard
-              label="Ingresos del mes"
-              value={money(operational.ingresosMes, dataempresa?.currency, dataempresa?.iso)}
+              label="Ingresos del período"
+              value={money(operational.ingresosPeriodo, dataempresa?.currency, dataempresa?.iso)}
               detail={`Ticket prom. ${money(analytics.ticketPromedio, dataempresa?.currency, dataempresa?.iso)}`}
               tone="ok"
               className="featured"
@@ -977,7 +1075,7 @@ export function CRMTemplate({ initialTab = "procesos" }) {
             <ChartCard
               className="revenue-chart"
               title="Tendencia de ingresos"
-              subtitle={`Cobros pagados durante los últimos ${dashboardMonths} meses`}
+              subtitle={`Cobros pagados · ${dashboardPeriods.find((item) => item.id === dashboardPeriod)?.label}`}
               empty={!hasChartData(analytics.ingresosPorMes, "ingresos")}
               emptyMessage="Aún no hay cobros pagados en este periodo. Los ingresos aparecerán aquí al registrar el primer pago."
             >
@@ -985,20 +1083,21 @@ export function CRMTemplate({ initialTab = "procesos" }) {
                 <AreaChart data={analytics.ingresosPorMes}>
                   <defs>
                     <linearGradient id="crmIncomeGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#16a34a" stopOpacity={0.35} />
-                      <stop offset="95%" stopColor="#16a34a" stopOpacity={0.02} />
+                      <stop offset="5%" stopColor="#38bdf8" stopOpacity={0.48} />
+                      <stop offset="55%" stopColor="#6366f1" stopOpacity={0.16} />
+                      <stop offset="95%" stopColor="#6366f1" stopOpacity={0.01} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="currentColor" opacity={0.16} />
                   <XAxis dataKey="name" tickLine={false} axisLine={false} />
                   <YAxis width={64} tickLine={false} axisLine={false} tickFormatter={(value) => money(value, dataempresa?.currency, dataempresa?.iso)} />
                   <Tooltip
-                    cursor={{ stroke: "#16a34a", strokeWidth: 1, strokeDasharray: "4 4" }}
+                    cursor={{ stroke: "#38bdf8", strokeWidth: 1, strokeDasharray: "4 4" }}
                     contentStyle={{ borderRadius: 12, border: "1px solid rgba(148, 163, 184, 0.28)", background: "var(--chart-tooltip-bg, #111827)", color: "#fff" }}
                     labelStyle={{ color: "#cbd5e1", fontWeight: 700 }}
                     formatter={(value) => [money(value, dataempresa?.currency, dataempresa?.iso), "Ingresos"]}
                   />
-                  <Area type="monotone" dataKey="ingresos" stroke="#16a34a" fill="url(#crmIncomeGradient)" strokeWidth={3} />
+                  <Area type="monotone" dataKey="ingresos" stroke="#38bdf8" fill="url(#crmIncomeGradient)" strokeWidth={3} activeDot={{ r: 6, fill: "#6366f1", stroke: "#fff", strokeWidth: 2 }} />
                 </AreaChart>
               </ResponsiveContainer>
             </ChartCard>
@@ -1021,7 +1120,7 @@ export function CRMTemplate({ initialTab = "procesos" }) {
                   <Tooltip contentStyle={{ borderRadius: 12, border: "1px solid rgba(148, 163, 184, 0.28)", background: "var(--chart-tooltip-bg, #111827)", color: "#fff" }} />
                 </PieChart>
               </ResponsiveContainer>
-              <div className="donut-center"><strong>{crm.pagos.length}</strong><span>pagos</span></div>
+              <div className="donut-center"><strong>{analytics.pagosFiltrados.length}</strong><span>pagos</span></div>
               </div>
               <div className="chart-legend" aria-label="Estados de pago">
                 {analytics.pagosEstado.map((item, index) => (
@@ -1095,8 +1194,8 @@ export function CRMTemplate({ initialTab = "procesos" }) {
               </div>
               <div className="amount-grid">
                 <span>
-                  <small>Ingresos del mes</small>
-                  <strong>{money(operational.ingresosMes, dataempresa?.currency, dataempresa?.iso)}</strong>
+                  <small>Ingresos del período</small>
+                  <strong>{money(operational.ingresosPeriodo, dataempresa?.currency, dataempresa?.iso)}</strong>
                 </span>
                 <span>
                   <small>Asistencias hoy</small>
@@ -1417,7 +1516,7 @@ export function CRMTemplate({ initialTab = "procesos" }) {
             />
           </section>
           <section className="chart-grid two">
-            <ChartCard title="Ingresos por mes" subtitle="Ultimos 6 meses" empty={!hasChartData(analytics.ingresosPorMes, "ingresos")}>
+            <ChartCard title="Ingresos del período" subtitle={dashboardPeriods.find((item) => item.id === dashboardPeriod)?.label} empty={!hasChartData(analytics.ingresosPorMes, "ingresos")}>
               <ResponsiveContainer width="100%" height={220}>
                 <AreaChart data={analytics.ingresosPorMes}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} />
@@ -2422,6 +2521,7 @@ const Container = styled.main`
 
   .dashboard-filters {
     display: flex;
+    flex-wrap: wrap;
     justify-content: space-between;
     align-items: end;
     gap: 12px;
@@ -2435,6 +2535,35 @@ const Container = styled.main`
     label { display: grid; gap: 5px; color: ${({ theme }) => theme.colorSubtitle}; font-size: 12px; font-weight: 800; }
     select, input { border: 1px solid ${({ theme }) => theme.color2}; border-radius: 9px; background: ${({ theme }) => theme.bgtotal}; color: ${({ theme }) => theme.text}; padding: 9px 10px; }
     button { display: inline-flex; align-items: center; gap: 6px; }
+
+    .period-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-left: auto;
+    }
+
+    .period-pills button {
+      border: 1px solid ${({ theme }) => theme.color2};
+      border-radius: 999px;
+      padding: 8px 11px;
+      background: transparent;
+      color: ${({ theme }) => theme.text};
+      font-size: 11px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    .period-pills button.active {
+      border-color: #38bdf8;
+      background: linear-gradient(135deg, #0ea5e9, #6366f1);
+      color: #fff;
+      box-shadow: 0 6px 16px rgba(56, 189, 248, 0.22);
+    }
+
+    .refresh-dashboard {
+      min-height: 39px;
+    }
   }
 
   .chart-card {

@@ -13,6 +13,7 @@ test("builds a printable invoice from a payment and its subscription", () => {
   const invoice = buildCrmInvoiceModel({
     company: {
       nombre: "MultiLot 360",
+      logo: "https://example.com/logo.png",
       id_fiscal: "J0001",
       direccion_fiscal: "Managua",
       currency: "USD",
@@ -39,6 +40,7 @@ test("builds a printable invoice from a payment and its subscription", () => {
   });
 
   assert.equal(invoice.number, "FAC-4-2026-000018");
+  assert.equal(invoice.company.logo, "https://example.com/logo.png");
   assert.equal(invoice.client.name, "Ana López");
   assert.equal(invoice.item.description, "Plan Mensual");
   assert.equal(invoice.payment.total, 35);
@@ -60,4 +62,24 @@ test("includes the POS cash received, change and transfer reference", () => {
   assert.equal(invoice.payment.received, 200);
   assert.equal(invoice.payment.change, 50);
   assert.equal(invoice.payment.paymentReference, "TRX-001");
+});
+
+test("shows the cumulative plan account on an installment receipt", () => {
+  const invoice = buildCrmInvoiceModel({
+    company: { currency: "NIO", iso: "es-NI" },
+    payment: {
+      monto: 300,
+      estado: "pagado",
+      aplica_a_saldo_plan: true,
+      total_plan: 1460,
+      abonado_acumulado: 1030,
+      saldo_pendiente: 430,
+    },
+  });
+
+  assert.equal(invoice.status, "ABONO REGISTRADO");
+  assert.equal(invoice.payment.total, 300);
+  assert.equal(invoice.payment.planTotal, 1460);
+  assert.equal(invoice.payment.cumulativePaid, 1030);
+  assert.equal(invoice.payment.remainingBalance, 430);
 });

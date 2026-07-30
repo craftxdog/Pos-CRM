@@ -2,12 +2,22 @@ import { supabase } from "./supabase.config";
 
 function throwIfError(error) {
   if (error) {
-    throw new Error(normalizeCrmError(error.message));
+    const crmError = new Error(normalizeCrmError(error.message));
+    if (String(error.message || "").includes("saas_crm_feature_gate")) {
+      crmError.code = "TENANT_ACCESS_REQUIRED";
+    }
+    throw crmError;
   }
 }
 
 function normalizeCrmError(message) {
   const detail = String(message || "");
+  if (detail.includes("CRM_DUPLICATE_ACTIVE_SUBSCRIPTION")) {
+    return "Este cliente ya tiene este plan activo. Usa Editar para corregir las fechas o Renovar para extender la vigencia.";
+  }
+  if (detail.includes("saas_crm_feature_gate")) {
+    return "El acceso al CRM de esta organización no está vigente. Actualiza el plan o recarga la sesión antes de intentarlo de nuevo.";
+  }
   if (
     detail.includes("MS42225") ||
     detail.toLowerCase().includes("trial account unique recipients limit")
@@ -82,7 +92,7 @@ export async function MostrarCrmData({ id_empresa }) {
       .order("created_at", { ascending: false }),
     supabase
       .from("crm_suscripciones")
-      .select("*, clientes_crm(nombres, apellidos, email), crm_planes(nombre, descripcion, precio, periodicidad, duracion_dias)")
+      .select("*, clientes_crm(nombres, apellidos, email, telefono), crm_planes(nombre, descripcion, precio, periodicidad, duracion_dias)")
       .eq("id_empresa", id_empresa)
       .order("created_at", { ascending: false }),
     supabase
@@ -207,14 +217,20 @@ export async function InsertarCrmCliente(payload) {
 }
 
 export async function EditarCrmCliente(payload) {
-  const { id, ...values } = payload;
+  const { id, id_empresa, ...values } = payload;
   const { data, error } = await supabase
     .from("clientes_crm")
     .update(values)
     .eq("id", id)
+    .eq("id_empresa", id_empresa)
     .select()
     .maybeSingle();
   throwIfError(error);
+  if (!data) {
+    throw new Error(
+      "No se pudo actualizar el cliente. Recarga el directorio e inténtalo de nuevo."
+    );
+  }
   return data;
 }
 
@@ -410,6 +426,22 @@ export async function FacturarSuscripcionCliente(payload) {
 export async function CobrarSuscripcionPos(payload) {
   const { data, error } = await supabase.rpc("crm_cobrar_suscripcion_pos", {
     p_id_suscripcion: Number(payload.id_suscripcion),
+    p_metodo_pago: payload.metodo_pago || "efectivo",
+    p_monto_recibido:
+      payload.monto_recibido === "" || payload.monto_recibido === undefined
+        ? null
+        : Number(payload.monto_recibido),
+    p_referencia_pago: payload.referencia_pago || null,
+    p_notas: payload.notas || null,
+  });
+  throwIfError(error);
+  return data;
+}
+
+export async function AbonarSuscripcionPos(payload) {
+  const { data, error } = await supabase.rpc("crm_abonar_suscripcion_pos", {
+    p_id_suscripcion: Number(payload.id_suscripcion),
+    p_monto_abono: Number(payload.monto_abono),
     p_metodo_pago: payload.metodo_pago || "efectivo",
     p_monto_recibido:
       payload.monto_recibido === "" || payload.monto_recibido === undefined
@@ -704,6 +736,22 @@ export async function GestionarCrmSuscripcion({
     p_accion: accion,
     p_id_plan: id_plan ? Number(id_plan) : null,
     p_fecha: fecha || new Date().toISOString().slice(0, 10),
+  });
+  throwIfError(error);
+  return data;
+}
+
+export async function EditarCrmSuscripcion({
+  id,
+  id_plan,
+  fecha_inicio,
+  fecha_fin,
+}) {
+  const { data, error } = await supabase.rpc("crm_editar_suscripcion", {
+    p_id_suscripcion: Number(id),
+    p_id_plan: Number(id_plan),
+    p_fecha_inicio: fecha_inicio,
+    p_fecha_fin: fecha_fin || null,
   });
   throwIfError(error);
   return data;

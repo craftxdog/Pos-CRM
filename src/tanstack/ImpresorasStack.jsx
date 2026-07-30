@@ -19,25 +19,33 @@ export const useMostrasrImpresorasPorCajaQuery =()=>{
     })
 }
 export const useEditarImpresorasMutation = () => {
-    const { dataImpresorasPorCaja, statePrintDirecto, editarImpresoras } =
+    const {
+      dataImpresorasPorCaja,
+      editarImpresoras,
+      setStatePrintDirecto,
+    } =
       useImpresorasStore();
     const queryClient = useQueryClient();
   
     return useMutation({
       mutationKey: ["editar impresoras"],
-      mutationFn: async () => {
+      mutationFn: async (nextState) => {
         const p = {
           id: dataImpresorasPorCaja?.id,
-          state: statePrintDirecto,
+          state: nextState,
         };
+        if (!p.id) {
+          throw new Error("No hay una impresora configurada para esta caja.");
+        }
         await editarImpresoras(p);
       },
-      onError: (error) => {
+      onError: (error, nextState) => {
+        setStatePrintDirecto(!nextState);
         toast.error("Error al editar impresoras: " + error.message);
       },
       onSuccess: () => {
-        toast.success("Datos guardados");
-        queryClient.invalidateQueries(["mostrar impresora por caja"]);
+        toast.success("Preferencia de impresión guardada");
+        queryClient.invalidateQueries({ queryKey: ["mostrar impresora por caja"] });
       },
     });
   };
