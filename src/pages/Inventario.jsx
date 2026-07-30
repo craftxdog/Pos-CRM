@@ -19,6 +19,9 @@ export const Inventario = () => {
   );
   const setBuscador = useProductosStore((state) => state.setBuscador);
   const selectProductos = useProductosStore((state) => state.selectProductos);
+  const resetProductosItemSelect = useProductosStore(
+    (state) => state.resetProductosItemSelect,
+  );
   const setStateClose = useGlobalStore((state) => state.setStateClose);
   const setAccion = useGlobalStore((state) => state.setAccion);
   const stateClose = useGlobalStore((state) => state.stateClose);
@@ -65,12 +68,13 @@ export const Inventario = () => {
 
       <section className="area1">
         {productosItemSelect?.nombre && (
-          <span>
-            {" "}
-            Producto: {" "}<strong>{productosItemSelect?.nombre}</strong>{" "}
-          </span>
+          <>
+            <span>
+              Producto: <strong>{productosItemSelect.nombre}</strong>
+            </span>
+            <span aria-hidden="true">|</span>
+          </>
         )}
-|
         <Title>Inventario</Title>
         <Btn1 funcion={nuevoRegistro} titulo="Registrar" />
       </section>
@@ -79,6 +83,7 @@ export const Inventario = () => {
           setBuscador={setBuscador}
           data={dataproductos}
           onSelect={selectProductos}
+          onClear={resetProductosItemSelect}
         />
       </section>
 

@@ -62,8 +62,8 @@ begin
   from public.tenants t
   join public.tenant_subscriptions s on s.tenant_id = t.id
   where t.legacy_empresa_id = company_id;
-  if tenant_record.id is null or tenant_record.subscription_status <> 'trialing' then
-    raise exception 'Tenant o trial no creado correctamente';
+  if tenant_record.id is null or tenant_record.subscription_status <> 'active' then
+    raise exception 'Tenant o suscripción permanente no creado correctamente';
   end if;
 
   select count(*) into missing_uuids

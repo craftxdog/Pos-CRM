@@ -53,6 +53,7 @@ import { calculateSubscriptionEnd } from "../../utils/crmSubscriptions";
 import FacturaCliente from "../../reports/FacturaCliente";
 import { v } from "../../styles/variables";
 import { AppToaster } from "../ui/feedback/AppToaster";
+import { ClientSearchPicker } from "../ui/forms/ClientSearchPicker";
 
 const tabs = [
   { id: "procesos", label: "Procesos", icon: FiActivity },
@@ -1836,14 +1837,7 @@ export function CRMTemplate({ initialTab = "procesos" }) {
           <div className="panel">
             <h2>Preparar mensaje</h2>
             <form onSubmit={submitForm("whatsapp_mensaje")}>
-              <select name="id_cliente_crm" required defaultValue="">
-                <option value="">Cliente</option>
-                {crm.clientes.map((cliente) => (
-                  <option key={cliente.id} value={cliente.id}>
-                    {fullName(cliente)} {cliente.telefono ? `- ${cliente.telefono}` : ""}
-                  </option>
-                ))}
-              </select>
+              <ClientSearchPicker clients={crm.clientes} required />
               <select name="tipo" defaultValue="cobro">
                 {whatsappTypes.map((item) => (
                   <option key={item.id} value={item.id}>{item.label}</option>

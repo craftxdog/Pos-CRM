@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { useFormattedDate } from "../../../../hooks/useFormattedDate";
 import { useMetodosPagoStore } from "../../../../store/MetodosPagoStore";
 import { useMovCajaStore } from "../../../../store/MovCajaStore";
+import { useEmpresaStore } from "../../../../store/EmpresaStore";
 export function CardListCajas({
   caja,
   title,
@@ -27,7 +28,8 @@ export function CardListCajas({
   const { datausuarios } = useUsuariosStore();
 
   const { aperturarcaja } = useCierreCajaStore();
-  const { dataMetodosPago } = useMetodosPagoStore();
+  const { dataMetodosPago, mostrarMetodosPago } = useMetodosPagoStore();
+  const { dataempresa } = useEmpresaStore();
   const { insertarMovCaja } = useMovCajaStore();
 
   const registrarMovCaja = async ({ id_cierre_caja, id_metodo_pago }) => {
@@ -51,15 +53,27 @@ export function CardListCajas({
       throw new Error("Selecciona una caja válida.");
     }
 
-    const metodoEfectivo = Array.isArray(dataMetodosPago)
-      ? dataMetodosPago.find(
-          (item) => item?.nombre?.trim().toLowerCase() === "efectivo"
-        )
-      : null;
+    if (!dataempresa?.id) {
+      throw new Error("No se pudo identificar la empresa de esta sesión.");
+    }
+
+    let metodosPago = Array.isArray(dataMetodosPago)
+      ? dataMetodosPago
+      : [];
+
+    if (!metodosPago.length) {
+      metodosPago = await mostrarMetodosPago({
+        id_empresa: dataempresa.id,
+      });
+    }
+
+    const metodoEfectivo = metodosPago.find(
+      (item) => item?.nombre?.trim().toLocaleLowerCase("es") === "efectivo",
+    );
 
     if (!metodoEfectivo?.id) {
       throw new Error(
-        "No se cargó el método de pago Efectivo. Recarga la sesión antes de aperturar."
+        "La empresa no tiene configurado el método de pago Efectivo."
       );
     }
 
@@ -152,7 +166,7 @@ export function CardListCajas({
               titulo="OMITIR"
               funcion={() => {
                 setMontoEfectivo(0);
-                mutation.mutateAsync();
+                mutation.mutate();
               }}
             />
             <Btn1
@@ -161,7 +175,7 @@ export function CardListCajas({
               color="#ffffff"
               border="2px"
               bgcolor="#0d0d0d"
-              funcion={()=>mutation.mutateAsync()}
+              funcion={() => mutation.mutate()}
             />
           </article>
         )}

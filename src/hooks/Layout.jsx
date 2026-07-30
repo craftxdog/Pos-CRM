@@ -6,14 +6,22 @@ import { Spinner1 } from "../components/moleculas/Spinner1";
 import { useEmpresaStore } from "../store/EmpresaStore";
 import { useUsuariosStore } from "../store/UsuariosStore";
 import { UserAuth } from "../context/AuthContent";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Device } from "../styles/breakpoints";
 import { useQuery } from "@tanstack/react-query";
 import { useMostrarSucursalAsignadasQuery } from "../tanstack/AsignacionesSucursalStack";
 
 export function Layout({ children }) {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(() => {
+    const savedPreference = window.localStorage.getItem("asc:sidebar-open");
+    if (savedPreference !== null) return savedPreference === "true";
+    return window.matchMedia("(min-width: 768px)").matches;
+  });
   const [stateMenu, setStateMenu] = useState(false);
+
+  useEffect(() => {
+    window.localStorage.setItem("asc:sidebar-open", String(sidebarOpen));
+  }, [sidebarOpen]);
 
   const { datausuarios } = useUsuariosStore();
   const { mostrarempresa } = useEmpresaStore();
@@ -62,7 +70,7 @@ export function Layout({ children }) {
       <section className="contentSidebar">
         <Sidebar
           state={sidebarOpen}
-          setState={() => setSidebarOpen(!sidebarOpen)}
+          setState={setSidebarOpen}
         />
       </section>
       <section className="contentMenuhambur">

@@ -5,6 +5,7 @@ export function BuscadorList({
   setBuscador,
   data,
   onSelect,
+  onClear,
   displayField = "nombre",
   itemSelect,
 }) {
@@ -18,7 +19,11 @@ export function BuscadorList({
     const value = e.target.value;
     setInputValue(value);
     setBuscador(value);
-    setIsOpen(!!value); 
+    setIsOpen(!!value);
+    if (!value.trim()) {
+      setSelected(null);
+      onClear?.();
+    }
   }
   const handleSelect = (item) => {
     setSelected(item);
@@ -27,6 +32,13 @@ export function BuscadorList({
     setBuscador("");
     onSelect(item);
   };
+  const handleClear = () => {
+    setInputValue("");
+    setSelected(null);
+    setIsOpen(false);
+    setBuscador("");
+    onClear?.();
+  };
 
   return (
     <Container>
@@ -34,10 +46,21 @@ export function BuscadorList({
       <Icon icon="ic:outline-search" width="25" height="25" />
         <input
           placeholder="...buscar"
+          aria-label="Buscar producto"
           value={inputValue}
           onChange={buscar}
           onFocus={() => setIsOpen(!!inputValue && data?.length > 0)}
         />
+        {inputValue && (
+          <button
+            className="clear-search"
+            type="button"
+            aria-label="Limpiar búsqueda y selección"
+            onClick={handleClear}
+          >
+            <Icon icon="mdi:close-circle" width="22" height="22" />
+          </button>
+        )}
         {isOpen && (
           <DropdownList>
             {data?.map((item, index) => {
@@ -82,6 +105,15 @@ const Container = styled.div`
       background: none;
       border: 0;
       color: ${(props) => props.theme.text};
+    }
+    .clear-search {
+      display: grid;
+      place-items: center;
+      padding: 2px;
+      color: ${({ theme }) => theme.text};
+      background: transparent;
+      border: 0;
+      cursor: pointer;
     }
   }
 `;

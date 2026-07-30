@@ -6,7 +6,6 @@ import {
   View,
   PDFViewer,
   StyleSheet,
-  Font,
 } from "@react-pdf/renderer";
 import styled from "styled-components";
 import { useQuery } from "@tanstack/react-query";
@@ -32,6 +31,7 @@ const ReportStockBajoMinimo = () => {
         sucursal_id: sucursalesItemSelect?.id,
         almacen_id: almacenSelectItem?.id,
       }),
+    enabled: Boolean(sucursalesItemSelect?.id && almacenSelectItem?.id),
     refetchOnWindowFocus: false,
   });
 
@@ -41,12 +41,6 @@ const ReportStockBajoMinimo = () => {
   if (error) {
     return <span>Error {error.message}</span>;
   }
-
-  // Register the font
-  Font.register({
-    family: "Inconsolata",
-    src: "http://fonts.gstatic.com/s/inconsolata/v15/7bMKuoy6Nh0ft0SHnIGMuaCWcynf_cDxXwCLxiixG1c.ttf",
-  });
 
   const styles = StyleSheet.create({
     page: {
@@ -81,7 +75,7 @@ const ReportStockBajoMinimo = () => {
     cell: {
       flex: 1,
       textAlign: "center",
-      fontFamily: "Inconsolata",
+      fontFamily: "Helvetica",
       fontSize: 9,
       padding: 3,
       borderRightColor: "#000",
@@ -91,7 +85,7 @@ const ReportStockBajoMinimo = () => {
       flex: 1,
 
       fontWeight: "bold",
-      fontFamily: "Inconsolata",
+      fontFamily: "Helvetica",
       textAlign: "center",
       fontSize: 9,
       padding: 3,
@@ -100,7 +94,7 @@ const ReportStockBajoMinimo = () => {
     },
     reportInfo: {
       fontSize: 12,
-      fontFamily: "Inconsolata",
+      fontFamily: "Helvetica",
       marginBottom: 5,
     },
     title: {
@@ -108,11 +102,11 @@ const ReportStockBajoMinimo = () => {
       fontWeight: "bold",
       textAlign: "left",
       marginBottom: 10,
-      fontFamily: "Inconsolata",
+      fontFamily: "Helvetica",
     },
     subTitle: {
       fontSize: 12,
-      fontFamily: "Inconsolata",
+      fontFamily: "Helvetica",
       marginBottom: 5,
       textAlign: "left",
     },
@@ -121,19 +115,19 @@ const ReportStockBajoMinimo = () => {
       textAlign: "right",
       fontSize: 12,
       marginTop: 10,
-      fontFamily: "Inconsolata",
+      fontFamily: "Helvetica",
     },
     codeCell: {
       flex: 0.8,
       textAlign: "center",
-      fontFamily: "Inconsolata",
+      fontFamily: "Helvetica",
       fontSize: 9,
       padding: 3,
     },
     descriptionCell: {
       flex: 2,
       textAlign: "left",
-      fontFamily: "Inconsolata",
+      fontFamily: "Helvetica",
       fontSize: 9,
       padding: 3,
       paddingLeft: 5,
@@ -141,7 +135,7 @@ const ReportStockBajoMinimo = () => {
     numberCell: {
       flex: 0.8,
       textAlign: "center",
-      fontFamily: "Inconsolata",
+      fontFamily: "Helvetica",
       fontSize: 9,
       padding: 3,
       paddingRight: 5,
@@ -150,7 +144,7 @@ const ReportStockBajoMinimo = () => {
       flex: 0.8,
 
       fontWeight: "bold",
-      fontFamily: "Inconsolata",
+      fontFamily: "Helvetica",
       textAlign: "center",
       fontSize: 9,
       padding: 3,
@@ -158,7 +152,7 @@ const ReportStockBajoMinimo = () => {
     headerDescriptionCell: {
       flex: 2,
       fontWeight: "bold",
-      fontFamily: "Inconsolata",
+      fontFamily: "Helvetica",
       textAlign: "center",
       fontSize: 9,
       padding: 3,
@@ -167,7 +161,7 @@ const ReportStockBajoMinimo = () => {
       flex: 0.8,
 
       fontWeight: "bold",
-      fontFamily: "Inconsolata",
+      fontFamily: "Helvetica",
       textAlign: "center",
       fontSize: 9,
       padding: 3,
@@ -175,7 +169,7 @@ const ReportStockBajoMinimo = () => {
     totalLabelCell: {
       flex: 2.8,
       textAlign: "right",
-      fontFamily: "Inconsolata",
+      fontFamily: "Helvetica",
       fontWeight: "bold",
       fontSize: 9,
       padding: 3,

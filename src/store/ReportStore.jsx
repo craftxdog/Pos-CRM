@@ -1,20 +1,65 @@
 import { create } from "zustand";
 import { supabase } from "../supabase/supabase.config";
 
-export const useReportStore = create(() => ({
-  reportStockPorAlmacenSucursal: async (p) => {
-    const { data, error } = await supabase.rpc(
-      "report_stock_por_almacen_sucursal",
-      p
+async function loadStockReport({ sucursal_id, almacen_id, lowStockOnly = false }) {
+  if (!sucursal_id || !almacen_id) return [];
+
+  const stockQuery = supabase
+    .from("almacenes")
+    .select("id_producto, stock, stock_minimo")
+    .eq("id_sucursal", sucursal_id)
+    .eq("id_almacen", almacen_id);
+
+  const { data: stockRows, error: stockError } = await stockQuery;
+  if (stockError) throw stockError;
+  if (!stockRows?.length) return [];
+
+  const productIds = [
+    ...new Set(stockRows.map((item) => item.id_producto).filter(Boolean)),
+  ];
+  const { data: products, error: productsError } = await supabase
+    .from("productos")
+    .select("id, codigo_interno, codigo_barras, nombre, precio_compra")
+    .in("id", productIds);
+
+  if (productsError) throw productsError;
+
+  const productsById = new Map(
+    (products || []).map((item) => [String(item.id), item]),
+  );
+
+  return stockRows
+    .filter(
+      (item) =>
+        !lowStockOnly ||
+        Number(item.stock || 0) <= Number(item.stock_minimo || 0),
+    )
+    .map((item) => {
+      const product = productsById.get(String(item.id_producto)) || {};
+      const stock = Number(item.stock || 0);
+      const price = Number(product.precio_compra || 0);
+
+      return {
+        codigo_articulo:
+          product.codigo_interno ||
+          product.codigo_barras ||
+          String(item.id_producto),
+        descripcion_articulo: product.nombre || "Producto sin nombre",
+        stock,
+        stock_minimo: Number(item.stock_minimo || 0),
+        precio_costo: price,
+        total: stock * price,
+      };
+    })
+    .sort((a, b) =>
+      a.descripcion_articulo.localeCompare(b.descripcion_articulo, "es"),
     );
-    if (error) throw error;
-    return data;
-  },
-  reportStockBajoMinimo: async (p) => {
-    const { data, error } = await supabase.rpc("report_stock_bajo_minimo", p);
-    if (error) throw error;
-    return data;
-  },
+}
+
+export const useReportStore = create(() => ({
+  reportStockPorAlmacenSucursal: (p) => loadStockReport(p),
+  reportStockBajoMinimo: (p) =>
+    loadStockReport({ ...p, lowStockOnly: true }),
   reportVentasPorSucursal: async (p) => {
     if (!p?.sucursal_id || !p?.fecha_inicio || !p?.fecha_fin) return [];
 
