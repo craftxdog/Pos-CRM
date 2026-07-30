@@ -21,6 +21,11 @@ import { toast } from "sonner";
 import FacturaCliente from "../../../reports/FacturaCliente";
 import ReporteCobrosCrm from "../../../reports/ReporteCobrosCrm";
 import { v } from "../../../styles/variables";
+import {
+  adjustInstallmentToReceived,
+  calculateSubscriptionAccount,
+  resolveClientChargeTarget,
+} from "../../../utils/crmPayments";
 
 const methods = [
   { value: "efectivo", label: "Efectivo" },
@@ -98,7 +103,7 @@ function SearchPicker({
     return (term
       ? items.filter((item) => normalize(searchText(item)).includes(term))
       : items
-    ).slice(0, 10);
+    ).slice(0, 6);
   }, [items, query, searchText, selected, itemLabel]);
 
   const choose = (item) => {
@@ -150,8 +155,8 @@ function SearchPicker({
       {open ? (
         <div className="picker-options" id={`${id}-options`} role="listbox">
           <div className="picker-summary">
-            <span>{query ? "Resultados" : "Opciones recientes"}</span>
-            <small>Máximo 10 visibles</small>
+            <span>{query ? "Resultados encontrados" : "Selección rápida"}</span>
+            <small>{matches.length} de {items.length}</small>
           </div>
           {matches.map((item) => (
             <button
@@ -172,7 +177,7 @@ function SearchPicker({
           {!matches.length ? <p>{emptyText}</p> : null}
           {items.length > matches.length ? (
             <small className="picker-hint">
-              Escribe nombre, correo, teléfono o plan para acotar.
+              Escribe para filtrar por nombre, correo, teléfono o plan.
             </small>
           ) : null}
         </div>
@@ -186,6 +191,7 @@ function PaymentFields({
   total,
   received,
   setReceived,
+  onReceivedBlur,
   currency,
   locale,
 }) {
@@ -203,6 +209,7 @@ function PaymentFields({
             step="0.01"
             value={received}
             onChange={(event) => setReceived(event.target.value)}
+            onBlur={(event) => onReceivedBlur?.(event.target.value)}
             required
           />
         </label>
@@ -264,28 +271,6 @@ function receiptPayload(item) {
   };
 }
 
-function subscriptionAccount(subscription, payments) {
-  const total = Number(
-    subscription?.precio_pactado || subscription?.crm_planes?.precio || 0
-  );
-  if (!subscription) return { total: 0, paid: 0, balance: 0 };
-  const paid = payments
-    .filter(
-      (payment) =>
-        String(payment.id_suscripcion) === String(subscription.id) &&
-        payment.estado === "pagado" &&
-        payment.aplica_a_saldo_plan &&
-        payment.periodo_inicio === subscription.fecha_inicio &&
-        payment.periodo_fin === subscription.fecha_fin
-    )
-    .reduce((sum, payment) => sum + Number(payment.monto || 0), 0);
-  return {
-    total,
-    paid: Math.min(total, paid),
-    balance: Math.max(0, total - paid),
-  };
-}
-
 export function CrmPaymentsWorkspace({
   crm,
   dataempresa,
@@ -307,21 +292,9 @@ export function CrmPaymentsWorkspace({
   const [historySearch, setHistorySearch] = useState("");
   const [historyMethod, setHistoryMethod] = useState("todos");
   const [historyPage, setHistoryPage] = useState(1);
-
-  useEffect(() => {
-    if (!initialClient?.id) return;
-    const amount = Number(initialClient.saldo_vencido || 0);
-    setDirectClientId(String(initialClient.id));
-    setDirectSubscriptionId(
-      initialClient.id_suscripcion
-        ? String(initialClient.id_suscripcion)
-        : ""
-    );
-    if (amount > 0) {
-      setDirectAmount(String(amount));
-      setDirectReceived(String(amount));
-    }
-  }, [initialClient]);
+  const installmentInputRef = useRef(null);
+  const invoicePanelRef = useRef(null);
+  const [invoiceFocused, setInvoiceFocused] = useState(false);
 
   useEffect(
     () => setHistoryPage(1),
@@ -336,7 +309,7 @@ export function CrmPaymentsWorkspace({
     (item) => String(item.id) === String(subscriptionId)
   );
   const invoiceAccount = useMemo(
-    () => subscriptionAccount(invoiceSubscription, crm.pagos),
+    () => calculateSubscriptionAccount(invoiceSubscription, crm.pagos),
     [invoiceSubscription, crm.pagos]
   );
   const directSubscriptions = crm.suscripciones.filter(
@@ -344,13 +317,80 @@ export function CrmPaymentsWorkspace({
       !directClientId ||
       String(item.id_cliente_crm) === String(directClientId)
   );
-  const focusClient = initialClient?.id
-    ? initialClient
-    : crm.clientes.find(
-        (item) => String(item.id) === String(directClientId)
-      );
+  const liveInitialClient = initialClient?.id
+    ? crm.clientes.find(
+        (item) => String(item.id) === String(initialClient.id)
+      ) || initialClient
+    : null;
+  const focusClient =
+    liveInitialClient ||
+    crm.clientes.find(
+      (item) => String(item.id) === String(directClientId)
+    );
   const debt = Number(focusClient?.saldo_vencido || 0);
+  const planBalance = Number(focusClient?.saldo_plan || 0);
   const installment = Number(installmentAmount || 0);
+  const installmentTooHigh =
+    installment > 0 && installment > invoiceAccount.balance;
+  const insufficientCash =
+    invoiceMethod === "efectivo" &&
+    installment > 0 &&
+    Number(invoiceReceived || 0) < installment;
+  const clientsById = useMemo(
+    () =>
+      new Map(
+        crm.clientes.map((client) => [String(client.id), client])
+      ),
+    [crm.clientes]
+  );
+
+  useEffect(() => {
+    if (!initialClient?.id) return;
+
+    const client =
+      crm.clientes.find(
+        (item) => String(item.id) === String(initialClient.id)
+      ) || initialClient;
+    const target = resolveClientChargeTarget({
+      client,
+      subscriptions: availableSubscriptions,
+      payments: crm.pagos,
+    });
+
+    setDirectClientId(target.clientId);
+
+    if (target.mode === "subscription") {
+      setSubscriptionId(target.subscriptionId);
+      setInstallmentAmount(String(target.amount));
+      setInvoiceReceived(String(target.amount));
+      setDirectSubscriptionId(target.subscriptionId);
+      setDirectAmount("");
+      setDirectReceived("");
+      setInvoiceFocused(true);
+      window.setTimeout(() => {
+        invoicePanelRef.current?.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
+        installmentInputRef.current?.focus({ preventScroll: true });
+        installmentInputRef.current?.select();
+      }, 120);
+      window.setTimeout(() => setInvoiceFocused(false), 1800);
+      return;
+    }
+
+    setSubscriptionId("");
+    setInstallmentAmount("");
+    setInvoiceReceived("");
+    setDirectSubscriptionId(target.subscriptionId);
+    setDirectAmount(target.amount > 0 ? String(target.amount) : "");
+    setDirectReceived(target.amount > 0 ? String(target.amount) : "");
+  }, [
+    availableSubscriptions,
+    crm.clientes,
+    crm.pagos,
+    initialClient,
+  ]);
 
   const reportQuery = useQuery({
     queryKey: ["crm-monthly-income", dataempresa?.id, month],
@@ -394,6 +434,14 @@ export function CrmPaymentsWorkspace({
       hasNextPage: false,
     },
   };
+  const historyRows = history.data.map((item) => {
+    const currentClient = clientsById.get(String(item.id_cliente_crm));
+    return {
+      ...item,
+      currentEmail: currentClient?.email || item.cliente_email || "",
+      currentPhone: currentClient?.telefono || item.cliente_telefono || "",
+    };
+  });
   const monthlyTotal = monthlyRows.reduce(
     (sum, item) => sum + Number(item.total_ingresos || 0),
     0
@@ -461,6 +509,7 @@ export function CrmPaymentsWorkspace({
       setSubscriptionId("");
       setInstallmentAmount("");
       setInvoiceReceived("");
+      onClientHandled?.();
     },
     onError: (error) => toast.error(error.message),
   });
@@ -524,7 +573,7 @@ export function CrmPaymentsWorkspace({
 
   const selectInvoice = (nextId, item) => {
     setSubscriptionId(nextId);
-    const account = subscriptionAccount(item, crm.pagos);
+    const account = calculateSubscriptionAccount(item, crm.pagos);
     const nextAmount = item ? String(account.balance) : "";
     setInstallmentAmount(nextAmount);
     setInvoiceReceived(nextAmount);
@@ -594,11 +643,17 @@ export function CrmPaymentsWorkspace({
           </div>
           <div className="checkout-total">
             <small>
-              {debt > 0 ? "Saldo vencido por cobrar" : "Listo para cobrar"}
+              {planBalance > 0
+                ? "Saldo del plan preparado para abonar"
+                : debt > 0
+                  ? "Saldo vencido por cobrar"
+                  : "Listo para cobrar"}
             </small>
             <strong>
-              {debt > 0
-                ? money(debt, dataempresa?.currency, dataempresa?.iso)
+              {planBalance > 0
+                ? money(planBalance, dataempresa?.currency, dataempresa?.iso)
+                : debt > 0
+                  ? money(debt, dataempresa?.currency, dataempresa?.iso)
                 : "Sin mora pendiente"}
             </strong>
           </div>
@@ -655,35 +710,11 @@ export function CrmPaymentsWorkspace({
         </section>
       ) : null}
 
-      <section className="payment-guide">
-        <article>
-          <span>
-            <FiFileText />
-          </span>
-          <div>
-            <b>Abonar una suscripción</b>
-            <p>
-              Registra uno o varios pagos del mismo período. El plan no se
-              renueva hasta que corresponda.
-            </p>
-          </div>
-        </article>
-        <article>
-          <span>
-            <FiDollarSign />
-          </span>
-          <div>
-            <b>Cobro directo</b>
-            <p>
-              Registra servicios o ajustes fuera del saldo del plan, aun si
-              guardas la suscripción como referencia.
-            </p>
-          </div>
-        </article>
-      </section>
-
       <section className="workspace">
-        <article className="panel invoice">
+        <article
+          className={`panel invoice ${invoiceFocused ? "payment-focus" : ""}`}
+          ref={invoicePanelRef}
+        >
           <header>
             <span>
               <FiFileText />
@@ -718,7 +749,7 @@ export function CrmPaymentsWorkspace({
                   `${nameOf(item.clientes_crm)} · ${item.crm_planes?.nombre || "Plan"}`
                 }
                 itemDetail={(item) => {
-                  const account = subscriptionAccount(item, crm.pagos);
+                  const account = calculateSubscriptionAccount(item, crm.pagos);
                   return `Saldo ${money(account.balance, dataempresa?.currency, dataempresa?.iso)} · vence ${item.fecha_fin}`;
                 }}
                 searchText={(item) =>
@@ -770,6 +801,7 @@ export function CrmPaymentsWorkspace({
             <label>
               Abono de hoy
               <input
+                ref={installmentInputRef}
                 type="number"
                 min="0.01"
                 max={invoiceAccount.balance || undefined}
@@ -802,9 +834,41 @@ export function CrmPaymentsWorkspace({
               total={installment}
               received={invoiceReceived}
               setReceived={setInvoiceReceived}
+              onReceivedBlur={(value) => {
+                const adjusted = adjustInstallmentToReceived(
+                  installment,
+                  value
+                );
+                if (adjusted !== installment) {
+                  setInstallmentAmount(String(adjusted));
+                }
+              }}
               currency={dataempresa?.currency}
               locale={dataempresa?.iso}
             />
+            {installmentTooHigh ? (
+              <p className="form-alert wide" role="alert">
+                <FiAlertCircle />
+                El máximo que puedes abonar es{" "}
+                {money(
+                  invoiceAccount.balance,
+                  dataempresa?.currency,
+                  dataempresa?.iso
+                )}
+                .
+              </p>
+            ) : insufficientCash ? (
+              <p className="form-alert wide" role="alert">
+                <FiAlertCircle />
+                El efectivo recibido debe cubrir el abono. Si entrega menos,
+                ese valor se convierte automáticamente en el abono de hoy.
+              </p>
+            ) : subscriptionId && invoiceAccount.balance > 0 ? (
+              <p className="form-help wide">
+                El saldo está precargado. Puedes escribir un abono menor y el
+                restante continuará pendiente.
+              </p>
+            ) : null}
             <label className="wide">
               Notas
               <input name="notas" placeholder="Observación opcional" />
@@ -1084,7 +1148,7 @@ export function CrmPaymentsWorkspace({
                 <span>Abono</span>
                 <span>Acciones</span>
               </div>
-              {history.data.map((item) => (
+              {historyRows.map((item) => (
                 <div className="history-row" key={item.id}>
                   <div>
                     <b>{item.referencia}</b>
@@ -1103,8 +1167,8 @@ export function CrmPaymentsWorkspace({
                         .join(" ") || "Cliente"}
                     </b>
                     <small>
-                      {item.cliente_email ||
-                        item.cliente_telefono ||
+                      {item.currentEmail ||
+                        item.currentPhone ||
                         "Sin contacto"}
                     </small>
                   </div>
@@ -1144,7 +1208,12 @@ export function CrmPaymentsWorkspace({
                       type="button"
                       className="print"
                       onClick={() => emailReceipt.mutate(item)}
-                      disabled={!item.cliente_email || emailReceipt.isPending}
+                      disabled={!item.currentEmail || emailReceipt.isPending}
+                      title={
+                        item.currentEmail
+                          ? `Enviar a ${item.currentEmail}`
+                          : "Agrega un correo al cliente para habilitar el envío"
+                      }
                     >
                       {emailReceipt.isPending ? (
                         "Enviando…"
@@ -1208,8 +1277,7 @@ const Container = styled.section`
   .hero,
   .panel,
   .metric-grid article,
-  .customer-checkout,
-  .payment-guide article {
+  .customer-checkout {
     border: 1px solid ${({ theme }) => theme.color2};
     background: ${({ theme }) => theme.bgcards};
     border-radius: 18px;
@@ -1261,17 +1329,6 @@ const Container = styled.section`
   .metric-grid strong {
     font-size: 23px;
   }
-  .payment-guide {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 12px;
-  }
-  .payment-guide article {
-    display: flex;
-    gap: 11px;
-    padding: 14px;
-  }
-  .payment-guide article > span,
   .panel > header > span {
     display: grid;
     place-items: center;
@@ -1281,15 +1338,6 @@ const Container = styled.section`
     border-radius: 11px;
     background: #fef3c7;
     color: #b45309;
-  }
-  .payment-guide b {
-    display: block;
-    margin-bottom: 3px;
-  }
-  .payment-guide p {
-    font-size: 13px;
-    line-height: 1.45;
-    color: ${({ theme }) => theme.colorSubtitle};
   }
   .customer-checkout {
     padding: 15px 18px;
@@ -1350,13 +1398,35 @@ const Container = styled.section`
   }
   .workspace {
     display: grid;
-    grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.85fr);
-    gap: 16px;
-    align-items: start;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+    align-items: stretch;
   }
   .panel {
     min-width: 0;
     padding: 18px;
+  }
+  .workspace > .panel {
+    height: 100%;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+  }
+  .workspace > .panel form {
+    flex: 1;
+    align-content: start;
+  }
+  .workspace > .panel form > button:last-child {
+    align-self: end;
+  }
+  .payment-focus {
+    border-color: #f3d20c;
+    box-shadow:
+      0 0 0 4px rgba(243, 210, 12, 0.2),
+      0 16px 36px rgba(15, 23, 42, 0.12);
+    transition:
+      border-color 180ms ease,
+      box-shadow 180ms ease;
   }
   .panel > header,
   .report header {
@@ -1462,10 +1532,18 @@ const Container = styled.section`
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 0 10px;
+    min-height: 45px;
+    padding: 0 11px;
     border: 1px solid ${({ theme }) => theme.color2};
-    border-radius: 10px;
+    border-radius: 12px;
     background: ${({ theme }) => theme.bgtotal};
+    transition:
+      border-color 150ms ease,
+      box-shadow 150ms ease;
+  }
+  .picker-control:focus-within {
+    border-color: #d6b900;
+    box-shadow: 0 0 0 3px rgba(243, 210, 12, 0.18);
   }
   .picker-control input {
     border: 0;
@@ -1474,8 +1552,11 @@ const Container = styled.section`
     background: transparent;
   }
   .picker-clear {
-    padding: 5px;
-    background: transparent;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border-radius: 8px;
+    background: rgba(243, 210, 12, 0.16);
     color: ${({ theme }) => theme.text};
   }
   .picker-options {
@@ -1484,13 +1565,15 @@ const Container = styled.section`
     top: calc(100% + 6px);
     left: 0;
     right: 0;
-    max-height: min(360px, 55vh);
+    max-height: min(330px, 48vh);
     overflow-y: auto;
-    padding: 7px;
+    padding: 8px;
     border: 1px solid ${({ theme }) => theme.color2};
-    border-radius: 12px;
+    border-radius: 14px;
     background: ${({ theme }) => theme.bgcards};
-    box-shadow: 0 18px 40px rgba(15, 23, 42, 0.22);
+    box-shadow:
+      0 20px 44px rgba(15, 23, 42, 0.2),
+      0 2px 8px rgba(15, 23, 42, 0.08);
   }
   .picker-summary {
     display: flex;
@@ -1504,13 +1587,23 @@ const Container = styled.section`
     width: 100%;
     justify-content: space-between;
     text-align: left;
-    padding: 10px;
-    background: transparent;
-    color: ${({ theme }) => theme.text};
+    min-height: 51px;
+    margin: 3px 0;
+    padding: 9px 11px;
+    border: 1px solid transparent;
+    border-radius: 10px;
+    background: ${({ theme }) => theme.bgcards} !important;
+    color: ${({ theme }) => theme.text} !important;
+    box-shadow: none !important;
   }
   .picker-options > button:hover,
   .picker-options > button[aria-selected="true"] {
-    background: ${({ theme }) => theme.bgtotal};
+    border-color: rgba(214, 185, 0, 0.48);
+    background: rgba(243, 210, 12, 0.12) !important;
+  }
+  .picker-options > button:focus-visible {
+    outline: 3px solid rgba(243, 210, 12, 0.28);
+    outline-offset: 1px;
   }
   .picker-options b,
   .picker-options small {
@@ -1525,6 +1618,26 @@ const Container = styled.section`
   .picker-options p,
   .picker-hint {
     padding: 12px 9px;
+  }
+  .form-help,
+  .form-alert {
+    margin: -1px 0 0;
+    padding: 9px 11px;
+    border-radius: 10px;
+    font-size: 11px;
+    line-height: 1.4;
+  }
+  .form-help {
+    color: ${({ theme }) => theme.colorSubtitle};
+    background: ${({ theme }) => theme.bgtotal};
+  }
+  .form-alert {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    color: #b45309;
+    background: #fff7ed;
+    border: 1px solid #fed7aa;
   }
   .secondary,
   .print,
@@ -1640,8 +1753,7 @@ const Container = styled.section`
   }
   @media (max-width: 900px) {
     .metric-grid,
-    .workspace,
-    .payment-guide {
+    .workspace {
       grid-template-columns: 1fr;
     }
     .customer-checkout {

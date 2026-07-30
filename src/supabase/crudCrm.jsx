@@ -217,14 +217,20 @@ export async function InsertarCrmCliente(payload) {
 }
 
 export async function EditarCrmCliente(payload) {
-  const { id, ...values } = payload;
+  const { id, id_empresa, ...values } = payload;
   const { data, error } = await supabase
     .from("clientes_crm")
     .update(values)
     .eq("id", id)
+    .eq("id_empresa", id_empresa)
     .select()
     .maybeSingle();
   throwIfError(error);
+  if (!data) {
+    throw new Error(
+      "No se pudo actualizar el cliente. Recarga el directorio e inténtalo de nuevo."
+    );
+  }
   return data;
 }
 

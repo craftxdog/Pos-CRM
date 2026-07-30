@@ -24,7 +24,7 @@ import { calculateSubscriptionEnd } from "../../../utils/crmSubscriptions";
 import { ConfirmDialog } from "../../ui/feedback/ConfirmDialog";
 import { CrmPlansTable } from "./CrmPlansTable";
 
-const pageSizes = [10, 20, 50];
+const pageSizes = [5, 10, 20];
 
 const statusCopy = {
   activa: {
@@ -312,7 +312,7 @@ export function CrmSubscriptionsWorkspace({
   const [status, setStatus] = useState("todos");
   const [planId, setPlanId] = useState("todos");
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize, setPageSize] = useState(5);
   const [selectedSubscription, setSelectedSubscription] = useState(null);
   const [newPlanId, setNewPlanId] = useState("");
   const [effectiveDate, setEffectiveDate] = useState(
@@ -980,8 +980,8 @@ const Container = styled.section`
   .subscription-grid {
     min-width: 0;
     display: grid;
-    grid-template-columns: minmax(260px, 330px) minmax(0, 1fr);
-    gap: 16px;
+    grid-template-columns: minmax(320px, 380px) minmax(0, 1fr);
+    gap: 14px;
     align-items: start;
   }
 

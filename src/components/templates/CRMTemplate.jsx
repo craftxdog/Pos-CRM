@@ -335,6 +335,7 @@ export function CRMTemplate({ initialTab = "procesos" }) {
       if (action === "editar_cliente") {
         return crm.editarCliente({
           id: Number(values.id),
+          id_empresa,
           nombres: values.nombres,
           apellidos: values.apellidos || null,
           email: values.email || null,
@@ -574,10 +575,22 @@ export function CRMTemplate({ initialTab = "procesos" }) {
         });
       }
     },
-    onSuccess: (result, variables) => {
+    onSuccess: async (result, variables) => {
       toast.success(actionMessages[variables.action] || "Datos guardados");
-      queryClient.invalidateQueries({ queryKey: ["crm-data"] });
-      queryClient.invalidateQueries({ queryKey: ["crm-subscriptions"] });
+      const queryKeys = [
+        "crm-data",
+        "crm-subscriptions",
+        "crm-clients-directory",
+        "crm-payment-history",
+      ];
+      await Promise.all(
+        queryKeys.map((key) =>
+          queryClient.invalidateQueries({
+            queryKey: [key],
+            refetchType: "active",
+          })
+        )
+      );
       if (variables.action === "facturar_suscripcion" && result?.pago) {
         void FacturaCliente("print", {
           dataempresa,
