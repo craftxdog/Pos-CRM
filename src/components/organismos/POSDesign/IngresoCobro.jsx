@@ -259,22 +259,41 @@ export const IngresoCobro = forwardRef((props, ref) => {
         <span>guardando...🐖</span>
       ) : (
         <>
-          <section className="area1">
+          <header className="receipt-header">
+            <div className="brand">
+              {dataempresa?.logo && dataempresa.logo !== "-" ? (
+                <img src={dataempresa.logo} alt={`Logo de ${dataempresa?.nombre || "la empresa"}`} />
+              ) : (
+                <span className="brand-fallback">
+                  {(dataempresa?.nombre || "AS").slice(0, 2).toUpperCase()}
+                </span>
+              )}
+              <div>
+                <strong>{dataempresa?.nombre || "Punto de venta"}</strong>
+                <small>Nuevo comprobante</small>
+              </div>
+            </div>
             <span className="tipocobro">{tipocobro}</span>
-            <section>
-              <span>
-                {itemComprobanteSelect?.tipo_comprobantes?.nombre}:{" "}
-                <strong>
-                  {itemComprobanteSelect?.serie}-
-                  {itemComprobanteSelect?.correlativo}{" "}
-                </strong>{" "}
-              </span>
+          </header>
+          <section className="area1">
+            <section className="document-number">
+              <small>Documento</small>
+              <strong>
+                {itemComprobanteSelect?.tipo_comprobantes?.nombre || "Comprobante"}{" "}
+                {itemComprobanteSelect?.serie}-
+                {itemComprobanteSelect?.correlativo}
+              </strong>
             </section>
 
             <section className="areacomprobantes">
               {dataComprobantes?.map((item, index) => {
                 return (
-                  <article className="box" key={index}>
+                  <article
+                    className={`box ${
+                      item?.id === itemComprobanteSelect?.id ? "active" : ""
+                    }`}
+                    key={item?.id || index}
+                  >
                     <Btn1
                       titulo={item?.tipo_comprobantes?.nombre}
                       border="0"
@@ -286,13 +305,21 @@ export const IngresoCobro = forwardRef((props, ref) => {
                 );
               })}
             </section>
-            <span>cliente</span>
-            <EditButton
-              onClick={() => setStateBuscadorClientes(!stateBuscadorClientes)}
-            >
-              <Icon className=" icono" icon="lets-icons:edit-fill" />
-            </EditButton>
-            <span className="cliente">{cliproItemSelect?.nombres}</span>
+            <section className="client-row">
+              <div>
+                <small>Cliente</small>
+                <strong className="cliente">
+                  {cliproItemSelect?.nombres || "Cliente genérico"}
+                </strong>
+              </div>
+              <EditButton
+                type="button"
+                aria-label="Seleccionar o editar cliente"
+                onClick={() => setStateBuscadorClientes(!stateBuscadorClientes)}
+              >
+                <Icon className="icono" icon="lets-icons:edit-fill" />
+              </EditButton>
+            </section>
           </section>
           <Linea />
           <section className="area2">
@@ -388,21 +415,81 @@ IngresoCobro.displayName = "IngresoCobro";
 const Container = styled.div`
   position: relative;
   box-sizing: border-box;
-  width: min(400px, calc(100vw - 28px));
-  max-height: calc(100dvh - 120px);
+  width: min(520px, calc(100vw - 28px));
+  max-height: calc(100dvh - 150px);
   overflow-y: auto;
-  padding: clamp(14px, 4vw, 20px);
-  border-radius: 10px;
-  box-shadow: 2px 2px 15px 0px #e2e2e2;
-  gap: 12px;
+  padding: clamp(18px, 4vw, 28px);
+  border: 1px solid #e2e8f0;
+  border-radius: 22px;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.13);
+  gap: 16px;
   display: flex;
   flex-direction: column;
   background-color: #ffffff;
   color: #000;
-  min-height: 100%;
-  align-items: center;
-  justify-content: center;
-  font-size: clamp(17px, 5vw, 22px);
+  align-items: stretch;
+  justify-content: flex-start;
+  font-size: clamp(16px, 3vw, 20px);
+
+  .receipt-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #e2e8f0;
+
+    .brand {
+      min-width: 0;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+
+      img,
+      .brand-fallback {
+        width: 50px;
+        height: 50px;
+        flex: 0 0 50px;
+        border-radius: 14px;
+        object-fit: contain;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+      }
+
+      .brand-fallback {
+        display: grid;
+        place-items: center;
+        color: #0f172a;
+        font-weight: 900;
+      }
+
+      div {
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+      }
+
+      strong {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      small {
+        color: #64748b;
+      }
+    }
+  }
+
+  .tipocobro {
+    flex: 0 0 auto;
+    background: #fce7f3;
+    padding: 7px 10px;
+    color: #be185d;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 800;
+  }
 
   input {
     color: #000 !important;
@@ -439,7 +526,27 @@ const Container = styled.div`
   .area1 {
     display: flex;
     flex-direction: column;
-    align-items: center;
+    align-items: stretch;
+    gap: 12px;
+
+    .document-number {
+      display: flex;
+      flex-direction: column;
+      text-align: center;
+
+      small {
+        color: #64748b;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        font-size: 11px;
+        font-weight: 750;
+      }
+
+      strong {
+        font-size: clamp(20px, 4vw, 26px);
+      }
+    }
+
     .areacomprobantes {
       display: flex;
       flex-wrap: wrap;
@@ -449,26 +556,47 @@ const Container = styled.div`
         flex: 1 1 40%;
         display: flex;
         gap: 10px;
+
+        &.active button {
+          outline: 3px solid rgba(14, 165, 233, 0.25);
+          background: #e0f2fe;
+          color: #075985;
+        }
       }
     }
-    .tipocobro {
-      position: absolute;
-      right: 6px;
-      top: 6px;
-      background-color: rgba(233, 6, 184, 0.2);
-      padding: 5px;
-      color: #e61eb1;
-      border-radius: 5px;
-      font-size: 15px;
-      font-weight: 650;
-    }
-    .cliente {
-      font-weight: 700;
+
+    .client-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 12px 14px;
+      border: 1px solid #e2e8f0;
+      border-radius: 14px;
+      background: #f8fafc;
+
+      > div {
+        display: flex;
+        flex-direction: column;
+      }
+
+      small {
+        color: #64748b;
+        font-size: 12px;
+      }
+
+      .cliente {
+        font-weight: 750;
+      }
     }
   }
   .area2 {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+
     input {
-      font-size: 40px;
+      font-size: clamp(30px, 8vw, 42px);
     }
   }
   .area3 {
@@ -487,6 +615,15 @@ const Container = styled.div`
       text-align: end;
     }
   }
+
+  .area4 {
+    display: flex;
+    width: 100%;
+  }
+
+  @media (max-height: 760px) {
+    max-height: calc(100dvh - 120px);
+  }
 `;
 
 const Linea = styled.span`
@@ -503,7 +640,10 @@ const EditButton = styled.button`
   display: flex;
   justify-content: center;
   align-items: center;
-  margin: auto;
+  flex: 0 0 36px;
+  width: 36px;
+  height: 36px;
+  margin: 0;
   .icono {
     font-size: 20px;
   }

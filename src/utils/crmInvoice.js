@@ -51,6 +51,7 @@ export function buildCrmInvoiceModel({
     dueDate: dateLabel(payment?.fecha_vencimiento || resolvedSubscription?.fecha_fin, locale),
     company: {
       name: company?.nombre || "Empresa",
+      logo: company?.logo || "",
       taxId: company?.id_fiscal || "-",
       address: company?.direccion_fiscal || "-",
       email: company?.correo || "",

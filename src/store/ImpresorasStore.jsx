@@ -29,8 +29,11 @@ export const useImpresorasStore = create((set, get) => ({
     set({ selectImpresora: p });
   },
   statePrintDirecto: false,
-  setStatePrintDirecto: () => {
-    set((state) => ({ statePrintDirecto: !state.statePrintDirecto }));
+  setStatePrintDirecto: (nextState) => {
+    set((state) => ({
+      statePrintDirecto:
+        typeof nextState === "boolean" ? nextState : !state.statePrintDirecto,
+    }));
   },
   mostrarDatosPc: async () => {
     if (!printServiceUrl) return null;

@@ -12,12 +12,17 @@ export const CardMovimientosCajaLive = () => {
   const { data, isLoading, error } = useQuery({
     queryKey: ["mostrar movimientos caja live"],
     queryFn: () => mostrarmovimientoscajalive({ _id_empresa: dataempresa?.id }),
-    enabled: !!dataempresa,
+    enabled: Boolean(dataempresa?.id),
   });
   useSupabaseSubscription({
-    channelName: "public:movimientos_caja",
-    options: { event: "*", schema: "public", table: "movimientos_caja" },
-    queryKey: ["mostrar movimientos caja live"],  
+    enabled: Boolean(dataempresa?.id),
+    channelName: `public:movimientos_caja:${dataempresa?.id || "inactive"}`,
+    options: {
+      event: "*",
+      schema: "public",
+      table: "movimientos_caja",
+    },
+    queryKey: ["mostrar movimientos caja live"],
   });
   if (isLoading) return <BarLoader color="#6d6d6d" />;
   if (error) return <span>error...{error.message} </span>;

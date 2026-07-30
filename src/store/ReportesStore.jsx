@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { supabase } from "../supabase/supabase.config";
+import { isAllDateRange } from "../utils/dashboardDates";
 
 function validDateOrNull(value) {
   if (!value || value === "Invalid Date") return null;
@@ -44,7 +45,11 @@ export const useReportesStore = create((set, get) => ({
       (sum, venta) => sum + Number(venta.total_ventas),
       0
     );
-    set({ totalventas: totalGeneral });
+    set(
+      isAllDateRange(p?._fecha_inicio, p?._fecha_fin)
+        ? { totalventas: totalGeneral, totalventasAnterior: 0, porcentajeCambio: 0 }
+        : { totalventas: totalGeneral }
+    );
     get().setCalcularPorcentajeCambio();
     return rows;
   },
@@ -57,7 +62,7 @@ export const useReportesStore = create((set, get) => ({
       throw new Error(error.message);
     }
     const total = Number(data || 0);
-set({totalCantidadDetalleVentas: total})
+    set({ totalCantidadDetalleVentas: total });
     return total;
   },
   mostrarVentasDashboardPeriodoAnterior: async (p) => {
@@ -82,7 +87,7 @@ set({totalCantidadDetalleVentas: total})
       throw new Error(error.message);
     }
     const total = Number(data || 0);
-    set({totalGanancias: total})
+    set({ totalGanancias: total });
     return total;
   },
   setCalcularPorcentajeCambio: () => {

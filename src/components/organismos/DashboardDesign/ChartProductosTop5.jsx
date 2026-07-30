@@ -4,30 +4,24 @@ import {
   Bar,
   XAxis,
   YAxis,
-  CartesianGrid,
   Tooltip,
   ResponsiveContainer,
+  Cell,
 } from "recharts";
-import { useEmpresaStore } from "../../../store/EmpresaStore";
-import { FormatearNumeroDinero } from "../../../utils/Conversiones";
-import { useVentasStore } from "../../../store/VentasStore";
 import { Icon } from "@iconify/react/dist/iconify.js";
-import { useThemeStore } from "../../../store/ThemeStore";
+import { useEmpresaStore } from "../../../store/EmpresaStore";
 import { useDetalleVentasStore } from "../../../store/DetalleVentasStore";
 import { useQuery } from "@tanstack/react-query";
 import { BarLoader } from "../../ui/loaders/BarLoader";
 import { useDashboardStore } from "../../../store/DashboardStore";
-import { Lottieanimacion } from "../../atomos/Lottieanimacion";
-import animacionvacio from "../../../assets/vacioanimacion.json"
+
+const COLORS = ["#38bdf8", "#6366f1", "#8b5cf6", "#f59e0b", "#22c55e"];
+
 export const ChartProductosTop5 = () => {
   const { dataempresa } = useEmpresaStore();
-  const { porcentajeCambio } = useVentasStore();
-  const { themeStyle } = useThemeStore();
   const { fechaInicio, fechaFin } = useDashboardStore();
-  const isPositive = porcentajeCambio > 0;
-  const isNeutral = porcentajeCambio === 0;
   const { mostrartop5productosmasvendidosxcantidad } = useDetalleVentasStore();
-  const { data, isLoading, error } = useQuery({
+  const { data = [], isLoading, error } = useQuery({
     queryKey: [
       "mostrar top5 productos mas vendidos xcantidad",
       {
@@ -42,155 +36,194 @@ export const ChartProductosTop5 = () => {
         _fecha_inicio: fechaInicio,
         _fecha_fin: fechaFin,
       }),
-    enabled: !!dataempresa,
+    enabled: Boolean(dataempresa?.id),
   });
-  if (isLoading) return <BarLoader color="#6d6d6d" />;
-  if (error) return <span>error...{error.message} </span>;
+
+  if (isLoading) return <LoadingWrap><BarLoader color="#38bdf8" /></LoadingWrap>;
+
   return (
     <Container>
       <Header>
-        <Title>TOP 5</Title>
-        <Subtitle>Productos por cantidad vendida</Subtitle>
+        <span>
+          <Icon icon="solar:cup-star-bold-duotone" width="22" />
+          Ranking del período
+        </span>
+        <h3>Productos más vendidos</h3>
+        <p>Participación por unidades</p>
       </Header>
-      {
-        data && data.length >0 ?(<>
-        {data?.map((item, index) => {
-        return (
-          <Row key={index}>
-            <NameContent>
-              <Name>{item.nombre_producto} </Name>
-            </NameContent>
-            <Stats>
-              <Value>{item.total_vendido} </Value>
-              <Percentage>{item.porcentaje} %</Percentage>
-            </Stats>
-          </Row>
-        );
-      })}
-      <ResponsiveContainer width="100%" height={300}>
-        <BarChart
-          width={500}
-          height={400}
-          data={data}
-          margin={{
-            top: 10,
-            right: 0,
-            left: 0,
-            bottom: 0,
-          }}
-        >
-          <XAxis
-            dataKey="nombre_producto"
-            axisLine={false}
-            tickLine={false}
-            tick={{ fontSize: 12, fill: "#9CA3AF" }}
-          />
-          <YAxis hide />
-          <Tooltip content={<CustomTooltip />} />
-          <Bar
-            strokeWidth={6}
-            type="monotone"
-            dataKey="total_vendido"
-            fill={themeStyle.text}
-            activeDot={{ r: 6 }}
-            fillOpacity={1}
-            radius={[10, 10, 0, 0]}
-          />
-        </BarChart>
-      </ResponsiveContainer>
-        </>):(<Lottieanimacion animacion={animacionvacio} alto="200" ancho="200"/>)
-      }
-      
+
+      {error ? (
+        <EmptyState $error>{error.message}</EmptyState>
+      ) : data.length ? (
+        <>
+          <Ranking>
+            {data.map((item, index) => (
+              <li key={`${item.nombre_producto}-${index}`}>
+                <Rank $color={COLORS[index % COLORS.length]}>{index + 1}</Rank>
+                <span title={item.nombre_producto}>{item.nombre_producto}</span>
+                <strong>{Number(item.total_vendido || 0)}</strong>
+                <small>{Number(item.porcentaje || 0).toFixed(0)}%</small>
+              </li>
+            ))}
+          </Ranking>
+          <ResponsiveContainer width="100%" height={260}>
+            <BarChart
+              layout="vertical"
+              data={data}
+              margin={{ top: 8, right: 16, left: 8, bottom: 0 }}
+              barCategoryGap="30%"
+            >
+              <XAxis type="number" hide />
+              <YAxis type="category" dataKey="nombre_producto" hide />
+              <Tooltip content={<CustomTooltip />} cursor={{ fill: "rgba(148, 163, 184, 0.08)" }} />
+              <Bar dataKey="total_vendido" radius={[0, 9, 9, 0]} minPointSize={5}>
+                {data.map((item, index) => (
+                  <Cell
+                    key={`${item.nombre_producto}-bar`}
+                    fill={COLORS[index % COLORS.length]}
+                  />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </>
+      ) : (
+        <EmptyState>
+          <Icon icon="solar:box-minimalistic-outline" width="36" />
+          Aún no hay productos vendidos en este período.
+        </EmptyState>
+      )}
     </Container>
   );
 };
-const CustomTooltip = ({ active, payload, label }) => {
- 
-  if (active && payload && payload.length) {
-    return (
-      <TooltipContainer>
-        <Date>{label} </Date>
-        <Value>cant: {payload[0].value}</Value>
-      </TooltipContainer>
-    );
-  }
+
+const CustomTooltip = ({ active, payload }) => {
+  if (!active || !payload?.length) return null;
+  const item = payload[0].payload;
+  return (
+    <TooltipContainer>
+      <span>{item.nombre_producto}</span>
+      <strong>{item.total_vendido} unidades</strong>
+      <small>{Number(item.porcentaje || 0).toFixed(0)}% del total</small>
+    </TooltipContainer>
+  );
 };
-const Stats = styled.div`
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: 10px;
-`;
-const Value = styled.span`
-  font-size: 14px;
-  font-weight: bold;
-  color: ${({ theme }) => theme.colortitlecard};
-`;
-const Percentage = styled.span`
-  font-size: 12px;
-  font-weight: bold;
-  color: #828282;
-`;
 
-const Row = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 15px;
-  margin-bottom: 8px;
-`;
-const NameContent = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex: 2;
-`;
-const Name = styled.span`
-  font-size: 12px;
-  font-weight: 500;
-  color: ${({ theme }) => theme.text};
-`;
-
-const Subtitle = styled.p`
-  font-size: 18px;
-  color: #6b7280;
-  margin: 5px 0 0;
-`;
 const Container = styled.div`
-  padding: 20px;
-`;
-const TooltipContainer = styled.div`
-  background: ${({ theme }) => theme.bg};
-  padding: 10px;
-  border-radius: 8px;
-  font-size: 12px;
-  box-shadow: ${({ theme }) => theme.boxshadow};
-`;
-const Date = styled.div`
-  font-size: 14px;
+  padding: 22px;
 `;
 
-const Header = styled.div`
+const LoadingWrap = styled.div`
+  min-height: 420px;
+  display: grid;
+  place-items: center;
+`;
+
+const Header = styled.header`
   margin-bottom: 20px;
-  text-align: center;
+
+  span {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    color: #38bdf8;
+    font-size: 11px;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  h3 {
+    margin: 7px 0 3px;
+    color: ${({ theme }) => theme.text};
+    font-size: 21px;
+  }
+
+  p {
+    margin: 0;
+    color: ${({ theme }) => theme.colorSubtitle};
+    font-size: 13px;
+  }
 `;
 
-const Title = styled.h3`
-  font-size: 25px;
-  font-weight: bold;
-  color: ${({ theme }) => theme.text};
+const Ranking = styled.ol`
+  display: grid;
+  gap: 8px;
   margin: 0;
+  padding: 0;
+  list-style: none;
+
+  li {
+    display: grid;
+    grid-template-columns: 28px minmax(0, 1fr) auto 38px;
+    align-items: center;
+    gap: 8px;
+    min-height: 38px;
+    padding: 5px 8px;
+    border-radius: 10px;
+    background: ${({ theme }) => theme.bg};
+  }
+
+  li > span {
+    overflow: hidden;
+    color: ${({ theme }) => theme.text};
+    font-size: 12px;
+    font-weight: 700;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  strong {
+    color: ${({ theme }) => theme.text};
+    font-size: 13px;
+  }
+
+  small {
+    color: ${({ theme }) => theme.colorSubtitle};
+    font-size: 11px;
+    text-align: right;
+  }
 `;
-const MainInfo = styled.div`
-  margin: 20px 0;
+
+const Rank = styled.b`
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  color: ${({ $color }) => $color};
+  background: ${({ $color }) => `${$color}18`};
+  font-size: 12px;
 `;
-const Revenue = styled.div`
-  font-size: 24px;
-  font-weight: bold;
-  color: ${({ theme }) => theme.text};
+
+const EmptyState = styled.div`
+  min-height: 390px;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 10px;
+  padding: 20px;
+  color: ${({ $error, theme }) => ($error ? "#dc2626" : theme.colorSubtitle)};
+  text-align: center;
+  font-size: 13px;
+  font-weight: 700;
 `;
-const Change = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  margin-top: 5px;
+
+const TooltipContainer = styled.div`
+  display: grid;
+  gap: 3px;
+  padding: 10px 12px;
+  border: 1px solid ${({ theme }) => theme.color2};
+  border-radius: 12px;
+  background: ${({ theme }) => theme.bg};
+  box-shadow: ${({ theme }) => theme.boxshadow};
+
+  span,
+  strong {
+    color: ${({ theme }) => theme.text};
+  }
+
+  small {
+    color: ${({ theme }) => theme.colorSubtitle};
+  }
 `;

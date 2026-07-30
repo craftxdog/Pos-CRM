@@ -17,6 +17,6 @@ export const useMostrarSucursalAsignadasQuery = () => {
       mostrarSucursalAsignadas({
         id_usuario: datausuarios?.id,
       }),
-    enabled: !!datausuarios,
+    enabled: Boolean(datausuarios?.id),
   });
 };

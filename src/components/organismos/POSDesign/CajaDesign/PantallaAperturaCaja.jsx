@@ -29,7 +29,9 @@ export function PantallaAperturaCaja() {
             state = Boolean(aperturaActiva);
           }
           return (
-            <CardListCajas key={index}
+            <CardListCajas
+              key={item.id || item.id_caja || index}
+              caja={item}
               title={item.caja?.descripcion}
               sucursal={item.sucursales?.nombre}
               funcion={() => {

@@ -13,6 +13,7 @@ test("builds a printable invoice from a payment and its subscription", () => {
   const invoice = buildCrmInvoiceModel({
     company: {
       nombre: "MultiLot 360",
+      logo: "https://example.com/logo.png",
       id_fiscal: "J0001",
       direccion_fiscal: "Managua",
       currency: "USD",
@@ -39,6 +40,7 @@ test("builds a printable invoice from a payment and its subscription", () => {
   });
 
   assert.equal(invoice.number, "FAC-4-2026-000018");
+  assert.equal(invoice.company.logo, "https://example.com/logo.png");
   assert.equal(invoice.client.name, "Ana López");
   assert.equal(invoice.item.description, "Plan Mensual");
   assert.equal(invoice.payment.total, 35);

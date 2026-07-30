@@ -50,7 +50,7 @@ export function useCrmRealtime(idEmpresa, queryClient) {
 
     return () => {
       window.clearTimeout(refreshTimer);
-      supabase.removeChannel(channel);
+      void supabase.removeChannel(channel);
     };
   }, [idEmpresa, queryClient]);
 }

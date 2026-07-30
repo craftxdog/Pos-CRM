@@ -21,24 +21,16 @@ export const useUsuariosStore = create((set) => ({
   itemSelect: null,
   setItemSelect: (p) => set({ itemSelect: p }),
   mostrarusuarios: async (p) => {
-    try {
-      const { data, error } = await supabase
-        .from(tabla)
-        .select(`*, roles(*)`)
-        .eq("id_auth", p.id_auth)
-        .maybeSingle();
+    const { data, error } = await supabase
+      .from(tabla)
+      .select(`*, roles(*)`)
+      .eq("id_auth", p.id_auth)
+      .maybeSingle();
 
-      if (error) {
-        console.error("💥 Supabase error en MostrarUsuarios:", error);
-        throw new Error(error.message);
-      }
+    if (error) throw new Error(error.message);
 
-      set({ datausuarios: data });
-      return data;
-    } catch (err) {
-      console.error("🔥 ERROR inesperado:", err);
-      throw err;
-    }
+    set({ datausuarios: data });
+    return data;
   },
   eliminarUsuarioAsignado: async (p) => {
     await EliminarUsuarioAsignado(p);
