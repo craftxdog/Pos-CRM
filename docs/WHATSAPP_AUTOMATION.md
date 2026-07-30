@@ -12,6 +12,37 @@ CRM autenticado -> cola Supabase/RLS -> whatsapp-dispatch
 
 `whatsapp-dispatch` vuelve a leer el mensaje y la configuración con el JWT del usuario, por lo que no puede enviar datos de otro tenant. Para OpenWA+n8n firma `timestamp + cuerpo exacto` con HMAC-SHA256. n8n debe rechazar firmas inválidas y timestamps con más de cinco minutos.
 
+## Configurar Meta Cloud API paso a paso
+
+1. En [Meta for Developers](https://developers.facebook.com/apps/) crea una app de tipo **Business** o abre la que utilizará la empresa.
+2. Agrega el producto **WhatsApp** y entra en **WhatsApp > API Setup**.
+3. Vincula o crea el portafolio comercial, la cuenta de WhatsApp Business (WABA) y el número emisor.
+4. Copia desde API Setup:
+   - **Phone Number ID**: identifica el número que enviará los mensajes.
+   - **WhatsApp Business Account ID**: identifica la WABA.
+   - **Teléfono visible**: número con prefijo internacional.
+5. En ActiveSelfControl abre **CRM > WhatsApp**, selecciona **Meta Cloud API**, conserva el estado **Pendiente**, llena esos tres datos, el código de país (`505` para Nicaragua) y guarda.
+6. En Meta Business Settings crea un **usuario del sistema**, asígnale la app y la WABA, y genera un token con `whatsapp_business_messaging` y `whatsapp_business_management`. El token temporal de API Setup solo sirve para una prueba corta.
+7. Instala el token en Supabase. Nunca lo pegues en el navegador, en el formulario del CRM ni en Git:
+
+```bash
+npx supabase secrets set --project-ref cqnfziultbkobdkegtfm \
+  WHATSAPP_ACCESS_TOKEN='TOKEN_DEL_USUARIO_DEL_SISTEMA' \
+  WHATSAPP_PHONE_NUMBER_ID='PHONE_NUMBER_ID' \
+  WHATSAPP_GRAPH_API_VERSION='VERSION_MOSTRADA_POR_META'
+```
+
+8. Despliega la función:
+
+```bash
+npx supabase functions deploy whatsapp-dispatch \
+  --project-ref cqnfziultbkobdkegtfm
+```
+
+9. Regresa a **CRM > WhatsApp**, cambia el estado a **Conectado**, guarda y envía primero a un número de prueba autorizado. Para iniciar conversaciones fuera de la ventana de servicio de 24 horas usa una plantilla aprobada por Meta.
+
+La [documentación oficial de WhatsApp Cloud API de Meta](https://www.postman.com/meta/whatsapp-business-platform/documentation/wlk6lh4/whatsapp-cloud-api) explica la creación de tokens, permisos, WABA, Phone Number ID y el endpoint de mensajes.
+
 ## Recomendación de producción
 
 Meta Cloud API es el proveedor recomendado para clientes B2B porque es la integración oficial y no depende de una sesión de WhatsApp Web. OpenWA+n8n queda como proveedor opcional para pilotos controlados; requiere vigilar desconexiones, QR, cambios de WhatsApp Web y las condiciones de uso aplicables.

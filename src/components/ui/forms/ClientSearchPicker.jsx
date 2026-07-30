@@ -1,5 +1,11 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
-import { FiCheck, FiChevronDown, FiSearch, FiX } from "react-icons/fi";
+import {
+  FiCheck,
+  FiChevronDown,
+  FiSearch,
+  FiUser,
+  FiX,
+} from "react-icons/fi";
 import styled from "styled-components";
 
 const normalize = (value) =>
@@ -35,6 +41,7 @@ export function ClientSearchPicker({
           normalize(
             [
               clientName(client),
+              client.codigo,
               client.email,
               client.telefono,
               client.identificador_nacional,
@@ -42,7 +49,7 @@ export function ClientSearchPicker({
           ).includes(term),
         )
       : activeClients;
-    return source.slice(0, 8);
+    return source.slice(0, 7);
   }, [activeClients, query]);
 
   useEffect(() => {
@@ -133,6 +140,7 @@ export function ClientSearchPicker({
           </header>
           {matches.map((client) => (
             <button
+              className="option"
               type="button"
               role="option"
               aria-selected={String(client.id) === String(selected?.id)}
@@ -140,14 +148,20 @@ export function ClientSearchPicker({
               onMouseDown={(event) => event.preventDefault()}
               onClick={() => selectClient(client)}
             >
-              <span>
+              <span className="avatar" aria-hidden="true">
+                <FiUser />
+              </span>
+              <span className="option-copy">
                 <b>{clientName(client)}</b>
                 <small>
                   {[client.telefono, client.email].filter(Boolean).join(" · ") ||
                     "Sin datos de contacto"}
                 </small>
               </span>
-              {String(client.id) === String(selected?.id) ? <FiCheck /> : null}
+              <span className="option-meta">
+                {client.codigo ? <em>{client.codigo}</em> : null}
+                {String(client.id) === String(selected?.id) ? <FiCheck /> : null}
+              </span>
             </button>
           ))}
           {!matches.length ? (
@@ -187,10 +201,13 @@ const Container = styled.div`
     color: ${({ theme }) => theme.text};
   }
   .control button {
-    padding: 3px;
-    border: 0;
-    background: transparent;
+    min-width: auto !important;
+    min-height: auto !important;
+    padding: 4px !important;
+    border: 0 !important;
+    background: transparent !important;
     color: ${({ theme }) => theme.text};
+    box-shadow: none !important;
   }
   .options {
     position: absolute;
@@ -198,36 +215,84 @@ const Container = styled.div`
     left: 0;
     right: 0;
     z-index: 120;
-    overflow: hidden;
+    max-height: min(390px, 52vh);
+    overflow-x: hidden;
+    overflow-y: auto;
     border: 1px solid ${({ theme }) => theme.color2};
     border-radius: 13px;
     background: ${({ theme }) => theme.bgcards};
     box-shadow: 0 16px 35px rgba(15, 23, 42, 0.2);
   }
   .options header {
+    position: sticky;
+    top: 0;
+    z-index: 2;
     display: flex;
     justify-content: space-between;
     gap: 8px;
     padding: 9px 12px;
     color: ${({ theme }) => theme.colorSubtitle};
     font-size: 11px;
+    background: ${({ theme }) => theme.bgcards};
+    border-bottom: 1px solid ${({ theme }) => theme.color2};
   }
-  .options > button {
+  .options > .option {
     width: 100%;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+    min-width: 0 !important;
+    min-height: 62px !important;
+    display: grid !important;
+    grid-template-columns: 38px minmax(0, 1fr) auto;
+    justify-content: stretch !important;
+    align-items: center !important;
     gap: 10px;
-    padding: 10px 12px;
-    text-align: left;
-    border: 0;
-    border-top: 1px solid ${({ theme }) => theme.color2};
-    border-radius: 0;
-    background: transparent;
-    color: ${({ theme }) => theme.text};
+    padding: 9px 12px !important;
+    text-align: left !important;
+    border: 0 !important;
+    border-bottom: 1px solid ${({ theme }) => theme.color2} !important;
+    border-radius: 0 !important;
+    background: ${({ theme }) => theme.bgcards} !important;
+    color: ${({ theme }) => theme.text} !important;
+    box-shadow: none !important;
   }
-  .options > button:hover {
-    background: ${({ theme }) => theme.bgAlpha};
+  .options > .option:hover,
+  .options > .option:focus-visible {
+    background: ${({ theme }) => theme.bgAlpha} !important;
+    outline: 2px solid rgba(14, 165, 233, 0.55);
+    outline-offset: -2px;
+  }
+  .avatar {
+    width: 36px;
+    height: 36px;
+    display: grid;
+    place-items: center;
+    border-radius: 10px;
+    color: #0284c7;
+    background: rgba(14, 165, 233, 0.12);
+  }
+  .option-copy {
+    min-width: 0;
+  }
+  .option-copy b,
+  .option-copy small {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .option-meta {
+    display: grid;
+    justify-items: end;
+    gap: 4px;
+    color: #0284c7;
+  }
+  .option-meta em {
+    padding: 3px 7px;
+    border-radius: 999px;
+    background: rgba(14, 165, 233, 0.1);
+    color: ${({ theme }) => theme.colorSubtitle};
+    font-size: 10px;
+    font-style: normal;
+    font-weight: 700;
+    letter-spacing: 0.04em;
   }
   .options b,
   .options small {

@@ -23,6 +23,7 @@ import {
   FiCreditCard,
   FiEdit3,
   FiEye,
+  FiExternalLink,
   FiFileText,
   FiLayers,
   FiLock,
@@ -519,9 +520,19 @@ export function CRMTemplate({ initialTab = "procesos" }) {
       }
 
       if (action === "whatsapp_config") {
+        const provider = values.proveedor || "meta_cloud";
+        if (
+          provider === "meta_cloud" &&
+          values.estado === "conectado" &&
+          (!values.phone_number_id || !values.business_account_id)
+        ) {
+          throw new Error(
+            "Antes de marcar la conexión como activa, completa Phone Number ID y WhatsApp Business Account ID.",
+          );
+        }
         return crm.upsertWhatsappConfig({
           id_empresa,
-          proveedor: values.proveedor || "meta_cloud",
+          proveedor: provider,
           estado: values.estado || "pendiente",
           phone_number_id: values.phone_number_id || null,
           business_account_id: values.business_account_id || null,
@@ -1786,50 +1797,61 @@ export function CRMTemplate({ initialTab = "procesos" }) {
         </section>
 
         <section className="workspace two-cols">
-          <div className="panel">
-            <h2>Conexion WhatsApp</h2>
-            <form onSubmit={submitForm("whatsapp_config")}>
-              <select name="proveedor" defaultValue={crm.whatsappConfig?.proveedor || "meta_cloud"}>
+          <div className="panel whatsapp-connection">
+            <header className="whatsapp-heading">
+              <div><h2>Conexión WhatsApp</h2><p>Identificadores públicos de Meta. El token permanece protegido como secreto del servidor.</p></div>
+              <span className={`connection-status ${crm.whatsappConfig?.estado || "pendiente"}`}>{labelFor(crm.whatsappConfig?.estado || "pendiente")}</span>
+            </header>
+            <aside className="whatsapp-setup">
+              <FiShield />
+              <div><strong>Configuración segura en 3 pasos</strong><ol><li>Crea o abre tu app en Meta y entra a WhatsApp → API Setup.</li><li>Copia aquí Phone Number ID, WABA ID y tu teléfono visible.</li><li>Instala el token como secreto del servidor y luego cambia el estado a Conectado.</li></ol><a href="https://www.postman.com/meta/whatsapp-business-platform/documentation/wlk6lh4/whatsapp-cloud-api" target="_blank" rel="noreferrer">Abrir documentación oficial de Meta <FiExternalLink /></a></div>
+            </aside>
+            <form className="whatsapp-config-form" onSubmit={submitForm("whatsapp_config")}>
+              <label className="field-group"><span>Proveedor</span><select name="proveedor" defaultValue={crm.whatsappConfig?.proveedor || "meta_cloud"}>
                 <option value="meta_cloud">Meta Cloud API</option>
                 <option value="openwa_n8n">OpenWA mediante n8n</option>
                 <option value="manual">Manual</option>
-              </select>
-              <select name="estado" defaultValue={crm.whatsappConfig?.estado || "pendiente"}>
+              </select></label>
+              <label className="field-group"><span>Estado de la conexión</span><select name="estado" defaultValue={crm.whatsappConfig?.estado || "pendiente"}>
                 <option value="pendiente">Pendiente</option>
                 <option value="conectado">Conectado</option>
                 <option value="pausado">Pausado</option>
                 <option value="error">Error</option>
-              </select>
-              <input
+              </select></label>
+              <label className="field-group"><span>Phone Number ID</span><input
                 name="phone_number_id"
-                placeholder="Phone number ID"
+                inputMode="numeric"
+                placeholder="Ej. 123456789012345"
                 defaultValue={crm.whatsappConfig?.phone_number_id || ""}
-              />
-              <input
+              /></label>
+              <label className="field-group"><span>WhatsApp Business Account ID (WABA)</span><input
                 name="business_account_id"
-                placeholder="WhatsApp Business Account ID"
+                inputMode="numeric"
+                placeholder="Ej. 987654321098765"
                 defaultValue={crm.whatsappConfig?.business_account_id || ""}
-              />
-              <input
+              /></label>
+              <label className="field-group"><span>Teléfono visible</span><input
                 name="display_phone"
-                placeholder="Telefono visible"
+                inputMode="tel"
+                placeholder="+505 8888 8888"
                 defaultValue={crm.whatsappConfig?.display_phone || ""}
-              />
-              <input
+              /></label>
+              <label className="field-group"><span>Código de país predeterminado</span><input
                 name="default_country_code"
-                placeholder="Codigo pais, ej. 505"
-                defaultValue={crm.whatsappConfig?.default_country_code || "1"}
-              />
-              <input
+                inputMode="numeric"
+                placeholder="Ej. 505"
+                defaultValue={crm.whatsappConfig?.default_country_code || "505"}
+              /></label>
+              <label className="field-group"><span>Idioma de plantillas</span><input
                 name="default_language"
-                placeholder="Idioma"
+                placeholder="es"
                 defaultValue={crm.whatsappConfig?.default_language || "es"}
-              />
-              <input
+              /></label>
+              <label className="field-group"><span>Sesión OpenWA / n8n</span><input
                 name="openwa_session_id"
-                placeholder="Sesion OpenWA, ej. gimnasio-principal"
+                placeholder="Solo si usas OpenWA; ej. gimnasio-principal"
                 defaultValue={crm.whatsappConfig?.metadata?.openwa_session_id || "default"}
-              />
+              /></label>
               <button disabled={mutation.isPending}>Guardar conexion</button>
             </form>
           </div>
@@ -1837,35 +1859,35 @@ export function CRMTemplate({ initialTab = "procesos" }) {
           <div className="panel">
             <h2>Preparar mensaje</h2>
             <form onSubmit={submitForm("whatsapp_mensaje")}>
-              <ClientSearchPicker clients={crm.clientes} required />
-              <select name="tipo" defaultValue="cobro">
+              <label className="field-group"><span>Cliente *</span><ClientSearchPicker clients={crm.clientes} required /></label>
+              <label className="field-group"><span>Tipo de mensaje</span><select name="tipo" defaultValue="cobro">
                 {whatsappTypes.map((item) => (
                   <option key={item.id} value={item.id}>{item.label}</option>
                 ))}
-              </select>
-              <select name="id_pago" defaultValue="">
+              </select></label>
+              <label className="field-group"><span>Pago relacionado</span><select name="id_pago" defaultValue="">
                 <option value="">Pago opcional</option>
                 {crm.pagos.map((pago) => (
                   <option key={pago.id} value={pago.id}>
                     {fullName(pago.clientes_crm) || "Cliente"} - {money(pago.monto, pago.moneda, dataempresa?.iso)}
                   </option>
                 ))}
-              </select>
-              <select name="id_suscripcion" defaultValue="">
+              </select></label>
+              <label className="field-group"><span>Suscripción relacionada</span><select name="id_suscripcion" defaultValue="">
                 <option value="">Suscripcion opcional</option>
                 {crm.suscripciones.map((item) => (
                   <option key={item.id} value={item.id}>
                     {fullName(item.clientes_crm) || "Cliente"} - {item.fecha_fin}
                   </option>
                 ))}
-              </select>
-              <input name="destino" placeholder="Telefono alterno opcional" />
-              <textarea name="cuerpo" placeholder="Mensaje personalizado opcional" />
-              <input name="scheduled_at" type="datetime-local" />
-              <select name="estado" defaultValue="pendiente">
+              </select></label>
+              <label className="field-group"><span>Teléfono alterno</span><input name="destino" inputMode="tel" placeholder="Opcional; usa el del cliente si lo dejas vacío" /></label>
+              <label className="field-group"><span>Mensaje personalizado</span><textarea name="cuerpo" placeholder="Opcional; si está vacío se usará la plantilla correspondiente" /></label>
+              <label className="field-group"><span>Programar envío</span><input name="scheduled_at" type="datetime-local" /></label>
+              <label className="field-group"><span>Estado inicial</span><select name="estado" defaultValue="pendiente">
                 <option value="pendiente">Pendiente</option>
                 <option value="borrador">Borrador</option>
-              </select>
+              </select></label>
               <button disabled={mutation.isPending}>
                 <FiSend />
                 Crear mensaje
@@ -3496,6 +3518,84 @@ const Container = styled.main`
       font-size: 12px;
       font-weight: 800;
     }
+  }
+
+  .whatsapp-heading {
+    display: flex;
+    align-items: start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+  .whatsapp-heading h2,
+  .whatsapp-heading p { margin: 0; }
+  .whatsapp-heading p {
+    max-width: 480px;
+    margin-top: 4px;
+    color: ${({ theme }) => theme.colorSubtitle};
+    font-size: 12px;
+    line-height: 1.45;
+  }
+  .connection-status {
+    flex: 0 0 auto;
+    padding: 5px 9px;
+    border-radius: 999px;
+    background: #fef3c7;
+    color: #92400e;
+    font-size: 10px;
+    font-weight: 900;
+    text-transform: uppercase;
+  }
+  .connection-status.conectado { background: #dcfce7; color: #166534; }
+  .connection-status.error { background: #fee2e2; color: #b91c1c; }
+  .connection-status.pausado { background: #e2e8f0; color: #475569; }
+  .whatsapp-setup {
+    display: grid;
+    grid-template-columns: auto minmax(0,1fr);
+    gap: 11px;
+    margin-bottom: 14px;
+    padding: 13px;
+    border: 1px solid rgba(14,165,233,.28);
+    border-radius: 13px;
+    background: rgba(14,165,233,.08);
+  }
+  .whatsapp-setup > svg {
+    width: 34px;
+    height: 34px;
+    padding: 8px;
+    box-sizing: border-box;
+    border-radius: 10px;
+    background: #e0f2fe;
+    color: #0369a1;
+  }
+  .whatsapp-setup strong { font-size: 12px; }
+  .whatsapp-setup ol {
+    margin: 7px 0;
+    padding-left: 18px;
+    color: ${({ theme }) => theme.colorSubtitle};
+    font-size: 11px;
+    line-height: 1.5;
+  }
+  .whatsapp-setup a {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    color: #0369a1;
+    font-size: 11px;
+    font-weight: 850;
+    text-decoration: none;
+  }
+  .whatsapp-config-form .field-group > span {
+    color: ${({ theme }) => theme.colorSubtitle};
+    letter-spacing: .02em;
+  }
+  .whatsapp-config-form input,
+  .whatsapp-config-form select {
+    min-height: 44px;
+    border-radius: 10px;
+  }
+  .whatsapp-connection .whatsapp-config-form button {
+    min-height: 46px;
   }
 
   .permission-form select {

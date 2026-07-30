@@ -111,6 +111,7 @@ function ClientPicker({ clients }) {
           normalizeLookup(
             [
               clientName(client),
+              client.codigo,
               client.email,
               client.telefono,
               client.identificador_nacional,
@@ -202,7 +203,7 @@ function ClientPicker({ clients }) {
                 ? `${listboxId}-${matches[activeIndex].id}`
                 : undefined
             }
-            placeholder="Busca por nombre, correo o teléfono"
+            placeholder="Busca por código, nombre, correo o teléfono"
             value={query}
             required
             onFocus={() => setOpen(true)}
@@ -271,7 +272,7 @@ function ClientPicker({ clients }) {
                   </span>
                   <span>
                     <strong>{clientName(client) || "Cliente sin nombre"}</strong>
-                    <small>{contact}</small>
+                    <small>{[client.codigo, contact].filter(Boolean).join(" · ")}</small>
                   </span>
                   {selected?.id === client.id ? <FiCheck /> : null}
                 </button>

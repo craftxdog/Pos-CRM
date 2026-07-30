@@ -1,16 +1,11 @@
-import { useEffect, useRef, useState } from "react";
 import styled from "styled-components";
 import { v } from "../../../styles/variables";
 import {
-  InputText,
   Btn1,
-  useCategoriasStore,
-  Icono,
   ConvertirCapitalize,
   useClientesProveedoresStore,
 } from "../../../index";
 import { useForm } from "react-hook-form";
-import { CirclePicker } from "react-color";
 import { useEmpresaStore } from "../../../store/EmpresaStore";
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -103,111 +98,73 @@ export function RegistrarClientesProveedores({
 
           <form className="formulario" onSubmit={handleSubmit(handlesub)}>
             <section className="form-subcontainer">
-              <article>
-                <InputText icono={<v.iconoflechaderecha />}>
+              <label>
+                <span>Nombre completo *</span>
                   <input
-                    className="form__field"
-               
                     type="text"
-                    placeholder="nombres"
+                    autoFocus
+                    autoComplete="name"
+                    placeholder="Ej. María José López"
                     {...register("nombres", {
                       required: true,
                     })}
                   />
-                  <label className="form__label">nombres</label>
                   {errors.nombres?.type === "required" && (
                     <p>Campo requerido</p>
                   )}
-                </InputText>
-              </article>
-              <article>
-                <InputText icono={<v.iconoflechaderecha />}>
+              </label>
+              <label>
+                <span>Correo electrónico</span>
                   <input
-                    className="form__field"
-                   
-                    type="text"
-                    placeholder="direccion"
-                    {...register("direccion", {
-                      required: true,
-                    })}
+                    type="email"
+                    autoComplete="email"
+                    placeholder="cliente@correo.com"
+                    {...register("email")}
                   />
-                  <label className="form__label">direccion</label>
-                  {errors.direccion?.type === "required" && (
-                    <p>Campo requerido</p>
-                  )}
-                </InputText>
-              </article>
-              <article>
-                <InputText icono={<v.iconoflechaderecha />}>
+                <small>Se usa para facturas, recibos e invitaciones.</small>
+              </label>
+              <label>
+                <span>Teléfono / WhatsApp</span>
                   <input
-                    className="form__field"
-                   
-                    type="text"
-                    placeholder="telefono"
-                    {...register("telefono", {
-                      required: true,
-                    })}
+                    type="tel"
+                    inputMode="tel"
+                    autoComplete="tel"
+                    placeholder="+505 8888 8888"
+                    {...register("telefono")}
                   />
-                  <label className="form__label">telefono</label>
-                  {errors.telefono?.type === "required" && (
-                    <p>Campo requerido</p>
-                  )}
-                </InputText>
-              </article>
-              <article>
-                <InputText icono={<v.iconoflechaderecha />}>
+              </label>
+              <label>
+                <span>Dirección física</span>
                   <input
-                    className="form__field"
-                  
                     type="text"
-                    placeholder="email"
-                    {...register("email", {
-                      required: true,
-                    })}
+                    autoComplete="street-address"
+                    placeholder="Barrio, calle y referencia"
+                    {...register("direccion")}
                   />
-                  <label className="form__label">email</label>
-                  {errors.email?.type === "required" && <p>Campo requerido</p>}
-                </InputText>
-              </article>
-              <article>
-                <InputText icono={<v.iconoflechaderecha />}>
+                <small>No escribas el correo en este campo.</small>
+              </label>
+              <label>
+                <span>Identificación nacional</span>
                   <input
-                    className="form__field"
-                    
                     type="text"
-                    placeholder="identificador_nacional"
+                    placeholder="13 números y una letra (opcional)"
                     {...register("identificador_nacional", {
-                      required: true,
                       pattern: /^[0-9]{13}[A-Za-z]$/,
                       setValueAs: (value) => value?.trim().toUpperCase(),
                     })}
                   />
-                  <label className="form__label">identificador nacional</label>
-                  {errors.identificador_nacional?.type === "required" && (
-                    <p>Campo requerido</p>
-                  )}
                   {errors.identificador_nacional?.type === "pattern" && (
                     <p>Usa 13 números y una letra final.</p>
                   )}
-                </InputText>
-              </article>
-              <article>
-                <InputText icono={<v.iconoflechaderecha />}>
+              </label>
+              <label>
+                <span>Identificación fiscal</span>
                   <input
-                    className="form__field"
-                   
                     type="text"
-                    placeholder="identificador_fiscal"
-                    {...register("identificador_fiscal", {
-                      required: true,
-                    })}
+                    placeholder="RUC o documento fiscal (opcional)"
+                    {...register("identificador_fiscal")}
                   />
-                  <label className="form__label">identificador fiscal</label>
-                  {errors.identificador_fiscal?.type === "required" && (
-                    <p>Campo requerido</p>
-                  )}
-                </InputText>
-              </article>
+              </label>
               <Btn1
                 icono={<v.iconoguardar />}
                 titulo="Guardar"
@@ -240,7 +197,7 @@ const Container = styled.div`
     border-radius: 20px;
     background: ${({ theme }) => theme.bgtotal};
     box-shadow: -10px 15px 30px rgba(10, 9, 9, 0.4);
-    padding: 13px 36px 20px 36px;
+    padding: 22px 28px 24px;
     z-index: 100;
 
     .headers {
@@ -250,19 +207,58 @@ const Container = styled.div`
       margin-bottom: 20px;
 
       h1 {
-        font-size: 20px;
-        font-weight: 500;
+        font-size: 22px;
+        font-weight: 800;
       }
       span {
-        font-size: 20px;
+        width: 34px;
+        height: 34px;
+        display: grid;
+        place-items: center;
+        border-radius: 10px;
+        background: ${({ theme }) => theme.bgAlpha};
+        font-size: 18px;
         cursor: pointer;
       }
     }
     .formulario {
       .form-subcontainer {
-        gap: 20px;
+        gap: 13px;
         display: flex;
         flex-direction: column;
+        label {
+          display: grid;
+          gap: 6px;
+          color: ${({ theme }) => theme.text};
+          font-size: 13px;
+          font-weight: 750;
+        }
+        input {
+          width: 100%;
+          box-sizing: border-box;
+          padding: 12px 13px;
+          border: 1px solid ${({ theme }) => theme.color2};
+          border-radius: 10px;
+          outline: none;
+          background: ${({ theme }) => theme.bgtotal};
+          color: ${({ theme }) => theme.text};
+          font: inherit;
+          font-weight: 500;
+        }
+        input:focus {
+          border-color: #0ea5e9;
+          box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.14);
+        }
+        small {
+          color: ${({ theme }) => theme.colorSubtitle};
+          font-size: 11px;
+          font-weight: 500;
+        }
+        p {
+          margin: 0;
+          color: #dc2626;
+          font-size: 11px;
+        }
         .colorContainer {
           .colorPickerContent {
             padding-top: 15px;
@@ -272,46 +268,14 @@ const Container = styled.div`
       }
     }
   }
-`;
-
-const ContentTitle = styled.div`
-  display: flex;
-  justify-content: start;
-  align-items: center;
-  gap: 20px;
-
-  svg {
-    font-size: 25px;
-  }
-  input {
-    border: none;
-    outline: none;
-    background: transparent;
-    padding: 2px;
-    width: 40px;
-    font-size: 28px;
-  }
-`;
-const PictureContainer = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: start;
-  border: 2px dashed #f9d70b;
-  border-radius: 5px;
-  background-color: rgba(249, 215, 11, 0.1);
-  padding: 8px;
-  position: relative;
-  gap: 3px;
-  margin-bottom: 8px;
-
-  .ContentImage {
-    overflow: hidden;
-    img {
-      width: 100%;
-      object-fit: contain;
+  @media (max-width: 560px) {
+    align-items: flex-start;
+    padding: 16px 0;
+    overflow-y: auto;
+    .sub-contenedor {
+      width: calc(100% - 24px);
+      max-width: none;
+      padding: 18px;
     }
-  }
-  input {
-    display: none;
   }
 `;

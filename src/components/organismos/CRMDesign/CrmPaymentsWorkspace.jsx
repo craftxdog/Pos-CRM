@@ -15,6 +15,7 @@ import {
   FiPrinter,
   FiRefreshCw,
   FiSearch,
+  FiUser,
   FiX,
 } from "react-icons/fi";
 import styled from "styled-components";
@@ -162,6 +163,7 @@ function SearchPicker({
           </div>
           {matches.map((item) => (
             <button
+              className="picker-option"
               type="button"
               role="option"
               aria-selected={String(item.id) === String(value)}
@@ -169,11 +171,15 @@ function SearchPicker({
               onMouseDown={(event) => event.preventDefault()}
               onClick={() => choose(item)}
             >
-              <span>
+              <span className="picker-avatar" aria-hidden="true"><FiUser /></span>
+              <span className="picker-copy">
                 <b>{itemLabel(item)}</b>
                 <small>{itemDetail(item)}</small>
               </span>
-              {String(item.id) === String(value) ? <FiCheck /> : null}
+              <span className="picker-state">
+                {item.codigo ? <em>{item.codigo}</em> : null}
+                {String(item.id) === String(value) ? <FiCheck /> : null}
+              </span>
             </button>
           ))}
           {!matches.length ? <p>{emptyText}</p> : null}
@@ -757,6 +763,7 @@ export function CrmPaymentsWorkspace({
                 searchText={(item) =>
                   [
                     nameOf(item.clientes_crm),
+                    item.clientes_crm?.codigo,
                     item.clientes_crm?.email,
                     item.clientes_crm?.telefono,
                     item.crm_planes?.nombre,
@@ -939,9 +946,9 @@ export function CrmPaymentsWorkspace({
                   "Sin contacto"
                 }
                 searchText={(item) =>
-                  [nameOf(item), item.email, item.telefono].join(" ")
+                  [nameOf(item), item.codigo, item.email, item.telefono].join(" ")
                 }
-                placeholder="Buscar cliente por nombre, correo o teléfono"
+                placeholder="Buscar por código, nombre, correo o teléfono"
               />
             </label>
             <label>
@@ -1601,34 +1608,74 @@ const Container = styled.section`
       0 2px 8px rgba(15, 23, 42, 0.08);
   }
   .picker-summary {
+    position: sticky;
+    top: -8px;
+    z-index: 2;
     display: flex;
     justify-content: space-between;
-    padding: 7px 8px;
+    padding: 11px 8px 8px;
     color: ${({ theme }) => theme.colorSubtitle};
     font-size: 11px;
     font-weight: 800;
+    background: ${({ theme }) => theme.bgcards};
   }
-  .picker-options > button {
+  .picker-options > .picker-option {
     width: 100%;
-    justify-content: space-between;
-    text-align: left;
-    min-height: 51px;
+    min-width: 0 !important;
+    min-height: 62px !important;
+    display: grid !important;
+    grid-template-columns: 38px minmax(0, 1fr) auto;
+    justify-content: stretch !important;
+    align-items: center !important;
+    gap: 10px;
+    text-align: left !important;
     margin: 3px 0;
-    padding: 9px 11px;
-    border: 1px solid transparent;
-    border-radius: 10px;
+    padding: 9px 11px !important;
+    border: 1px solid transparent !important;
+    border-radius: 10px !important;
     background: ${({ theme }) => theme.bgcards} !important;
     color: ${({ theme }) => theme.text} !important;
     box-shadow: none !important;
   }
-  .picker-options > button:hover,
-  .picker-options > button[aria-selected="true"] {
-    border-color: rgba(214, 185, 0, 0.48);
+  .picker-options > .picker-option:hover,
+  .picker-options > .picker-option[aria-selected="true"] {
+    border-color: rgba(14, 165, 233, 0.5) !important;
     background: rgba(243, 210, 12, 0.12) !important;
   }
-  .picker-options > button:focus-visible {
-    outline: 3px solid rgba(243, 210, 12, 0.28);
+  .picker-options > .picker-option:focus-visible {
+    outline: 3px solid rgba(14, 165, 233, 0.24);
     outline-offset: 1px;
+  }
+  .picker-avatar {
+    width: 36px;
+    height: 36px;
+    display: grid;
+    place-items: center;
+    border-radius: 10px;
+    background: rgba(14, 165, 233, 0.12);
+    color: #0284c7;
+  }
+  .picker-copy { min-width: 0; }
+  .picker-copy b,
+  .picker-copy small {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .picker-state {
+    display: grid;
+    justify-items: end;
+    gap: 4px;
+    color: #0284c7;
+  }
+  .picker-state em {
+    padding: 3px 7px;
+    border-radius: 999px;
+    background: rgba(14, 165, 233, 0.1);
+    color: ${({ theme }) => theme.colorSubtitle};
+    font-size: 9px;
+    font-style: normal;
+    font-weight: 850;
   }
   .picker-options b,
   .picker-options small {

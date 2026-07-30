@@ -13,6 +13,8 @@ declare
   line_record record;
   sale_record record;
   tenant_record record;
+  client_record record;
+  pos_client_record record;
   missing_uuids integer;
 begin
   select id into role_id from public.roles where lower(nombre) = 'administrador' limit 1;
@@ -26,6 +28,32 @@ begin
     'Smoke Gym', gen_random_uuid()::text, user_id, 'IVA', 13, true
   ) returning id into company_id;
   update public.usuarios set id_empresa = company_id where id = user_id;
+
+  insert into public.clientes_crm (
+    id_empresa, nombres, email, telefono, direccion, estado
+  ) values (
+    company_id, 'Cliente Smoke', 'cliente-smoke@example.test',
+    '50588889999', 'Dirección de prueba', 'activo'
+  ) returning * into client_record;
+
+  select * into client_record
+  from public.clientes_crm
+  where id = client_record.id;
+  if client_record.codigo <> ('CLI-' || lpad(client_record.id::text, 6, '0')) then
+    raise exception 'Código CRM no generado correctamente: %', client_record.codigo;
+  end if;
+  if client_record.id_cliente_proveedor is null then
+    raise exception 'El cliente CRM no se sincronizó con POS';
+  end if;
+
+  select * into pos_client_record
+  from public.clientes_proveedores
+  where id = client_record.id_cliente_proveedor;
+  if pos_client_record.email <> 'cliente-smoke@example.test'
+     or pos_client_record.direccion <> 'Dirección de prueba' then
+    raise exception 'Los campos email/dirección se cruzaron en la sincronización CRM/POS: %',
+      row_to_json(pos_client_record);
+  end if;
 
   select id into branch_id from public.sucursales where id_empresa = company_id limit 1;
   insert into public.categorias (nombre, id_empresa)
