@@ -1,12 +1,12 @@
 import { create } from "zustand";
 import {
-  EliminarAlmacen,
-
   MostrarAlmacenXSucursal,
   MostrarAlmacenesXEmpresa,
   InsertarAlmacen,
   EditarAlmacen,
   MostrarAlmacenesXSucursal,
+  CambiarEstadoAlmacen,
+  DiagnosticarRetiroAlmacen,
 } from "../supabase/crudAlmacenes";
 
 export const useAlmacenesStore = create((set, get) => ({
@@ -45,8 +45,11 @@ export const useAlmacenesStore = create((set, get) => ({
   insertarAlmacen: async (p) => {
     await InsertarAlmacen(p);
   },
-  eliminarAlmacen: async (p) => {
-    await EliminarAlmacen(p);
+  cambiarEstadoAlmacen: async (p) => {
+    return CambiarEstadoAlmacen(p);
+  },
+  diagnosticarRetiroAlmacen: async (p) => {
+    return DiagnosticarRetiroAlmacen(p);
   },
   editarAlmacen: async (p) => {
     await EditarAlmacen(p);

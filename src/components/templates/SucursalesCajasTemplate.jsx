@@ -5,8 +5,7 @@ import { RegistrarSucursal } from "../organismos/formularios/RegistrarSucursal";
 import { Toaster } from "sonner";
 import { useSucursalesStore } from "../../store/SucursalesStore";
 import { useCajasStore } from "../../store/CajasStore";
-import {RegistrarCaja} from "../organismos/formularios/RegistrarCaja"
-import {AnimatedGrid} from "../ui/animated/AnimatedGrid"
+import { RegistrarCaja } from "../organismos/formularios/RegistrarCaja";
 export const SucursalesCajasTemplate = () => {
   const {stateSucursal,setStateSucursal} = useSucursalesStore()
   const {stateCaja} = useCajasStore()
@@ -24,14 +23,15 @@ export const SucursalesCajasTemplate = () => {
       <section className="area1">
         <Header>
           <Title>Cajas por sucursal</Title>
-          <Subtitle>gestiona tus sucursales y cajas</Subtitle>
+          <Subtitle>
+            Retira cajas cerradas sin perder ventas, cierres ni movimientos.
+          </Subtitle>
           <ButtonDashed title="agregar sucursal" funcion={()=>setStateSucursal(true)}/>
         </Header>
       </section>
       <section className="area2">
         <ListSucursales />
       </section>
-      {/* <AnimatedGrid/> */}
     </Container>
   );
 };

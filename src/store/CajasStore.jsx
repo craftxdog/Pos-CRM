@@ -1,9 +1,9 @@
 import { create } from "zustand";
 import {
   MostrarCajaXSucursal,
-
   EditarCaja,
-  EliminarCaja,
+  CambiarEstadoCaja,
+  DiagnosticarRetiroCaja,
 } from "../supabase/crudCaja";
 import { supabase } from "../supabase/supabase.config";
 const tabla = "caja";
@@ -39,7 +39,10 @@ export const useCajasStore = create((set) => ({
   editarCaja: async (p) => {
     await EditarCaja(p);
   },
-  eliminarCaja: async (p) => {
-    await EliminarCaja(p);
+  cambiarEstadoCaja: async (p) => {
+    return CambiarEstadoCaja(p);
+  },
+  diagnosticarRetiroCaja: async (p) => {
+    return DiagnosticarRetiroCaja(p);
   },
 }));

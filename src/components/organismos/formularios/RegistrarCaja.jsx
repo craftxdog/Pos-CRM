@@ -5,7 +5,6 @@ import {
   Btn1,
   useSucursalesStore,
   ConvertirCapitalize,
-  useEmpresaStore,
   useUsuariosStore,
 } from "../../../index";
 import { useForm } from "react-hook-form";
@@ -19,7 +18,6 @@ export function RegistrarCaja() {
   const { insertarAsignacionSucursal } = useAsignacionCajaSucursalStore();
   const { accion, cajaSelectItem, setStateCaja, insertarCaja, editarCaja } =
     useCajasStore();
-  const { dataempresa } = useEmpresaStore();
   const { datausuarios } = useUsuariosStore();
   const {
     register,
@@ -55,7 +53,7 @@ export function RegistrarCaja() {
     },
     onSuccess: () => {
       toast.success("Caja registrada correctamente");
-      queryClient.invalidateQueries(["mostrar Cajas XSucursal"]);
+      queryClient.invalidateQueries({ queryKey: ["mostrar Cajas XSucursal"] });
       setStateCaja(false);
     },
   });
@@ -73,7 +71,7 @@ export function RegistrarCaja() {
           <div className="headers">
             <section>
               <h1>
-                {accion == "Editar" ? "Editar caja" : "Registrar nueva caja"}
+                {accion === "Editar" ? "Editar caja" : "Registrar nueva caja"}
               </h1>
             </section>
 
@@ -92,12 +90,12 @@ export function RegistrarCaja() {
                       accion === "Editar" ? cajaSelectItem?.descripcion : ""
                     }
                     type="text"
-                    placeholder="sucursal"
+                    placeholder="Nombre de la caja"
                     {...register("descripcion", {
                       required: true,
                     })}
                   />
-                  <label className="form__label">caja</label>
+                  <label className="form__label">Caja</label>
                   {errors.descripcion?.type === "required" && (
                     <p>Campo requerido</p>
                   )}

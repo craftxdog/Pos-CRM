@@ -21,6 +21,7 @@ import {
 import { FaArrowsAltV } from "react-icons/fa";
 import { useAsignacionCajaSucursalStore } from "../../../store/AsignacionCajaSucursalStore";
 import { useQueryClient } from "@tanstack/react-query";
+import { formatDateTime } from "../../../utils/dateTime";
 export function TablaInventarios({
   data,
   SetopenRegistro,
@@ -64,8 +65,12 @@ export function TablaInventarios({
   const columns = [
     {
       accessorKey: "fecha",
-      header: "Fecha",
-      cell: (info) => <span>{info.getValue()}</span>,
+      header: "Fecha y hora",
+      cell: (info) => (
+        <time className="date-time" dateTime={info.getValue() || undefined}>
+          {formatDateTime(info.getValue())}
+        </time>
+      ),
       enableColumnFilter: true,
       filterFn: (row, columnId, filterStatuses) => {
         if (filterStatuses.length === 0) return true;
@@ -213,6 +218,14 @@ export function TablaInventarios({
 }
 const Container = styled.div`
   position: relative;
+
+  .date-time {
+    display: inline-block;
+    min-width: 172px;
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    line-height: 1.35;
+  }
 
   margin: 5% 3%;
   @media (min-width: ${v.bpbart}) {

@@ -3,16 +3,13 @@ import { v } from "../../../styles/variables";
 import {
   InputText,
   Btn1,
-  useSucursalesStore,
   ConvertirCapitalize,
-  useEmpresaStore,
   useAlmacenesStore,
 } from "../../../index";
 import { useForm } from "react-hook-form";
 import { BtnClose } from "../../ui/buttons/BtnClose";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { useCajasStore } from "../../../store/CajasStore";
 export function RegistrarAlmacen() {
   const queryClient = useQueryClient();
   const {
@@ -22,7 +19,6 @@ export function RegistrarAlmacen() {
     insertarAlmacen,
     editarAlmacen,
   } = useAlmacenesStore();
-  const { dataempresa } = useEmpresaStore();
   const {
     register,
     formState: { errors },
@@ -51,8 +47,8 @@ export function RegistrarAlmacen() {
       toast.error(`Error: ${error.message}`);
     },
     onSuccess: () => {
-      toast.success("Almacen registrado correctamente");
-      queryClient.invalidateQueries(["mostrar almacenes X empresa"]);
+      toast.success("Almacén registrado correctamente");
+      queryClient.invalidateQueries({ queryKey: ["mostrar almacenes X empresa"] });
       setStateAlmacen(false);
     },
   });
@@ -70,9 +66,9 @@ export function RegistrarAlmacen() {
           <div className="headers">
             <section>
               <h1>
-                {accion == "Editar"
-                  ? "Editar almacen"
-                  : "Registrar nuevo almacen"}
+                {accion === "Editar"
+                  ? "Editar almacén"
+                  : "Registrar nuevo almacén"}
               </h1>
             </section>
 
@@ -91,12 +87,12 @@ export function RegistrarAlmacen() {
                       accion === "Editar" ? almacenSelectItem?.nombre : ""
                     }
                     type="text"
-                    placeholder="sucursal"
+                    placeholder="Nombre del almacén"
                     {...register("nombre", {
                       required: true,
                     })}
                   />
-                  <label className="form__label">almacen</label>
+                  <label className="form__label">Almacén</label>
                   {errors.nombre?.type === "required" && <p>Campo requerido</p>}
                 </InputText>
               </article>

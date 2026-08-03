@@ -18,10 +18,15 @@ export async function MostrarSucursalesAsignadasXuser(p) {
   return data;
 }
 export async function MostrarCajasXSucursal(p) {
-  const { data } = await supabase
+  if (!p?.id_empresa) return [];
+  const { data, error } = await supabase
     .from(tabla)
     .select(`*, caja(*)`)
-    .eq("id_empresa", p.id_empresa);
+    .eq("id_empresa", p.id_empresa)
+    .order("nombre");
+  if (error) {
+    throw new Error(error.message);
+  }
   return data;
 }
 export async function InsertarSucursal(p) {

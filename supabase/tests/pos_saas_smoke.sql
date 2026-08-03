@@ -149,6 +149,12 @@ declare
   product_id bigint;
   sale_id bigint;
   line_count integer;
+  cashbox_id bigint;
+  closed_session_id bigint;
+  warehouse_id bigint;
+  stock_id bigint;
+  lifecycle_diagnostic jsonb;
+  expected_error boolean;
 begin
   select public.get_current_tenant_access() into access;
   if access->>'tenant_id' is null
@@ -198,6 +204,80 @@ begin
   where id_venta = sale_id and id_producto = product_id;
   if line_count <> 1 then
     raise exception 'La RPC insertardetalleventa no insertó una línea';
+  end if;
+
+  insert into public.caja (id_sucursal, descripcion)
+  values (current_branch_id, 'Caja para retiro')
+  returning id into cashbox_id;
+
+  insert into public.cierrecaja (
+    id_usuario, id_caja, estado, fechacierre
+  ) values (
+    current_user_id, cashbox_id, 1, now()
+  ) returning id into closed_session_id;
+
+  select public.diagnosticar_retiro_caja(cashbox_id)
+  into lifecycle_diagnostic;
+  if coalesce((lifecycle_diagnostic->>'puede_retirar')::boolean, false) is not true then
+    raise exception 'El diagnóstico impidió retirar una caja cerrada: %', lifecycle_diagnostic;
+  end if;
+
+  update public.caja set estado = 'inactiva' where id = cashbox_id;
+  if not exists (
+    select 1 from public.caja
+    where id = cashbox_id and estado = 'inactiva' and archived_at is not null
+  ) or not exists (
+    select 1 from public.cierrecaja where id = closed_session_id
+  ) then
+    raise exception 'Retirar la caja no conservó correctamente su historial';
+  end if;
+
+  expected_error := false;
+  begin
+    insert into public.cierrecaja (id_usuario, id_caja, estado)
+    values (current_user_id, cashbox_id, 0);
+  exception when check_violation then
+    expected_error := true;
+  end;
+  if not expected_error then
+    raise exception 'Una caja retirada permitió abrir un nuevo turno';
+  end if;
+
+  insert into public.almacen (id_sucursal, nombre)
+  values (current_branch_id, 'Almacén para retiro')
+  returning id into warehouse_id;
+
+  insert into public.almacenes (
+    id_sucursal, id_almacen, id_producto, stock, stock_minimo
+  ) values (
+    current_branch_id, warehouse_id, product_id, 1, 0
+  ) returning id into stock_id;
+
+  expected_error := false;
+  begin
+    update public.almacen set estado = 'inactiva' where id = warehouse_id;
+  exception when check_violation then
+    expected_error := true;
+  end;
+  if not expected_error then
+    raise exception 'Un almacén con existencias pudo retirarse';
+  end if;
+
+  update public.almacenes set stock = 0 where id = stock_id;
+  select public.diagnosticar_retiro_almacen(warehouse_id)
+  into lifecycle_diagnostic;
+  if coalesce((lifecycle_diagnostic->>'puede_retirar')::boolean, false) is not true then
+    raise exception 'El diagnóstico impidió retirar un almacén vacío: %', lifecycle_diagnostic;
+  end if;
+
+  update public.almacen set estado = 'inactiva' where id = warehouse_id;
+  if not exists (
+    select 1 from public.almacen
+    where id = warehouse_id and estado = 'inactiva' and archived_at is not null
+  ) or not exists (
+    select 1 from public.almacenes where id = stock_id and stock = 0
+  ) then
+    raise exception 'Retirar el almacén no conservó correctamente sus registros';
   end if;
 end
 $rls_test$;

@@ -1,14 +1,9 @@
 import styled from "styled-components";
-import { ButtonDashed } from "../ui/buttons/ButtonDashed";
-import { ListSucursales } from "../organismos/SucursalesDesign/ListSucursales";
 import { RegistrarSucursal } from "../organismos/formularios/RegistrarSucursal";
 import { Toaster } from "sonner";
 import { useSucursalesStore } from "../../store/SucursalesStore";
-import { useCajasStore } from "../../store/CajasStore";
-import { RegistrarCaja } from "../organismos/formularios/RegistrarCaja";
-import { AnimatedGrid } from "../ui/animated/AnimatedGrid";
 import { ListAlmacenes } from "../organismos/AlmacenesDesign/ListAlmacenes";
-import {RegistrarAlmacen} from "../organismos/formularios/RegistrarAlmacen"
+import { RegistrarAlmacen } from "../organismos/formularios/RegistrarAlmacen";
 import { useAlmacenesStore } from "../../store/AlmacenesStore";
 export const AlmacenesTemplate = () => {
   const { stateSucursal, setStateSucursal } = useSucursalesStore();
@@ -23,14 +18,15 @@ export const AlmacenesTemplate = () => {
       <section className="area1">
         <Header>
           <Title>Almacenes por sucursal</Title>
-          <Subtitle>gestiona tus almacenes por sucursal</Subtitle>
+          <Subtitle>
+            Retira almacenes sin existencias y conserva todo el historial.
+          </Subtitle>
          
         </Header>
       </section>
       <section className="area2">
         <ListAlmacenes />
       </section>
-      {/* <AnimatedGrid/> */}
     </Container>
   );
 };
