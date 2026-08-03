@@ -45,7 +45,7 @@ const queryClient = useQueryClient()
       confirmButtonText: "Si, eliminar",
     }).then(async (result) => {
       if (result.isConfirmed) {
-        await eliminarMetodosPago({ id: p.id });
+        await eliminarMetodosPago(p);
         queryClient.invalidateQueries(["mostrar metodos pago"])
       }
     });

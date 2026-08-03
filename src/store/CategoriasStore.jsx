@@ -37,8 +37,8 @@ export const useCategoriasStore = create((set, get) => ({
     const { parametros } = get();
     set(mostrarCategorias(parametros));
   },
-  editarCategoria: async (p, fileold, filenew) => {
-    await EditarCategorias(p, fileold, filenew);
+  editarCategoria: async (p, filenew) => {
+    await EditarCategorias(p, filenew);
     const { mostrarCategorias } = get();
     const { parametros } = get();
     set(mostrarCategorias(parametros));

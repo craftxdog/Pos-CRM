@@ -1,4 +1,5 @@
 import { supabase } from "./supabase.config";
+import { hasImageFile } from "../utils/catalogImages";
 const tabla = "empresa";
 export async function InsertarEmpresa(p) {
   const { data, error } = await supabase
@@ -40,7 +41,7 @@ export async function EditarLogoEmpresa(p){
 }
 export async function EditarEmpresa(p,fileold,filenew){
   const payload = { ...p };
-  if (filenew instanceof File) {
+  if (hasImageFile(filenew)) {
     const dataImagen = await subirImagen(p.id, filenew);
     payload.logo = dataImagen.publicUrl;
   }
@@ -60,16 +61,18 @@ export async function EditarIconoStorage(id,file){
 }
 async function subirImagen (idempresa,file){
   const ruta = "empresa/"+idempresa
-  const {data, error}= await supabase.storage.from("imagenes").upload(ruta,file,{
+  const {error}= await supabase.storage.from("imagenes").upload(ruta,file,{
     cacheControl:"3600",
     upsert:true
   })
   if(error){
     throw new Error(error.message);
   }
-  if(data){
-    const {data:urlimagen} = await supabase.storage.from("imagenes").getPublicUrl(ruta)
-    return urlimagen
+  const publicUrl = supabase.storage.from("imagenes").getPublicUrl(ruta)?.data
+    ?.publicUrl;
+  if (!publicUrl) {
+    throw new Error("Supabase no devolvió la URL pública del logo.");
   }
+  return { publicUrl };
 
 }

@@ -12,6 +12,8 @@ import { useForm } from "react-hook-form";
 import { CirclePicker } from "react-color";
 import { useEmpresaStore } from "../../../store/EmpresaStore";
 import { useMutation } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { getSafeImageUrl } from "../../../utils/catalogImages";
 
 export function RegistrarCategorias({
   onClose,
@@ -36,7 +38,7 @@ export function RegistrarCategorias({
   const { isPending, mutate: doInsertar } = useMutation({
     mutationFn: insertar,
     mutationKey: "insertar categorias",
-    onError: (err) => console.log("El error", err.message),
+    onError: (err) => toast.error(`No se pudo guardar: ${err.message}`),
     onSuccess: () => cerrarFormulario(),
   });
   const handlesub = (data) => {
@@ -54,7 +56,7 @@ export function RegistrarCategorias({
         _color: currentColor,
         _id: dataSelect.id,
       };
-      await editarCategoria(p, dataSelect.icono, file);
+      await editarCategoria(p, file);
     } else {
       const p = {
         _nombre: ConvertirCapitalize(data.descripcion),
@@ -70,10 +72,12 @@ export function RegistrarCategorias({
     ref.current.click();
   }
   function prepararImagen(e) {
-    let filelocal = e.target.files;
-    let fileReaderlocal = new FileReader();
-    fileReaderlocal.readAsDataURL(filelocal[0]);
-    const tipoimg = e.target.files[0];
+    const filelocal = e.target.files;
+    const tipoimg = filelocal?.[0];
+    if (!tipoimg) return;
+
+    const fileReaderlocal = new FileReader();
+    fileReaderlocal.readAsDataURL(tipoimg);
     setFile(tipoimg);
     if (fileReaderlocal && filelocal && filelocal.length) {
       fileReaderlocal.onload = function load() {
@@ -84,7 +88,7 @@ export function RegistrarCategorias({
   useEffect(() => {
     if (accion === "Editar") {
       setColor(dataSelect.color);
-      setFileurl(dataSelect.icono);
+      setFileurl(getSafeImageUrl(dataSelect.icono));
     }
   }, []);
   return (
@@ -107,9 +111,9 @@ export function RegistrarCategorias({
             </section>
           </div>
           <PictureContainer>
-            {fileurl != "-" ? (
+            {getSafeImageUrl(fileurl) ? (
               <div className="ContentImage">
-                <img src={fileurl}></img>
+                <img src={getSafeImageUrl(fileurl)} alt="Vista previa" />
               </div>
             ) : (
               <Icono>{<v.iconoimagenvacia />}</Icono>

@@ -14,6 +14,7 @@ import { useMovCajaStore } from "../../../../store/MovCajaStore";
 import { useMetodosPagoStore } from "../../../../store/MetodosPagoStore";
 import { useUsuariosStore } from "../../../../store/UsuariosStore";
 import { useFormattedDate } from "../../../../hooks/useFormattedDate";
+import { getSafeImageUrl } from "../../../../utils/catalogImages";
 export function PantallaIngresoSalidaDinero() {
   const fechaActual = useFormattedDate()
   const { tipoRegistro, setStateIngresoSalida } =
@@ -74,7 +75,6 @@ export function PantallaIngresoSalidaDinero() {
       (item) => item.nombre === "Efectivo"
     );
     if (efectivo) {
-      console.log(efectivo)
       setSelectedMetodo(efectivo);
     }
   }, [dataMetodosPago]);
@@ -95,7 +95,7 @@ export function PantallaIngresoSalidaDinero() {
             return (
               <article className="box" key={index}>
                 <Btn1
-                  imagen={item.icono != "-" ? item.icono : null}
+                  imagen={getSafeImageUrl(item.icono)}
                   titulo={item.nombre}
                   border="0"
                   height="70px"

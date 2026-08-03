@@ -7,6 +7,7 @@ import { useVentasStore } from "../../../store/VentasStore";
 import { useMetodosPagoStore } from "../../../store/MetodosPagoStore";
 import { useValidarPermisosOperativos } from "../../../hooks/useValidarPermisosOperativos";
 import { useDetalleVentasStore } from "../../../store/DetalleVentasStore";
+import { getSafeImageUrl } from "../../../utils/catalogImages";
 export function AreaTecladoPos() {
   const { setStatePantallaCobro, stateMetodosPago } = useVentasStore();
   const { dataMetodosPago: datametodospago } = useMetodosPagoStore();
@@ -20,7 +21,6 @@ export function AreaTecladoPos() {
   const ValidarPermisocobrar = (p) => {
     const response = validarPermiso("Cobrar venta");
     if (!response) return;
-    console.log("tipocobro",p.nombre)
     setStatePantallaCobro({data:datadetalleventa, tipocobro: p.nombre });
   };
 
@@ -31,7 +31,7 @@ export function AreaTecladoPos() {
           return (
             <article className="box" key={index}>
               <Btn1
-                imagen={item.icono != "-" ? item.icono : null}
+                imagen={getSafeImageUrl(item.icono)}
                 funcion={() => ValidarPermisocobrar( item )}
                 titulo={item.nombre}
                 border="0"

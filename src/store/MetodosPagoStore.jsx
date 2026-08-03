@@ -18,8 +18,8 @@ export const useMetodosPagoStore = create((set) => ({
   eliminarMetodosPago: async (p) => {
     await EliminarMetodosPago(p);
   },
-  editarMetodosPago: async (p, fileold, filenew) => {
-    await EditarMetodosPago(p, fileold, filenew);
+  editarMetodosPago: async (p, filenew) => {
+    await EditarMetodosPago(p, filenew);
   },
 
 }));
