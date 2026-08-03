@@ -4,6 +4,7 @@ import {
   MostrarUsuariosAsignados,
 } from "../supabase/crudAsignacionCajaSucursal";
 import { supabase } from "../supabase/supabase.config";
+import { filterActiveCashboxAssignments } from "../utils/cashboxes";
 const tabla = "asignacion_sucursal";
 export const useAsignacionCajaSucursalStore = create((set) => ({
   buscador: "",
@@ -30,14 +31,16 @@ export const useAsignacionCajaSucursalStore = create((set) => ({
 
     const { data, error } = await supabase
       .from(tabla)
-      .select(`*, sucursales(*), caja(*)`)
-      .eq("id_usuario", p.id_usuario);
+      .select(`*, sucursales(*), caja!inner(*)`)
+      .eq("id_usuario", p.id_usuario)
+      .eq("caja.estado", "activa");
     if (error) {
       throw new Error(error.message);
     }
-    set({ dataSucursalesAsignadas: data });
-    set({ sucursalesItemSelectAsignadas: data && data[0] });
-    return data;
+    const activeAssignments = filterActiveCashboxAssignments(data);
+    set({ dataSucursalesAsignadas: activeAssignments });
+    set({ sucursalesItemSelectAsignadas: activeAssignments[0] ?? null });
+    return activeAssignments;
   },
   datausuariosAsignados: [],
 

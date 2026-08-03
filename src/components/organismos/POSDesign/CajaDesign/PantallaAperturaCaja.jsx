@@ -6,6 +6,7 @@ import { CardListCajas } from "./CardListCajas";
 import { Device } from "../../../../styles/breakpoints";
 import { useMostrarCierreCajaPorEmpresaQuery } from "../../../../tanstack/CierresCajaStack";
 import { useCajasStore } from "../../../../store/CajasStore";
+import { filterActiveCashboxAssignments } from "../../../../utils/cashboxes";
 export function PantallaAperturaCaja() {
   const { dataSucursalesAsignadas } = useAsignacionCajaSucursalStore();
 
@@ -13,13 +14,16 @@ export function PantallaAperturaCaja() {
   const { setCierreCajaItemSelect } = useCierreCajaStore();
   const { data: dataCierreCajaPorEmpresa } =
     useMostrarCierreCajaPorEmpresaQuery();
+  const activeCashboxAssignments = filterActiveCashboxAssignments(
+    dataSucursalesAsignadas,
+  );
 
   return (
     <Container>
       <Toaster  position="top-center" />
       <ContainerCajas>
         <span className="title">Seleccione una caja a aperturar</span>
-        {dataSucursalesAsignadas?.map((item, index) => {
+        {activeCashboxAssignments.map((item, index) => {
           let state = Boolean(false);
           let aperturaActiva = null;
           if (Array.isArray(dataCierreCajaPorEmpresa)) {
