@@ -29,6 +29,7 @@ export const AuthContextProvider = ({ children }) => {
     let isMounted = true;
     let lastSessionKey;
     let validationInFlight = false;
+    let authSubscription;
 
     const syncSession = async (session) => {
       if (!isMounted) return;
@@ -108,7 +109,20 @@ export const AuthContextProvider = ({ children }) => {
       }
     };
 
-    void validateSession();
+    const initializeAuth = async () => {
+      // Validate and remove a stale persisted session before registering the
+      // initial auth listener. Otherwise gotrue logs the expected refresh-token
+      // failure while both initialization paths race for the same session.
+      await validateSession();
+      if (!isMounted) return;
+
+      const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+        scheduleSessionSync(session);
+      });
+      authSubscription = data.subscription;
+    };
+
+    void initializeAuth();
 
     const revalidateWhenActive = () => {
       if (document.visibilityState === "visible") {
@@ -126,16 +140,13 @@ export const AuthContextProvider = ({ children }) => {
     };
     window.addEventListener("asc:session-expired", handleExpiredSession);
 
-    const { data } = supabase.auth.onAuthStateChange((_event, session) => {
-      scheduleSessionSync(session);
-    });
     return () => {
       isMounted = false;
       window.removeEventListener("focus", revalidateWhenActive);
       window.removeEventListener("online", revalidateWhenActive);
       document.removeEventListener("visibilitychange", revalidateWhenActive);
       window.removeEventListener("asc:session-expired", handleExpiredSession);
-      data.subscription.unsubscribe();
+      authSubscription?.unsubscribe();
     };
   }, [insertarDatos]);
 
