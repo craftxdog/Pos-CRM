@@ -63,7 +63,7 @@ const tabs = [
   { id: "pagos", label: "Pagos", icon: FiCreditCard },
   { id: "horarios", label: "Horarios", icon: FiCalendar },
   { id: "trabajadores", label: "Trabajadores", icon: MdOutlineBadge },
-  { id: "whatsapp", label: "WhatsApp", icon: FiMessageCircle },
+  { id: "whatsapp", label: "Notificaciones", icon: FiMessageCircle },
   { id: "permisos", label: "Permisos", icon: FiLock },
 ];
 
@@ -111,6 +111,7 @@ const statusLabels = {
   por_vencer: "Próximas a vencer",
   morosa: "Morosas",
   error: "Con error",
+  omitido: "Omitidos",
   conectado: "Conectado",
   pausado: "Pausado",
 };
@@ -372,6 +373,8 @@ export function CRMTemplate({ initialTab = "procesos" }) {
           origen: "manual",
           creado_por: registrado_por,
           notas: values.notas || null,
+          notificaciones_email: values.notificaciones_email === "on",
+          notificaciones_whatsapp: values.notificaciones_whatsapp === "on",
         });
       }
 
@@ -385,6 +388,8 @@ export function CRMTemplate({ initialTab = "procesos" }) {
           telefono: values.telefono || null,
           direccion: values.direccion || null,
           estado: values.estado || "activo",
+          notificaciones_email: values.notificaciones_email === "on",
+          notificaciones_whatsapp: values.notificaciones_whatsapp === "on",
         });
       }
 
@@ -562,7 +567,7 @@ export function CRMTemplate({ initialTab = "procesos" }) {
         return crm.upsertCrmAutomatizacion({
           id_empresa,
           evento: values.evento,
-          canal: "whatsapp",
+          canal: values.canal || "whatsapp",
           tipo_mensaje: values.tipo_mensaje,
           dias_antes: Number(values.dias_antes || 0),
           activo: values.activo === "on",
@@ -833,6 +838,9 @@ export function CRMTemplate({ initialTab = "procesos" }) {
     const asistenciasEstado = countBy(crm.asistencias, "estado", ["presente", "tarde", "ausente", "salida_registrada"]);
     const invitacionesEstado = countBy(crm.invitaciones, "estado", ["pendiente", "aceptada", "expirada"]);
     const whatsappEstado = countBy(crm.whatsappMensajes, "estado", ["borrador", "pendiente", "enviado", "error"]);
+    const notificacionesEstado = countBy(crm.notificacionEnvios, "estado", ["pendiente", "enviado", "error", "omitido"]);
+    const correosEnviados = crm.notificacionEnvios.filter((item) => item.canal === "email" && item.estado === "enviado").length;
+    const whatsappEnviados = crm.notificacionEnvios.filter((item) => item.canal === "whatsapp" && item.estado === "enviado").length;
     const trabajadoresEstado = countBy(crm.trabajadores, "estado", ["activo", "inactivo"]);
     const ingresosPorMes = buildRevenueTrend(pagosFiltrados, dashboardPeriod);
     const totalPagado = pagosFiltrados
@@ -874,6 +882,7 @@ export function CRMTemplate({ initialTab = "procesos" }) {
       asistenciasEstado,
       invitacionesEstado,
       whatsappEstado,
+      notificacionesEstado,
       trabajadoresEstado,
       ingresosPorMes,
       totalPagado,
@@ -883,6 +892,8 @@ export function CRMTemplate({ initialTab = "procesos" }) {
       clientesConSuscripcion,
       clientesConTelefono,
       clientesConEmail,
+      correosEnviados,
+      whatsappEnviados,
       totalPlanes: crm.planes.length,
       totalHorarios: crm.horarios.length,
       totalCargos: crm.cargos.length,
@@ -900,6 +911,7 @@ export function CRMTemplate({ initialTab = "procesos" }) {
     crm.empresaModulos,
     crm.horarios,
     crm.invitaciones,
+    crm.notificacionEnvios,
     crm.pagos,
     crm.planes,
     crm.rolModulos,
@@ -1770,27 +1782,27 @@ export function CRMTemplate({ initialTab = "procesos" }) {
         <>
         <section className="workspace module-overview">
           <section className="metric-grid">
-            <MetricCard label="Estado conexion" value={labelFor(crm.whatsappConfig?.estado || "pendiente")} detail={crm.whatsappConfig?.proveedor || "Meta Cloud API"} />
-            <MetricCard label="Mensajes" value={crm.whatsappMensajes.length} detail={`${operational.whatsappPendientes.length} pendientes`} tone={operational.whatsappPendientes.length ? "warning" : "ok"} />
-            <MetricCard label="Plantillas" value={analytics.totalPlantillas} detail="Bienvenida, cobro y vencimiento" />
-            <MetricCard label="Automatizaciones" value={analytics.totalAutomatizaciones} detail="Reglas activas del CRM" />
+            <MetricCard label="WhatsApp" value={labelFor(crm.whatsappConfig?.estado || "pendiente")} detail={crm.whatsappConfig?.proveedor || "Meta Cloud API"} />
+            <MetricCard label="Correos entregados" value={analytics.correosEnviados} detail={`${analytics.clientesConEmail} clientes con correo`} tone="ok" />
+            <MetricCard label="WhatsApp entregados" value={analytics.whatsappEnviados} detail={`${operational.whatsappPendientes.length} mensajes pendientes`} tone={operational.whatsappPendientes.length ? "warning" : "ok"} />
+            <MetricCard label="Reglas multicanal" value={analytics.totalAutomatizaciones} detail="Vigencia, cobros, pagos y bienvenida" />
           </section>
           <section className="chart-grid two">
-            <ChartCard title="Mensajes por estado" subtitle="Cola de WhatsApp">
+            <ChartCard title="Entregas por estado" subtitle="Correo y WhatsApp · últimas 100">
               <ResponsiveContainer width="100%" height={220}>
-                <BarChart data={analytics.whatsappEstado}>
+                <BarChart data={analytics.notificacionesEstado}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} />
                   <XAxis dataKey="name" />
                   <YAxis allowDecimals={false} width={32} />
                   <Tooltip />
-                  <Bar dataKey="value" fill="#16a34a" radius={[8, 8, 0, 0]} />
+                  <Bar dataKey="value" fill="#0284c7" radius={[8, 8, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </ChartCard>
-            <ChartCard title="Contactabilidad" subtitle="Clientes listos para comunicacion">
+            <ChartCard title="Contactabilidad" subtitle="Clientes listos para comunicación">
               <div className="focus-number">
-                <strong>{analytics.clientesConTelefono}</strong>
-                <span>clientes con telefono registrado</span>
+                <strong>{analytics.clientesConEmail} / {analytics.clientesConTelefono}</strong>
+                <span>con correo / con teléfono registrado</span>
               </div>
             </ChartCard>
           </section>
@@ -1923,7 +1935,7 @@ export function CRMTemplate({ initialTab = "procesos" }) {
           </div>
 
           <div className="panel wide">
-            <h2>Cola de mensajes</h2>
+            <h2>Cola manual de WhatsApp</h2>
             <div className="table">
               <div className="row message-row head">
                 <span>Cliente</span>
@@ -1972,15 +1984,43 @@ export function CRMTemplate({ initialTab = "procesos" }) {
           </div>
 
           <div className="panel wide">
-            <h2>Automatizaciones</h2>
+            <h2>Historial de avisos automáticos</h2>
+            <p className="panel-description">Cada evento se registra una sola vez por canal. Los errores se reintentan sin duplicar mensajes ya entregados.</p>
+            <div className="table">
+              <div className="row message-row head">
+                <span>Cliente</span>
+                <span>Evento</span>
+                <span>Canal</span>
+                <span>Destino</span>
+                <span>Estado</span>
+              </div>
+              {crm.notificacionEnvios.map((item) => (
+                <div className="row message-row" key={item.id} title={item.error || ""}>
+                  <span>{fullName(item.clientes_crm) || "Cliente"}</span>
+                  <span>{item.evento.replaceAll("_", " ")}</span>
+                  <span>{item.canal === "email" ? "Correo" : "WhatsApp"}</span>
+                  <span>{item.destino}</span>
+                  <span className={`status ${item.estado}`}>{labelFor(item.estado)}</span>
+                </div>
+              ))}
+              {!crm.notificacionEnvios.length && (
+                <p className="empty">El historial aparecerá después de la primera ejecución diaria.</p>
+              )}
+            </div>
+          </div>
+
+          <div className="panel wide">
+            <h2>Automatizaciones por canal</h2>
+            <p className="panel-description">La suscripción se avisa dentro de la anticipación configurada. Bienvenida, comprobante y mora se envían una sola vez por evento.</p>
             <div className="automation-grid">
               {crm.automatizaciones.map((item) => (
                 <form key={item.id} onSubmit={submitForm("whatsapp_automatizacion")}>
                   <input name="evento" type="hidden" value={item.evento} readOnly />
+                  <input name="canal" type="hidden" value={item.canal} readOnly />
                   <input name="tipo_mensaje" type="hidden" value={item.tipo_mensaje} readOnly />
                   <strong>{item.evento.replaceAll("_", " ")}</strong>
-                  <span>{whatsappTypes.find((type) => type.id === item.tipo_mensaje)?.label}</span>
-                  <input name="dias_antes" type="number" min="0" defaultValue={item.dias_antes || 0} />
+                  <span>{item.canal === "email" ? "✉ Correo" : "● WhatsApp"} · {whatsappTypes.find((type) => type.id === item.tipo_mensaje)?.label}</span>
+                  <label className="automation-days"><small>Días de anticipación</small><input name="dias_antes" type="number" min="0" max="90" defaultValue={item.dias_antes || 0} disabled={item.evento !== "suscripcion_por_vencer"} /></label>
                   <label className="checkline">
                     <input name="activo" type="checkbox" defaultChecked={item.activo} />
                     Activa
@@ -3272,6 +3312,18 @@ const Container = styled.main`
     color: #16a34a;
   }
 
+  .status.omitido {
+    background: rgba(100, 116, 139, 0.14);
+    color: #64748b;
+  }
+
+  .panel-description {
+    margin: -4px 0 14px;
+    color: ${({ theme }) => theme.colorSubtitle};
+    font-size: 12px;
+    line-height: 1.5;
+  }
+
   .template-grid,
   .automation-grid {
     display: grid;
@@ -3279,6 +3331,8 @@ const Container = styled.main`
     gap: 12px;
 
     form {
+      display: grid;
+      gap: 9px;
       border: 1px solid ${({ theme }) => theme.color2};
       border-radius: 8px;
       padding: 12px;
@@ -3287,6 +3341,21 @@ const Container = styled.main`
 
     strong {
       text-transform: capitalize;
+    }
+  }
+
+  .automation-days {
+    display: grid;
+    gap: 5px;
+
+    small {
+      color: ${({ theme }) => theme.colorSubtitle};
+      font-size: 10px;
+      font-weight: 800;
+    }
+
+    input:disabled {
+      opacity: 0.55;
     }
   }
 

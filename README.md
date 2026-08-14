@@ -4,6 +4,8 @@ ActiveSelfControl es un POS con CRM integrado: mantiene ventas, productos, caja,
 
 El CRM incluye un flujo rápido para seleccionar cliente y plan, crear la suscripción y el cobro en una sola transacción e imprimir la factura en A4. El POS permanece separado de este flujo.
 
+También ejecuta notificaciones transaccionales por correo y WhatsApp para suscripciones próximas a vencer, pagos vencidos, pagos confirmados y altas de clientes. Cada entrega tiene historial, preferencias por cliente, reintentos y una clave idempotente que evita duplicados. La arquitectura y operación están documentadas en [`docs/CRM_NOTIFICATIONS.md`](docs/CRM_NOTIFICATIONS.md).
+
 ## Stack
 
 - React + Vite
@@ -87,6 +89,13 @@ Despues de aplicar, ejecutar advisors de seguridad y rendimiento:
 ```bash
 supabase db advisors --type security
 supabase db advisors --type performance
+```
+
+La función programada de notificaciones se despliega sin verificación JWT del gateway porque valida un secreto propio cifrado en Vault:
+
+```bash
+supabase functions deploy crm-notifications-run --no-verify-jwt
+supabase db push
 ```
 
 ## Docker

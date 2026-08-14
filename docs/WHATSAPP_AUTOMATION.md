@@ -83,6 +83,8 @@ supabase secrets set \
 - `factura_emitida`: enviar referencia y total después de confirmar el pago/venta.
 - `suscripcion_por_vencer`: ejecutar diariamente según `dias_antes` y evitar duplicados por suscripción, fecha y tipo.
 
+Estas reglas ya son ejecutadas por `crm-notifications-run` para WhatsApp y correo. El diseño completo, los criterios para no automatizar campañas comerciales y el historial de entregas están en [`CRM_NOTIFICATIONS.md`](CRM_NOTIFICATIONS.md).
+
 n8n debe actuar como orquestador, no como base de datos paralela. Estados, plantillas, tenant, consentimiento, opt-out e historial permanecen en Supabase.
 
 ## Controles obligatorios

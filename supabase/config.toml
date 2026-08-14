@@ -444,3 +444,9 @@ static_files = [ "./functions/crm-send-receipt/templates/*.njk" ]
 # Specifies static files to be bundled with the function. Supports glob patterns.
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/crm-send-receipt/*.html" ]
+
+[functions.crm-notifications-run]
+enabled = true
+verify_jwt = false
+import_map = "./functions/crm-notifications-run/deno.json"
+entrypoint = "./functions/crm-notifications-run/index.ts"

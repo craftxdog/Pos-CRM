@@ -66,6 +66,7 @@ const initialState = {
   whatsappPlantillas: [],
   whatsappMensajes: [],
   automatizaciones: [],
+  notificacionEnvios: [],
 };
 
 export const useCrmStore = create((set) => ({

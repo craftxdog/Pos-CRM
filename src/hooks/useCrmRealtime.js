@@ -9,6 +9,7 @@ const CRM_TABLES = [
   "crm_pagos",
   "crm_comprobantes_cobro",
   "crm_asistencias",
+  "crm_notificacion_envios",
 ];
 
 const CRM_QUERY_KEYS = [

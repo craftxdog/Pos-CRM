@@ -79,6 +79,7 @@ export async function MostrarCrmData({ id_empresa }) {
     whatsappPlantillas,
     whatsappMensajes,
     automatizaciones,
+    notificacionEnvios,
   ] = await Promise.all([
     supabase
       .from("clientes_crm")
@@ -171,6 +172,12 @@ export async function MostrarCrmData({ id_empresa }) {
       .select("*")
       .eq("id_empresa", id_empresa)
       .order("evento", { ascending: true }),
+    supabase
+      .from("crm_notificacion_envios")
+      .select("*, clientes_crm(nombres, apellidos, email, telefono)")
+      .eq("id_empresa", id_empresa)
+      .order("created_at", { ascending: false })
+      .limit(100),
   ]);
 
   [
@@ -192,6 +199,7 @@ export async function MostrarCrmData({ id_empresa }) {
     whatsappPlantillas,
     whatsappMensajes,
     automatizaciones,
+    notificacionEnvios,
   ].forEach((result) => throwIfError(result.error));
 
   return {
@@ -213,6 +221,7 @@ export async function MostrarCrmData({ id_empresa }) {
     whatsappPlantillas: whatsappPlantillas.data || [],
     whatsappMensajes: whatsappMensajes.data || [],
     automatizaciones: automatizaciones.data || [],
+    notificacionEnvios: notificacionEnvios.data || [],
   };
 }
 

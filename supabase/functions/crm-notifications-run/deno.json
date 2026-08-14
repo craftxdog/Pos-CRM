@@ -1,0 +1,7 @@
+{
+  "imports": {
+    "@supabase/functions-js": "jsr:@supabase/functions-js@2.110.8",
+    "@supabase/supabase-js": "npm:@supabase/supabase-js@2.39.7",
+    "nodemailer": "npm:nodemailer@9.0.3"
+  }
+}
