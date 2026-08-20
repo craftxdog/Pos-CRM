@@ -25,6 +25,10 @@ import { ConfirmDialog } from "../../ui/feedback/ConfirmDialog";
 import { CrmPlansTable } from "./CrmPlansTable";
 
 const pageSizes = [5, 10, 20];
+const localIsoDate = () => {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+};
 
 const statusCopy = {
   activa: {
@@ -313,11 +317,11 @@ export function CrmSubscriptionsWorkspace({
   const [status, setStatus] = useState("todos");
   const [planId, setPlanId] = useState("todos");
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(5);
+  const [pageSize, setPageSize] = useState(10);
   const [selectedSubscription, setSelectedSubscription] = useState(null);
   const [newPlanId, setNewPlanId] = useState("");
   const [effectiveDate, setEffectiveDate] = useState(
-    new Date().toISOString().slice(0, 10)
+    localIsoDate()
   );
   const [editedEndDate, setEditedEndDate] = useState("");
   const [renewalSubscription, setRenewalSubscription] = useState(null);
@@ -504,6 +508,9 @@ export function CrmSubscriptionsWorkspace({
           <span>suscripciones con los filtros actuales</span>
         </div>
       </section>
+      <div className="status-legend" aria-label="Estados operativos">
+        {Object.entries(statusCopy).map(([key, value]) => <span key={key} className={`legend-item ${key}`}><i />{value.label}</span>)}
+      </div>
 
       <section className="subscription-grid">
         <aside className="assignment-card">
@@ -540,7 +547,7 @@ export function CrmSubscriptionsWorkspace({
                 <input
                   name="fecha_inicio"
                   type="date"
-                  defaultValue={new Date().toISOString().slice(0, 10)}
+                  defaultValue={localIsoDate()}
                   onChange={updateSubscriptionEnd}
                   required
                 />
@@ -608,7 +615,7 @@ export function CrmSubscriptionsWorkspace({
               <option value="todos">Todos los estados</option>
               <option value="activa">Activas</option>
               <option value="por_vencer">Próximas a vencer</option>
-              <option value="inactiva">Inactivas</option>
+              <option value="inactiva">Inactivas / vencidas</option>
               <option value="morosa">Clientes morosos</option>
             </select>
             <select value={planId} onChange={(event) => setPlanId(event.target.value)}>
@@ -977,6 +984,11 @@ const Container = styled.section`
       font-size: 12px;
     }
   }
+
+  .status-legend { display:flex; flex-wrap:wrap; gap:7px; align-items:center; padding:0 3px; color:${({ theme }) => theme.colorSubtitle}; font-size:11px; }
+  .legend-item { display:inline-flex; align-items:center; gap:6px; padding:6px 9px; border:1px solid ${({ theme }) => theme.color2}; border-radius:999px; background:${({ theme }) => theme.bgcards}; }
+  .legend-item i { width:7px; height:7px; border-radius:50%; background:#22c55e; }
+  .legend-item.por_vencer i { background:#f59e0b; } .legend-item.morosa i { background:#ef4444; } .legend-item.inactiva i { background:#94a3b8; }
 
   .subscription-grid {
     min-width: 0;

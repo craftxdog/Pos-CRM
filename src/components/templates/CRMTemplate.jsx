@@ -213,6 +213,20 @@ function labelFor(value) {
   return statusLabels[value] || String(value || "Sin dato");
 }
 
+function TablePagination({ page, total, onPage, label = "registros" }) {
+  const totalPages = Math.max(1, Math.ceil(total / 10));
+  if (!total) return null;
+  return (
+    <div className="table-pagination">
+      <span>Página {page} de {totalPages} · {total} {label}</span>
+      <div>
+        <button type="button" onClick={() => onPage(Math.max(1, page - 1))} disabled={page === 1}>Anterior</button>
+        <button type="button" onClick={() => onPage(Math.min(totalPages, page + 1))} disabled={page === totalPages}>Siguiente</button>
+      </div>
+    </div>
+  );
+}
+
 function invitationState(item) {
   if (item.estado === "aceptada") return { key: "aceptada", label: "Aceptada" };
   if (item.estado === "cancelada") return { key: "cancelada", label: "Cancelada" };
@@ -340,6 +354,11 @@ export function CRMTemplate({ initialTab = "procesos" }) {
   const [notificationChannel, setNotificationChannel] = useState("todos");
   const [notificationStatus, setNotificationStatus] = useState("todos");
   const [notificationEvent, setNotificationEvent] = useState("todos");
+  const [notificationPage, setNotificationPage] = useState(1);
+  const [whatsappSearch, setWhatsappSearch] = useState("");
+  const [whatsappStatus, setWhatsappStatus] = useState("todos");
+  const [whatsappType, setWhatsappType] = useState("todos");
+  const [whatsappPage, setWhatsappPage] = useState(1);
   const queryClient = useQueryClient();
   const { dataempresa } = useEmpresaStore();
   const { datausuarios } = useUsuariosStore();
@@ -942,6 +961,30 @@ export function CRMTemplate({ initialTab = "procesos" }) {
         && (notificationEvent === "todos" || item.evento === notificationEvent);
     });
   }, [crm.notificacionEnvios, notificationChannel, notificationEvent, notificationSearch, notificationStatus]);
+
+  const paginatedNotifications = useMemo(() => {
+    const start = (notificationPage - 1) * 10;
+    return filteredNotifications.slice(start, start + 10);
+  }, [filteredNotifications, notificationPage]);
+
+  const filteredWhatsapp = useMemo(() => {
+    const term = whatsappSearch.trim().toLowerCase();
+    return crm.whatsappMensajes.filter((item) => {
+      const haystack = [fullName(item.clientes_crm), item.destino, item.tipo, item.estado]
+        .filter(Boolean).join(" ").toLowerCase();
+      return (!term || haystack.includes(term))
+        && (whatsappStatus === "todos" || item.estado === whatsappStatus)
+        && (whatsappType === "todos" || item.tipo === whatsappType);
+    });
+  }, [crm.whatsappMensajes, whatsappSearch, whatsappStatus, whatsappType]);
+
+  const paginatedWhatsapp = useMemo(() => {
+    const start = (whatsappPage - 1) * 10;
+    return filteredWhatsapp.slice(start, start + 10);
+  }, [filteredWhatsapp, whatsappPage]);
+
+  useEffect(() => setNotificationPage(1), [notificationChannel, notificationEvent, notificationSearch, notificationStatus]);
+  useEffect(() => setWhatsappPage(1), [whatsappSearch, whatsappStatus, whatsappType]);
 
   const filteredClients = useMemo(() => {
     const value = search.trim().toLowerCase();
@@ -1955,6 +1998,12 @@ export function CRMTemplate({ initialTab = "procesos" }) {
 
           <div className="panel wide">
             <h2>Cola manual de WhatsApp</h2>
+            <div className="notification-filters" role="group" aria-label="Filtros de la cola de WhatsApp">
+              <label className="notification-search"><FiSearch /><input value={whatsappSearch} onChange={(event) => setWhatsappSearch(event.target.value)} placeholder="Buscar cliente o teléfono" /></label>
+              <select value={whatsappType} onChange={(event) => setWhatsappType(event.target.value)}><option value="todos">Todos los tipos</option>{whatsappTypes.map((type) => <option key={type.id} value={type.id}>{type.label}</option>)}</select>
+              <select value={whatsappStatus} onChange={(event) => setWhatsappStatus(event.target.value)}><option value="todos">Todos los estados</option><option value="borrador">Borradores</option><option value="pendiente">Pendientes</option><option value="enviado">Enviados</option><option value="error">Con error</option></select>
+            </div>
+            <p className="filter-summary">Mostrando {paginatedWhatsapp.length} de {filteredWhatsapp.length} mensajes · 10 por página</p>
             <div className="table">
               <div className="row message-row head">
                 <span>Cliente</span>
@@ -1963,7 +2012,7 @@ export function CRMTemplate({ initialTab = "procesos" }) {
                 <span>Estado</span>
                 <span>Accion</span>
               </div>
-              {crm.whatsappMensajes.map((item) => (
+              {paginatedWhatsapp.map((item) => (
                 <div className="row message-row" key={item.id}>
                   <span>{fullName(item.clientes_crm) || "Cliente"}</span>
                   <span>{whatsappTypes.find((type) => type.id === item.tipo)?.label || item.tipo}</span>
@@ -1996,10 +2045,11 @@ export function CRMTemplate({ initialTab = "procesos" }) {
                   </span>
                 </div>
               ))}
-              {!crm.whatsappMensajes.length && (
-                <p className="empty">Todavia no hay mensajes en cola.</p>
+              {!filteredWhatsapp.length && (
+                <p className="empty">{crm.whatsappMensajes.length ? "No hay mensajes con estos filtros." : "Todavia no hay mensajes en cola."}</p>
               )}
             </div>
+            <TablePagination page={whatsappPage} total={filteredWhatsapp.length} onPage={setWhatsappPage} label="mensajes" />
           </div>
 
           <div className="panel wide">
@@ -2011,7 +2061,7 @@ export function CRMTemplate({ initialTab = "procesos" }) {
               <select value={notificationStatus} onChange={(event) => setNotificationStatus(event.target.value)}><option value="todos">Todos los estados</option><option value="pendiente">Pendientes</option><option value="enviado">Enviados</option><option value="error">Con error</option><option value="omitido">Omitidos</option></select>
               <select value={notificationEvent} onChange={(event) => setNotificationEvent(event.target.value)}><option value="todos">Todos los eventos</option>{[...new Set(crm.notificacionEnvios.map((item) => item.evento).filter(Boolean))].map((event) => <option key={event} value={event}>{event.replaceAll("_", " ")}</option>)}</select>
             </div>
-            <p className="filter-summary">Mostrando {filteredNotifications.length} de {crm.notificacionEnvios.length} avisos</p>
+            <p className="filter-summary">Mostrando {paginatedNotifications.length} de {filteredNotifications.length} avisos · 10 por página</p>
             <div className="table">
               <div className="row message-row head">
                 <span>Cliente</span>
@@ -2020,7 +2070,7 @@ export function CRMTemplate({ initialTab = "procesos" }) {
                 <span>Destino</span>
                 <span>Estado</span>
               </div>
-              {filteredNotifications.map((item) => (
+              {paginatedNotifications.map((item) => (
                 <div className="row message-row" key={item.id} title={item.error || ""}>
                   <span>{fullName(item.clientes_crm) || "Cliente"}</span>
                   <span>{item.evento.replaceAll("_", " ")}</span>
@@ -2033,6 +2083,7 @@ export function CRMTemplate({ initialTab = "procesos" }) {
                 <p className="empty">{crm.notificacionEnvios.length ? "No hay avisos con estos filtros." : "El historial aparecerá después de la primera ejecución diaria."}</p>
               )}
             </div>
+            <TablePagination page={notificationPage} total={filteredNotifications.length} onPage={setNotificationPage} label="avisos" />
           </div>
 
           <div className="panel wide">
@@ -3386,6 +3437,19 @@ const Container = styled.main`
     margin: 0 0 10px;
     color: ${({ theme }) => theme.colorSubtitle};
     font-size: 11px;
+  }
+
+  .table-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 10px;
+    color: ${({ theme }) => theme.colorSubtitle};
+    font-size: 11px;
+
+    > div { display: flex; gap: 7px; }
+    button { padding: 7px 10px; }
   }
 
   .template-grid,

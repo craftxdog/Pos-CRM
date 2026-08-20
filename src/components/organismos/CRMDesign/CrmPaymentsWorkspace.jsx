@@ -39,6 +39,15 @@ const methods = [
 ];
 
 const todayMonth = () => new Date().toISOString().slice(0, 7);
+const shiftMonth = (value, offset) => {
+  const [year, month] = String(value || todayMonth()).split("-").map(Number);
+  const date = new Date(year, (month || 1) - 1 + offset, 1);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+};
+const monthLabel = (value, locale = "es-NI") => {
+  const [year, month] = String(value || todayMonth()).split("-").map(Number);
+  return new Intl.DateTimeFormat(locale, { month: "long", year: "numeric" }).format(new Date(year, (month || 1) - 1, 1));
+};
 const nameOf = (item) =>
   [item?.nombres, item?.apellidos].filter(Boolean).join(" ") || "Cliente";
 const normalize = (value) =>
@@ -1044,14 +1053,12 @@ export function CrmPaymentsWorkspace({
             <p>Resumen contable de los pagos cobrados.</p>
           </div>
           <div className="report-actions">
-            <label>
-              Mes
-              <input
-                type="month"
-                value={month}
-                onChange={(event) => setMonth(event.target.value)}
-              />
-            </label>
+            <div className="month-filter" role="group" aria-label="Seleccionar mes del reporte">
+              <button type="button" className="month-nav" onClick={() => setMonth((value) => shiftMonth(value, -1))} aria-label="Mes anterior"><FiChevronLeft /></button>
+              <label>Periodo<input type="month" value={month} onChange={(event) => setMonth(event.target.value)} /></label>
+              <button type="button" className="month-nav" onClick={() => setMonth((value) => shiftMonth(value, 1))} aria-label="Mes siguiente"><FiChevronRight /></button>
+              <span className="month-label">{monthLabel(month, dataempresa?.iso)}</span>
+            </div>
             <label>
               Método
               <select value={monthlyMethod} onChange={(event) => setMonthlyMethod(event.target.value)}>
@@ -1737,7 +1744,12 @@ const Container = styled.section`
     display: flex;
     gap: 8px;
     align-items: end;
+    flex-wrap: wrap;
   }
+  .month-filter { display:flex; align-items:end; gap:6px; }
+  .month-filter label { display:grid!important; gap:4px!important; font-size:11px; font-weight:800; color:${({ theme }) => theme.colorSubtitle}; }
+  .month-filter .month-label { align-self:center; min-width:105px; color:${({ theme }) => theme.colorSubtitle}; font-size:11px; text-transform:capitalize; }
+  .month-nav { width:32px; height:32px; padding:0!important; border:1px solid ${({ theme }) => theme.color2}; border-radius:8px; background:${({ theme }) => theme.bgtotal}; color:${({ theme }) => theme.text}; }
   .report header label {
     display: flex;
     align-items: center;

@@ -24,3 +24,10 @@ Fecha: 20 de agosto de 2026
 - La entrega real por WhatsApp requiere configurar `WHATSAPP_ACCESS_TOKEN` y `WHATSAPP_GRAPH_API_VERSION` (o el webhook N8N correspondiente) en los secretos de producción. Sin esas credenciales, los avisos quedan registrados como error de configuración, no como fallos silenciosos.
 - La entrega de correo requiere que el cliente tenga un correo válido y que SMTP esté habilitado; los clientes sin correo se omiten con motivo registrado.
 - La revisión visual autenticada del tenant debe hacerse con una cuenta operativa; la página pública de producción responde correctamente, pero el acceso al CRM está protegido por autenticación.
+
+## Segunda ronda de mejoras
+
+- Cola manual de WhatsApp e historial automático: paginación fija de 10, búsqueda y filtros por tipo, canal, estado y evento; el contador se reinicia correctamente al cambiar filtros.
+- Suscripciones: página inicial de 10 registros, leyenda visual de estados, filtro explícito para inactivas/vencidas y fecha inicial basada en la zona local para evitar desfases nocturnos.
+- Entradas mensuales: navegación de mes anterior/siguiente, selector de método y etiqueta legible del período; el reporte conserva la selección al cambiar de mes.
+- Se repitieron pruebas automatizadas, lint y build después de estos cambios: 40 pruebas aprobadas y compilación exitosa.
