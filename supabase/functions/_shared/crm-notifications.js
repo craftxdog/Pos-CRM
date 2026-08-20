@@ -99,7 +99,7 @@ function emailHtml({ companyName, customerName, title, body, accent, replyTo }) 
     .filter(Boolean)
     .map((paragraph) => `<p style="margin:0 0 14px;line-height:1.65;color:#334155">${escapeHtml(paragraph)}</p>`)
     .join("");
-  return `<!doctype html><html lang="es"><body style="margin:0;background:#f1f5f9;font-family:Arial,sans-serif;color:#0f172a"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="padding:30px 14px"><tr><td align="center"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:620px;background:#fff;border-radius:18px;overflow:hidden;border:1px solid #e2e8f0"><tr><td style="height:8px;background:${accent}"></td></tr><tr><td style="padding:32px"><p style="margin:0 0 8px;color:#64748b;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em">${escapeHtml(companyName)}</p><h1 style="margin:0 0 22px;font-size:27px;line-height:1.2">${escapeHtml(title)}</h1><p style="margin:0 0 14px;line-height:1.65;color:#334155">Hola ${escapeHtml(customerName)},</p>${paragraphs}<p style="margin:26px 0 0;color:#64748b;font-size:12px;line-height:1.5">Este es un aviso transaccional relacionado con tu cuenta.${replyTo ? ` Puedes responder a ${escapeHtml(replyTo)} si necesitas ayuda.` : ""}</p></td></tr></table></td></tr></table></body></html>`;
+  return `<!doctype html><html lang="es"><body style="margin:0;background:#f1f5f9;font-family:Arial,sans-serif;color:#0f172a"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="padding:30px 14px"><tr><td align="center"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:620px;background:#fff;border-radius:18px;overflow:hidden;border:1px solid #e2e8f0"><tr><td style="height:8px;background:${accent}"></td></tr><tr><td style="padding:32px"><p style="margin:0 0 8px;color:#64748b;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em">${escapeHtml(companyName)}</p><h1 style="margin:0 0 22px;font-size:27px;line-height:1.2">${escapeHtml(title)}</h1><p style="margin:0 0 14px;line-height:1.65;color:#334155">Hola ${escapeHtml(customerName)}, te saluda ${escapeHtml(companyName)}.</p>${paragraphs}<p style="margin:26px 0 0;color:#64748b;font-size:12px;line-height:1.5">Este es un aviso transaccional relacionado con tu cuenta.${replyTo ? ` Puedes responder a ${escapeHtml(replyTo)} si necesitas ayuda.` : ""}</p></td></tr></table></td></tr></table></body></html>`;
 }
 
 export function buildNotificationContent({
@@ -156,11 +156,12 @@ export function buildNotificationContent({
     accent = "#0284c7";
   }
 
+  const greeting = `Hola ${customerName}, te saluda ${companyName}.`;
   return {
     subject,
-    text: `Hola ${customerName},\n\n${body}\n\n${companyName}`,
+    text: `${greeting}\n\n${body}\n\nQuedamos atentos para ayudarte.`,
     html: emailHtml({ companyName, customerName, title, body, accent, replyTo }),
-    whatsapp: whatsappTemplate ? renderVariables(whatsappTemplate, variables) : `Hola ${customerName}, ${body.replaceAll("\n", " ")}`,
+    whatsapp: `${greeting} ${whatsappTemplate ? renderVariables(whatsappTemplate, variables) : body.replaceAll("\n", " ")}`,
     variables,
   };
 }

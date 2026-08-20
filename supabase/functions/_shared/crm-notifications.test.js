@@ -48,6 +48,8 @@ test("builds an idempotent subscription reminder on both channels", () => {
   assert.equal(notificationDedupeKey("suscripcion_por_vencer", candidate), "suscripcion_por_vencer:19:2026-08-15");
   assert.match(content.subject, /Agoge/);
   assert.match(content.text, /Premium/);
+  assert.match(content.text, /te saluda Agoge/);
+  assert.match(content.whatsapp, /te saluda Agoge/);
   assert.match(content.whatsapp, /faltan 1 día/);
   assert.match(content.html, /Tu suscripción está próxima a vencer/);
 });

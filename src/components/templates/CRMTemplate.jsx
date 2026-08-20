@@ -336,6 +336,10 @@ export function CRMTemplate({ initialTab = "procesos" }) {
   const [dashboardPeriod, setDashboardPeriod] = useState("month");
   const [debtFilter, setDebtFilter] = useState("todos");
   const [debtSearch, setDebtSearch] = useState("");
+  const [notificationSearch, setNotificationSearch] = useState("");
+  const [notificationChannel, setNotificationChannel] = useState("todos");
+  const [notificationStatus, setNotificationStatus] = useState("todos");
+  const [notificationEvent, setNotificationEvent] = useState("todos");
   const queryClient = useQueryClient();
   const { dataempresa } = useEmpresaStore();
   const { datausuarios } = useUsuariosStore();
@@ -923,6 +927,21 @@ export function CRMTemplate({ initialTab = "procesos" }) {
     operational.clientesPorEstado,
     operational.pagosVencidos,
   ]);
+
+  const filteredNotifications = useMemo(() => {
+    const term = notificationSearch.trim().toLowerCase();
+    return crm.notificacionEnvios.filter((item) => {
+      const matchesTerm = !term || [fullName(item.clientes_crm), item.destino, item.evento, item.error]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase()
+        .includes(term);
+      return matchesTerm
+        && (notificationChannel === "todos" || item.canal === notificationChannel)
+        && (notificationStatus === "todos" || item.estado === notificationStatus)
+        && (notificationEvent === "todos" || item.evento === notificationEvent);
+    });
+  }, [crm.notificacionEnvios, notificationChannel, notificationEvent, notificationSearch, notificationStatus]);
 
   const filteredClients = useMemo(() => {
     const value = search.trim().toLowerCase();
@@ -1986,6 +2005,13 @@ export function CRMTemplate({ initialTab = "procesos" }) {
           <div className="panel wide">
             <h2>Historial de avisos automáticos</h2>
             <p className="panel-description">Cada evento se registra una sola vez por canal. Los errores se reintentan sin duplicar mensajes ya entregados.</p>
+            <div className="notification-filters" role="group" aria-label="Filtros del historial de avisos">
+              <label className="notification-search"><FiSearch /><input value={notificationSearch} onChange={(event) => setNotificationSearch(event.target.value)} placeholder="Buscar cliente, destino o error" /></label>
+              <select value={notificationChannel} onChange={(event) => setNotificationChannel(event.target.value)}><option value="todos">Todos los canales</option><option value="email">Correo</option><option value="whatsapp">WhatsApp</option></select>
+              <select value={notificationStatus} onChange={(event) => setNotificationStatus(event.target.value)}><option value="todos">Todos los estados</option><option value="pendiente">Pendientes</option><option value="enviado">Enviados</option><option value="error">Con error</option><option value="omitido">Omitidos</option></select>
+              <select value={notificationEvent} onChange={(event) => setNotificationEvent(event.target.value)}><option value="todos">Todos los eventos</option>{[...new Set(crm.notificacionEnvios.map((item) => item.evento).filter(Boolean))].map((event) => <option key={event} value={event}>{event.replaceAll("_", " ")}</option>)}</select>
+            </div>
+            <p className="filter-summary">Mostrando {filteredNotifications.length} de {crm.notificacionEnvios.length} avisos</p>
             <div className="table">
               <div className="row message-row head">
                 <span>Cliente</span>
@@ -1994,7 +2020,7 @@ export function CRMTemplate({ initialTab = "procesos" }) {
                 <span>Destino</span>
                 <span>Estado</span>
               </div>
-              {crm.notificacionEnvios.map((item) => (
+              {filteredNotifications.map((item) => (
                 <div className="row message-row" key={item.id} title={item.error || ""}>
                   <span>{fullName(item.clientes_crm) || "Cliente"}</span>
                   <span>{item.evento.replaceAll("_", " ")}</span>
@@ -2003,8 +2029,8 @@ export function CRMTemplate({ initialTab = "procesos" }) {
                   <span className={`status ${item.estado}`}>{labelFor(item.estado)}</span>
                 </div>
               ))}
-              {!crm.notificacionEnvios.length && (
-                <p className="empty">El historial aparecerá después de la primera ejecución diaria.</p>
+              {!filteredNotifications.length && (
+                <p className="empty">{crm.notificacionEnvios.length ? "No hay avisos con estos filtros." : "El historial aparecerá después de la primera ejecución diaria."}</p>
               )}
             </div>
           </div>
@@ -3324,6 +3350,44 @@ const Container = styled.main`
     line-height: 1.5;
   }
 
+  .notification-filters {
+    display: grid;
+    grid-template-columns: minmax(220px, 1.6fr) repeat(3, minmax(145px, 1fr));
+    gap: 9px;
+    margin-bottom: 7px;
+  }
+
+  .notification-filters select,
+  .notification-search {
+    min-width: 0;
+    border: 1px solid ${({ theme }) => theme.color2};
+    border-radius: 9px;
+    background: ${({ theme }) => theme.bgtotal};
+    color: ${({ theme }) => theme.text};
+    padding: 10px;
+  }
+
+  .notification-search {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .notification-search input {
+    width: 100%;
+    min-width: 0;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    color: inherit;
+  }
+
+  .filter-summary {
+    margin: 0 0 10px;
+    color: ${({ theme }) => theme.colorSubtitle};
+    font-size: 11px;
+  }
+
   .template-grid,
   .automation-grid {
     display: grid;
@@ -3927,7 +3991,8 @@ const Container = styled.main`
     .permission-insights,
     .two-cols,
     .template-grid,
-    .automation-grid {
+    .automation-grid,
+    .notification-filters {
       grid-template-columns: 1fr;
     }
 

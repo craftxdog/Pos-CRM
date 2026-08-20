@@ -297,6 +297,7 @@ export function CrmPaymentsWorkspace({
   const [directAmount, setDirectAmount] = useState("");
   const [directReceived, setDirectReceived] = useState("");
   const [month, setMonth] = useState(todayMonth());
+  const [monthlyMethod, setMonthlyMethod] = useState("todos");
   const [historySearch, setHistorySearch] = useState("");
   const [historyMethod, setHistoryMethod] = useState("todos");
   const [historyPage, setHistoryPage] = useState(1);
@@ -430,6 +431,12 @@ export function CrmPaymentsWorkspace({
   });
 
   const monthlyRows = reportQuery.data || [];
+  const filteredMonthlyRows = useMemo(
+    () => monthlyMethod === "todos"
+      ? monthlyRows
+      : monthlyRows.filter((item) => normalize(item.metodo_pago) === normalize(monthlyMethod)),
+    [monthlyMethod, monthlyRows]
+  );
   const history = historyQuery.data || {
     data: [],
     pagination: {
@@ -450,11 +457,11 @@ export function CrmPaymentsWorkspace({
       currentPhone: currentClient?.telefono || item.cliente_telefono || "",
     };
   });
-  const monthlyTotal = monthlyRows.reduce(
+  const monthlyTotal = filteredMonthlyRows.reduce(
     (sum, item) => sum + Number(item.total_ingresos || 0),
     0
   );
-  const monthlyPayments = monthlyRows.reduce(
+  const monthlyPayments = filteredMonthlyRows.reduce(
     (sum, item) => sum + Number(item.cantidad_pagos || 0),
     0
   );
@@ -1045,6 +1052,13 @@ export function CrmPaymentsWorkspace({
                 onChange={(event) => setMonth(event.target.value)}
               />
             </label>
+            <label>
+              Método
+              <select value={monthlyMethod} onChange={(event) => setMonthlyMethod(event.target.value)}>
+                <option value="todos">Todos</option>
+                {methods.map((method) => <option key={method.value} value={method.value}>{method.label}</option>)}
+              </select>
+            </label>
             <button
               type="button"
               className="secondary"
@@ -1067,7 +1081,7 @@ export function CrmPaymentsWorkspace({
               <span>Recibido</span>
               <span>Vuelto</span>
             </div>
-            {monthlyRows.map((item) => (
+            {filteredMonthlyRows.map((item) => (
               <div className="report-row" key={item.metodo_pago}>
                 <span>{item.metodo_pago}</span>
                 <span>{item.cantidad_pagos}</span>
@@ -1094,9 +1108,9 @@ export function CrmPaymentsWorkspace({
                 </span>
               </div>
             ))}
-            {!monthlyRows.length ? (
+            {!filteredMonthlyRows.length ? (
               <p className="empty">
-                <FiAlertCircle /> No hay entradas para este mes.
+                <FiAlertCircle /> No hay entradas para este mes y método.
               </p>
             ) : null}
           </div>
@@ -1731,6 +1745,14 @@ const Container = styled.section`
   }
   .report header input {
     padding: 7px;
+  }
+  .report header select {
+    min-width: 130px;
+    padding: 7px 9px;
+    border: 1px solid ${({ theme }) => theme.color2};
+    border-radius: 8px;
+    background: ${({ theme }) => theme.bgtotal};
+    color: ${({ theme }) => theme.text};
   }
   .report-table,
   .history-table {
