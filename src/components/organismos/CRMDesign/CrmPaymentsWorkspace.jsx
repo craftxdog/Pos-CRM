@@ -305,6 +305,7 @@ export function CrmPaymentsWorkspace({
   const [debtReference, setDebtReference] = useState("");
   const [directAmount, setDirectAmount] = useState("");
   const [directReceived, setDirectReceived] = useState("");
+  const [directDueDate, setDirectDueDate] = useState("");
   const [month, setMonth] = useState(todayMonth());
   const [monthlyMethod, setMonthlyMethod] = useState("todos");
   const [historySearch, setHistorySearch] = useState("");
@@ -400,9 +401,10 @@ export function CrmPaymentsWorkspace({
     setSubscriptionId("");
     setInstallmentAmount("");
     setInvoiceReceived("");
-    setDirectSubscriptionId(target.subscriptionId);
-    setDirectAmount(target.amount > 0 ? String(target.amount) : "");
-    setDirectReceived(target.amount > 0 ? String(target.amount) : "");
+      setDirectSubscriptionId(target.subscriptionId);
+      setDirectAmount(String(target.amount || 0));
+      setDirectReceived(String(target.amount || 0));
+      setDirectDueDate("");
   }, [
     availableSubscriptions,
     crm.clientes,
@@ -544,6 +546,7 @@ export function CrmPaymentsWorkspace({
       setDirectAmount("");
       setDirectReceived("");
       setDirectSubscriptionId("");
+      setDirectDueDate("");
       onClientHandled?.();
     },
     onError: (error) => toast.error(error.message),
@@ -601,6 +604,18 @@ export function CrmPaymentsWorkspace({
     const nextAmount = item ? String(account.balance) : "";
     setInstallmentAmount(nextAmount);
     setInvoiceReceived(nextAmount);
+  };
+
+  const selectDirectClient = (nextId, item) => {
+    setDirectClientId(nextId);
+    const client = item || crm.clientes.find((candidate) => String(candidate.id) === String(nextId));
+    const target = resolveClientChargeTarget({ client, subscriptions: availableSubscriptions, payments: crm.pagos });
+    const linkedSubscription = availableSubscriptions.find((subscription) => String(subscription.id) === String(target.subscriptionId));
+    const nextAmount = String(target.amount || 0);
+    setDirectSubscriptionId(target.subscriptionId || "");
+    setDirectAmount(nextAmount);
+    setDirectReceived(directMethod === "efectivo" ? nextAmount : "");
+    setDirectDueDate(linkedSubscription?.fecha_fin || "");
   };
 
   return (
@@ -845,7 +860,12 @@ export function CrmPaymentsWorkspace({
               Método
               <select
                 value={invoiceMethod}
-                onChange={(event) => setInvoiceMethod(event.target.value)}
+                onChange={(event) => {
+                  const nextMethod = event.target.value;
+                  setInvoiceMethod(nextMethod);
+                  if (nextMethod === "efectivo" && installmentAmount) setInvoiceReceived(installmentAmount);
+                  if (nextMethod !== "efectivo") setInvoiceReceived("");
+                }}
               >
                 {methods.map((method) => (
                   <option key={method.value} value={method.value}>
@@ -952,10 +972,7 @@ export function CrmPaymentsWorkspace({
               <SearchPicker
                 items={crm.clientes}
                 value={directClientId}
-                onChange={(nextId) => {
-                  setDirectClientId(nextId);
-                  setDirectSubscriptionId("");
-                }}
+                onChange={selectDirectClient}
                 itemLabel={nameOf}
                 itemDetail={(item) =>
                   [item.email, item.telefono].filter(Boolean).join(" · ") ||
@@ -971,9 +988,12 @@ export function CrmPaymentsWorkspace({
               Suscripción (referencia)
               <select
                 value={directSubscriptionId}
-                onChange={(event) =>
-                  setDirectSubscriptionId(event.target.value)
-                }
+                onChange={(event) => {
+                  const nextId = event.target.value;
+                  setDirectSubscriptionId(nextId);
+                  const linked = directSubscriptions.find((item) => String(item.id) === String(nextId));
+                  if (linked?.fecha_fin) setDirectDueDate(linked.fecha_fin);
+                }}
               >
                 <option value="">Sin suscripción</option>
                 {directSubscriptions.map((item) => (
@@ -992,7 +1012,7 @@ export function CrmPaymentsWorkspace({
                 value={directAmount}
                 onChange={(event) => {
                   setDirectAmount(event.target.value);
-                  if (directMethod === "efectivo" && !directReceived) {
+                  if (directMethod === "efectivo") {
                     setDirectReceived(event.target.value);
                   }
                 }}
@@ -1003,7 +1023,12 @@ export function CrmPaymentsWorkspace({
               Método
               <select
                 value={directMethod}
-                onChange={(event) => setDirectMethod(event.target.value)}
+                onChange={(event) => {
+                  const nextMethod = event.target.value;
+                  setDirectMethod(nextMethod);
+                  if (nextMethod === "efectivo" && directAmount) setDirectReceived(directAmount);
+                  if (nextMethod !== "efectivo") setDirectReceived("");
+                }}
               >
                 {methods.map((method) => (
                   <option key={method.value} value={method.value}>
@@ -1022,7 +1047,7 @@ export function CrmPaymentsWorkspace({
             />
             <label>
               Vencimiento
-              <input name="fecha_vencimiento" type="date" />
+              <input name="fecha_vencimiento" type="date" value={directDueDate} onChange={(event) => setDirectDueDate(event.target.value)} />
             </label>
             <label className="wide">
               Notas
