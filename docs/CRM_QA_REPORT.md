@@ -31,3 +31,10 @@ Fecha: 20 de agosto de 2026
 - Suscripciones: página inicial de 10 registros, leyenda visual de estados, filtro explícito para inactivas/vencidas y fecha inicial basada en la zona local para evitar desfases nocturnos.
 - Entradas mensuales: navegación de mes anterior/siguiente, selector de método y etiqueta legible del período; el reporte conserva la selección al cambiar de mes.
 - Se repitieron pruebas automatizadas, lint y build después de estos cambios: 40 pruebas aprobadas y compilación exitosa.
+
+## Corrección de precarga de cobros
+
+- Al seleccionar un cliente desde “Cobro directo”, ahora se reutiliza la resolución de cuenta para cargar la suscripción relacionada, el saldo aplicable, el efectivo recibido y la fecha de vencimiento.
+- Al cambiar el método de pago, el efectivo se ajusta automáticamente: se precarga para efectivo y se limpia cuando el método no requiere caja.
+- Cambiar el monto mantiene sincronizado el valor recibido mientras se captura el cobro.
+- La selección manual de una suscripción actualiza también la fecha de vencimiento del cobro.
