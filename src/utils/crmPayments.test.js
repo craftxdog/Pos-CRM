@@ -38,6 +38,19 @@ test("calcula únicamente los abonos del período vigente", () => {
   assert.deepEqual(account, { total: 1100, paid: 730, balance: 370 });
 });
 
+test("usa el precio del plan cuando el precio pactado legado es cero", () => {
+  const account = calculateSubscriptionAccount(
+    {
+      ...subscription,
+      precio_pactado: "0.00",
+      crm_planes: { precio: "1100.00" },
+    },
+    []
+  );
+
+  assert.deepEqual(account, { total: 1100, paid: 0, balance: 1100 });
+});
+
 test("Cobrar abre automáticamente el saldo editable de la suscripción", () => {
   const target = resolveClientChargeTarget({
     client: { id: 11, id_suscripcion: 14, saldo_plan: 370 },

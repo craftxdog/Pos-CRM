@@ -1,7 +1,7 @@
 export function calculateSubscriptionAccount(subscription, payments = []) {
-  const total = Number(
-    subscription?.precio_pactado || subscription?.crm_planes?.precio || 0
-  );
+  const agreedPrice = Number(subscription?.precio_pactado || 0);
+  const planPrice = Number(subscription?.crm_planes?.precio || 0);
+  const total = agreedPrice > 0 ? agreedPrice : Math.max(0, planPrice);
 
   if (!subscription) {
     return { total: 0, paid: 0, balance: 0 };
