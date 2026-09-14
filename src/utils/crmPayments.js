@@ -76,6 +76,8 @@ export function resolveClientChargeTarget({
     mode: "direct",
     clientId: String(client.id),
     subscriptionId: subscription ? String(subscription.id) : "",
-    amount: Math.max(0, Number(client.saldo_vencido || 0)),
+    amount: subscription
+      ? account.total
+      : Math.max(0, Number(client.saldo_vencido || 0)),
   };
 }

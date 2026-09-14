@@ -401,10 +401,14 @@ export function CrmPaymentsWorkspace({
     setSubscriptionId("");
     setInstallmentAmount("");
     setInvoiceReceived("");
-      setDirectSubscriptionId(target.subscriptionId);
-      setDirectAmount(String(target.amount || 0));
-      setDirectReceived(String(target.amount || 0));
-      setDirectDueDate("");
+    setDirectSubscriptionId(target.subscriptionId);
+    setDirectAmount(String(target.amount || 0));
+    setDirectReceived(String(target.amount || 0));
+    setDirectDueDate(
+      availableSubscriptions.find(
+        (subscription) => String(subscription.id) === String(target.subscriptionId)
+      )?.fecha_fin || ""
+    );
   }, [
     availableSubscriptions,
     crm.clientes,

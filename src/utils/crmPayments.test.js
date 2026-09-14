@@ -82,3 +82,27 @@ test("un cliente sin saldo de plan conserva el cobro directo", () => {
     amount: 125,
   });
 });
+
+test("el cobro directo de un período ya pagado propone el precio pactado", () => {
+  const target = resolveClientChargeTarget({
+    client: { id: 11, id_suscripcion: 14, saldo_vencido: 0 },
+    subscriptions: [subscription],
+    payments: [
+      {
+        id_suscripcion: 14,
+        estado: "pagado",
+        aplica_a_saldo_plan: true,
+        periodo_inicio: "2026-07-29",
+        periodo_fin: "2026-08-27",
+        monto: 1100,
+      },
+    ],
+  });
+
+  assert.deepEqual(target, {
+    mode: "direct",
+    clientId: "11",
+    subscriptionId: "14",
+    amount: 1100,
+  });
+});
